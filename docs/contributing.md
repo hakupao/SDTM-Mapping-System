@@ -11,8 +11,8 @@
 ### 2. 克隆仓库
 
 ```bash
-git clone https://github.com/your-username/SDTM.git
-cd SDTM
+git clone https://github.com/your-username/SDTM-Mapping-System.git
+cd SDTM-Mapping-System
 ```
 
 ### 3. 创建分支
