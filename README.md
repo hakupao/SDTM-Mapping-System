@@ -24,8 +24,8 @@
 1. 克隆或下载此项目到本地
 
    ```bash
-   git clone https://github.com/your-username/SDTM.git
-   cd SDTM
+   git clone https://github.com/hakupao/SDTM-Mapping-System.git
+   cd SDTM-Mapping-System
    ```
 
 2. 安装依赖包：

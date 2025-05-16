@@ -11,8 +11,8 @@
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/your-username/SDTM.git
-cd SDTM
+git clone https://github.com/hakupao/SDTM-Mapping-System.git
+cd SDTM-Mapping-System
 ```
 
 ### 2. 创建虚拟环境 (推荐)
