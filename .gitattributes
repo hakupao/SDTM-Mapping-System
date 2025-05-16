@@ -1,0 +1,33 @@
+# 默认使用LF作为行尾
+* text=auto eol=lf
+
+# Python文件
+*.py text eol=lf diff=python
+*.pyw text eol=lf diff=python
+
+# Markdown和文本文件
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Shell脚本
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Windows特定文件
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# 二进制文件
+*.db binary
+*.xlsx binary
+*.xls binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary 
