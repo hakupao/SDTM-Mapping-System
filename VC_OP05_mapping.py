@@ -64,14 +64,6 @@ def main():
                     
                     # 循环处理的每行
                     for standard_field, sdtm_field_param in definition_param.items():
-                        # if standard_field in ['USUBJID']:
-                        #     continue
-                        # sortkey = sdtm_field_param[COL_SORTKEY]
-                        # if sortkey:
-                        #     sort_key = int(sortkey)
-                        #     if sort_key not in sort_keys:
-                        #         sort_keys[sort_key] = standard_field
-
                         fieldname_list = []
                         updated_column_names = []
                         fieldname = sdtm_field_param[COL_FIELDNAME]
@@ -93,8 +85,7 @@ def main():
                             parameter_list = parameter_str.split(MARK_DOLLAR)
                             parameter = parameter_list[i]
 
-                        # domain_row, continue_flg = doMapping(domain_row, standard_field, opertype, parameter, be_converted_row, updated_column_names, column_names, codeDict, continue_flg)
-                        domain_row, continue_flg = doMapping(domain_row, standard_field, opertype, parameter, be_converted_row, updated_column_names, codeDict, continue_flg)
+                        domain_row, continue_flg = doMapping(domain_row, standard_field, opertype, parameter, be_converted_row, updated_column_names, codeDict, continue_flg, definition_row_num)
                         
                         if sdtm_field_param[COL_NDKEY] and domain_row[standard_field]:
                             null_deletion = True
