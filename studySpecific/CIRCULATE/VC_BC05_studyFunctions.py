@@ -1,27 +1,57 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+该模块包含CIRCULATE研究特定的数据处理函数。
+主要功能包括数据表合并、字段处理和各种数据集的特定处理逻辑。
+"""
+
 from VC_BC03_fetchConfig import *
 from VC_BC04_operateType import *
 import numpy as np
+import pandas
 
 def leftjoin(table1, table2):
+    """
+    执行两个数据表的左连接操作。
     
+    参数:
+        table1 (str): 左表的名称
+        table2 (str): 右表的名称
+        
+    返回:
+        pandas.DataFrame: 左连接后的数据表，所有值转换为字符串类型
+    """
     # 获取格式化后的数据集
     format_dataset = getFormatDataset(table1, table2)
-    # 获取table1的数据集
-    df_left = format_dataset[table1] 
-    # 获取table2的数据集
+    
+    # 获取左右表数据
+    df_left = format_dataset[table1]
     df_right = format_dataset[table2]
     
-    # 将两个数据集进行左连接，并填充缺失值为空字符串
+    # 执行左连接并填充缺失值为空字符串
     merged_df = pandas.merge(df_left, df_right, how='left', on='SUBJID').fillna('')
     
+    # 返回结果，所有列转换为字符串类型
     return merged_df.astype(str)
 
 def tableMerge(*tableList):
     """
-    功能：检测输入的表的列名是否完全一致，如果一致，则上下拼接。
-    处理过程中所有数据都按照字符串处理。
+    将多个数据表垂直拼接（上下拼接）。
+    
+    检查所有输入表的列名是否一致，如果一致则进行拼接。
+    所有数据在处理过程中都会被转换为字符串类型。
+    
+    参数:
+        *tableList: 可变参数，包含所有需要拼接的表名
+        
+    返回:
+        pandas.DataFrame: 拼接后的数据表，所有值转换为字符串类型
+        
+    异常:
+        ValueError: 当输入表的列名不一致时抛出
     """
-    # 格式化数据集
+    # 获取格式化数据集
     format_dataset = getFormatDataset(*tableList)
     merged_info = pandas.DataFrame()
     
@@ -29,7 +59,7 @@ def tableMerge(*tableList):
         # 获取当前表的格式化数据
         file_filter_data = format_dataset[file_name]
         
-        # 如果 merged_info 为空，直接赋值
+        # 如果结果表为空，直接赋值
         if merged_info.empty:
             merged_info = file_filter_data
         else:
@@ -37,498 +67,621 @@ def tableMerge(*tableList):
             if set(merged_info.columns) != set(file_filter_data.columns):
                 raise ValueError(f"表 {file_name} 的列名与其他表不一致，无法拼接。")
             
-            # 上下拼接数据
+            # 垂直拼接数据
             merged_info = pandas.concat([merged_info, file_filter_data], axis=0)
     
-    # 返回拼接后的 DataFrame，所有数据类型转换为字符串
+    # 返回拼接后的数据表，所有列转换为字符串类型
     return merged_info.astype(str)
 
 def make_DMFrame():
     """
-    创建并返回一个格式化的 DataFrame (dmframe)，通过处理和合并多个输入数据源。
+    创建并返回一个格式化的人口统计学数据框(Demographics DataFrame)。
+    
+    该函数通过处理和合并多个输入数据源，构建一个包含患者基本信息、
+    入组信息、生存状态、治疗信息等的综合数据框。
+    
+    返回:
+        pandas.DataFrame: 包含完整人口统计学信息的数据框，所有值转换为字符串类型
     """
-
     # 获取格式化数据集
     format_dataset = getFormatDataset('INEX', 'SS_A_ALL', 'CM_A_CH_PRP', 'PAT', 'TI_A[VER]')
     
-    # 从数据集中提取 DataFrame
-    inex_df = format_dataset['INEX']
-    ss_a_all_df = format_dataset['SS_A_ALL']
-    cm_a_ch_prp_df = format_dataset['CM_A_CH_PRP']
-    pat_df = format_dataset['PAT']
-    ti_a_ver_df = format_dataset['TI_A[VER]']
+    # 从数据集中提取各个数据框
+    inex_df = format_dataset['INEX']  # 入组信息
+    ss_a_all_df = format_dataset['SS_A_ALL']  # 生存状态
+    cm_a_ch_prp_df = format_dataset['CM_A_CH_PRP']  # 治疗信息
+    pat_df = format_dataset['PAT']  # 患者基本信息
+    ti_a_ver_df = format_dataset['TI_A[VER]']  # 版本信息
     
-    # 初始化主 DataFrame，包含患者信息
-    dmframe = pat_df[['SUBJID', 'INVESTIG', 'BRTHDAT', 'SEX', 'PATINT']]
+    # 初始化主数据框，包含患者基本信息
+    dmframe = pat_df[['SUBJID', 'INVESTIG', 'BRTHDAT', 'SEX', 'PATINT', 'Site_Object_SiteName']].copy()
     
-    # 处理 INVESTIG 字段
-    def split_investig(row):
-        investig = row['INVESTIG']
-        if not investig:  # 如果 INVESTIG 为空
-            return '', ''
-        
-        # 使用全角括号分割字符串
-        parts = investig.split('（')
-        if len(parts) == 2:  # 如果有括号
-            doctor = parts[0].strip()
-            hospital = parts[1].replace('）', '').strip()
-            return doctor, hospital
-        return investig, ''  # 如果没有括号，医院名为空
+    # 处理研究者(INVESTIG)数据，去掉括号和括号内的内容
+    dmframe['INVESTIG'] = dmframe['INVESTIG'].str.replace(r'（.*?）', '', regex=True)
     
-    # 应用拆分函数
-    dmframe[['INVESTIG', 'SITEID']] = dmframe.apply(split_investig, axis=1, result_type='expand')
+    # 处理入组(INEX)数据
+    inex_subset = inex_df[['SUBJID', 'RFICDAT', 'REGDAT_A', 'COHORT', 'AGE', 'ICINVNAM', 'YEARS']].copy()
+    dmframe = pandas.merge(dmframe, inex_subset, how='left', on='SUBJID').fillna('')
     
-    
-    # 处理 INEX 数据
-    INEX_df = inex_df[['SUBJID', 'RFICDAT', 'REGDAT_A', 'COHORT', 'AGE', 'ICINVNAM','YEARS']].copy()
-    dmframe = pandas.merge(dmframe, INEX_df, how='left', on='SUBJID').fillna('')
-    
-    # 处理 SS_A_ALL 数据
+    # 处理生存状态(SS_A_ALL)数据
     ss_a_all_df = ss_a_all_df[['SUBJID', 'OUTDAT1', 'OUTDAT2', 'SURVSTAT']].astype(str)
     
-    # 删除SURVSTAT为空的行
+    # 删除生存状态为空的行
     ss_a_all_df = ss_a_all_df[ss_a_all_df['SURVSTAT'] != '']
     
-    
-    # 创建RFENDTC字段
-    ss_a_all_df['RFENDTC'] = ss_a_all_df['OUTDAT1'].where(
+    # 创建结局日期(OUTDAT)字段，优先使用OUTDAT1，若为空则使用OUTDAT2
+    ss_a_all_df['OUTDAT'] = ss_a_all_df['OUTDAT1'].where(
         ss_a_all_df['OUTDAT1'].notna() & (ss_a_all_df['OUTDAT1'] != ""),
         ss_a_all_df['OUTDAT2']
     )
     
-    #创建OUTDAT字段，等于RFENDTC
-    ss_a_all_df['OUTDAT'] = ss_a_all_df['RFENDTC']
+    # 创建排序优先级：死亡记录优先，然后按结局日期降序
+    ss_a_all_df['SURVSTAT_PRIORITY'] = ss_a_all_df['SURVSTAT'].apply(lambda x: 0 if x == 'DEAD' else 1)
     
-    # 将OUTDAT为“”的行替换为NA
-    ss_a_all_df['OUTDAT'] = ss_a_all_df['OUTDAT'].replace('', np.nan)
-    
-    # 按SUBJID顺序，OUTDAT倒序排列数据。如果OUTDAT为""，则排在最前面
+    # 按受试者ID、生存状态优先级、结局日期排序
     ss_a_all_df = ss_a_all_df.sort_values(
-        by=['SUBJID', 'OUTDAT'],
-        ascending=[True, False],
-        na_position='first'  # 将空值排在最前面
+        by=['SUBJID', 'SURVSTAT_PRIORITY', 'OUTDAT'],
+        ascending=[True, True, False]
     )
     
-    # 对每个SUBJID只保留第一条记录，使用drop_duplicates保持行的完整性
+    # 对每个受试者只保留第一条记录
     ss_a_all_df = ss_a_all_df.drop_duplicates(subset=['SUBJID'], keep='first')
+    
+    # 删除临时的优先级字段
+    ss_a_all_df = ss_a_all_df.drop('SURVSTAT_PRIORITY', axis=1)
         
-    # 合并到dmframe
+    # 合并生存状态数据到主数据框
     dmframe = pandas.merge(dmframe, ss_a_all_df, how='left', on='SUBJID').fillna('')
     
-    # 处理 CM_A_CH_PRP 数据（治疗开始日期）
-    RFXSTDTC_df = cm_a_ch_prp_df[['SUBJID', 'CHSPID', 'CMSTDCH']].copy()
-    RFXSTDTC_df = RFXSTDTC_df.drop_duplicates(subset=['SUBJID', 'CHSPID', 'CMSTDCH'], keep='first')
-    RFXSTDTC_df = RFXSTDTC_df[RFXSTDTC_df['CHSPID'] == 'TREATMENT1']
-    RFXSTDTC_df = RFXSTDTC_df[['SUBJID', 'CMSTDCH']].drop_duplicates(subset=['SUBJID'], keep='first')
-    dmframe = pandas.merge(dmframe, RFXSTDTC_df, how='left', on='SUBJID').fillna('')
+    # 处理治疗开始日期数据
+    treatment_start_df = cm_a_ch_prp_df[['SUBJID', 'CHSPID', 'CMSTDCH']].copy()
+    treatment_start_df = treatment_start_df.drop_duplicates(subset=['SUBJID', 'CHSPID', 'CMSTDCH'], keep='first')
+    treatment_start_df = treatment_start_df[treatment_start_df['CHSPID'] == 'TREATMENT1']
+    treatment_start_df = treatment_start_df[['SUBJID', 'CMSTDCH']].drop_duplicates(subset=['SUBJID'], keep='first')
+    dmframe = pandas.merge(dmframe, treatment_start_df, how='left', on='SUBJID').fillna('')
     
-    # 处理 CM_A_CH_PRP 数据（最后治疗结束日期）
-    RFXENDTC_df = cm_a_ch_prp_df[['SUBJID', 'CHSPID', 'CMENDCH']].copy()
-    RFXENDTC_df = RFXENDTC_df.drop_duplicates(subset=['SUBJID', 'CHSPID', 'CMENDCH'], keep='first')
-    RFXENDTC_df['CHSPID'] = RFXENDTC_df['CHSPID'].str.replace('TREATMENT', '').astype(int)
+    # 处理最后治疗结束日期数据
+    treatment_end_df = cm_a_ch_prp_df[['SUBJID', 'CHSPID', 'CMENDCH']].copy()
+    treatment_end_df = treatment_end_df.drop_duplicates(subset=['SUBJID', 'CHSPID', 'CMENDCH'], keep='first')
+    treatment_end_df['CHSPID'] = treatment_end_df['CHSPID'].str.replace('TREATMENT', '').astype(int)
         
-    # 按SUBJID和CHSPID排序
-    RFXENDTC_df = RFXENDTC_df.sort_values(
+    # 按受试者ID和治疗ID排序（治疗ID降序，获取最后一次治疗）
+    treatment_end_df = treatment_end_df.sort_values(
         by=['SUBJID', 'CHSPID'],
         ascending=[True, False]
     )
     
-    # 对每个SUBJID只保留第一条记录，使用drop_duplicates保持行的完整性
-    RFXENDTC_df = RFXENDTC_df.drop_duplicates(subset=['SUBJID'], keep='first')
+    # 对每个受试者只保留第一条记录
+    treatment_end_df = treatment_end_df.drop_duplicates(subset=['SUBJID'], keep='first')
+    treatment_end_df = treatment_end_df[['SUBJID', 'CMENDCH']]
     
-    RFXENDTC_df = RFXENDTC_df[['SUBJID', 'CMENDCH']]
+    # 合并治疗结束日期到主数据框
+    dmframe = pandas.merge(dmframe, treatment_end_df, how='left', on='SUBJID').fillna('')
     
-    dmframe = pandas.merge(dmframe, RFXENDTC_df, how='left', on='SUBJID').fillna('')
-    
-    # 处理 TI_A[VER] 数据
+    # 处理版本信息数据
     ti_a_ver_df = ti_a_ver_df[['SUBJID', 'CHKVALUE']].rename(columns={'CHKVALUE': 'PRTVER'})
     dmframe = pandas.merge(dmframe, ti_a_ver_df, how='left', on='SUBJID').fillna('')
     
-    # 确保所有字段都是字符串类型
+    # 返回结果，所有列转换为字符串类型
     return dmframe.astype(str)
 
 def get_updated_type_from_hierarchy(row, hierarchy):
     """
     根据类型的层级关系获取最细分的有效类型值。
-    有效值定义为既不为空也不为"UNKNOWN"的值。
     
-    Args:
-        row (Series): DataFrame的一行数据，必须包含所有类型字段
-        hierarchy (str): 选择使用的层级关系。必须是 "type", "typef" 或 "typer" 之一
+    从最细分的类型字段开始检查，返回第一个有效值。
+    有效值定义为既不为空也不为"UNKNOWN"的值。
+    如果所有层级都没有有效值，则返回基础类型字段的值。
+    
+    参数:
+        row (pandas.Series): DataFrame的一行数据，必须包含相关类型字段
+        hierarchy (str): 选择使用的层级关系，必须是 "type", "typef" 或 "typer" 之一
 
-    Returns:
-        str: 最细分的有效类型值
+    返回:
+        str: 最细分的有效类型值，如果没有有效值则返回基础类型或空字符串
         
-    Raises:
-        ValueError: 如果 hierarchy 参数不是有效值
+    异常:
+        ValueError: 当hierarchy参数不是有效值时抛出
     """
-    # 层级关系映射
+    # 定义不同类型的层级关系映射（从最细分到最基础）
     hierarchies = {
         "type": ["TYPE213", "TYPE212", "TYPE2_1", "TYPE_2", "TYPE"],
         "typef": ["TYPE213F", "TYPE212F", "TYPE21F", "TYPE_F"],
         "typer": ["TYPE213R", "TYPE212R", "TYPE21R", "TYPE_R"]
     }
     
-    # 验证 hierarchy 参数
+    # 验证hierarchy参数是否有效
     if hierarchy not in hierarchies:
-        raise ValueError("hierarchy 必须是 'type', 'typef' 或 'typer' 之一")
+        raise ValueError("hierarchy必须是'type', 'typef'或'typer'之一")
     
-    # 获取层级关系
+    # 获取指定层级关系的字段列表
     fields = hierarchies[hierarchy]
-    base_type = fields[-1]
+    base_type = fields[-1]  # 最基础的类型字段
     
-    # 遍历层级直到找到有效值
+    # 从最细分的类型字段开始，遍历层级直到找到有效值
     for field in fields:
         if field in row and row[field] not in ["", "UNKNOWN"]:
             return row[field]
     
-    # 返回最基础的类型值
+    # 如果没有找到有效值，返回基础类型字段的值或空字符串
     return row.get(base_type, "")
 
 def process_MH_A_PT():
     """
-    处理MH_A_PT数据集的所有字段
+    处理MH_A_PT数据集的所有字段。
+    
+    该函数合并MH_A_PT和SUPR数据集，并处理多个字段，包括类型层级、
+    淋巴结、血管、神经等相关字段，以及TNM分期相关字段。
+    
+    返回:
+        pandas.DataFrame: 处理后的MH_A_PT数据集，所有值转换为字符串类型
     """
-    # 获取MH_A_PT数据集
-    format_dataset = getFormatDataset('MH_A_PT','SUPR')
-    MH_A_PT_df = format_dataset['MH_A_PT']
-    SUPR_df = format_dataset['SUPR']
+    # 获取MH_A_PT和SUPR数据集
+    format_dataset = getFormatDataset('MH_A_PT', 'SUPR')
+    mh_a_pt_df = format_dataset['MH_A_PT']
+    supr_df = format_dataset['SUPR']
         
-    # 添加一列BLANK，值为空字符串
-    MH_A_PT_df['BLANK'] = ""
+    # 添加空白列
+    mh_a_pt_df['BLANK'] = ""
     
-    MH_A_PT_df = pandas.merge(MH_A_PT_df, SUPR_df, how='left', on='SUBJID').fillna('')
+    # 合并数据集
+    mh_a_pt_df = pandas.merge(mh_a_pt_df, supr_df, how='left', on='SUBJID').fillna('')
      
-    # 覆盖原有的 TYPE 字段，使用提取出来的公共函数
-    MH_A_PT_df["TYPE"] = MH_A_PT_df.apply(lambda row: get_updated_type_from_hierarchy(row, "type"), axis=1)  
+    # 使用层级关系更新TYPE字段
+    mh_a_pt_df["TYPE"] = mh_a_pt_df.apply(
+        lambda row: get_updated_type_from_hierarchy(row, "type"), axis=1
+    )  
     
-    MH_A_PT_df['LYYN'] = MH_A_PT_df['LY_LY1'].where(
-        MH_A_PT_df['LY_LY1'].notna() & (MH_A_PT_df['LY_LY1'] != ""),
-        MH_A_PT_df['LYYN']
+    # 处理淋巴结侵犯(LYYN)字段，优先使用LY_LY1
+    mh_a_pt_df['LYYN'] = mh_a_pt_df['LY_LY1'].where(
+        mh_a_pt_df['LY_LY1'].notna() & (mh_a_pt_df['LY_LY1'] != ""),
+        mh_a_pt_df['LYYN']
     )
     
-    MH_A_PT_df['VYN'] = MH_A_PT_df['V_V1'].where(
-        MH_A_PT_df['V_V1'].notna() & (MH_A_PT_df['V_V1'] != ""),
-        MH_A_PT_df['VYN']
+    # 处理血管侵犯(VYN)字段，优先使用V_V1
+    mh_a_pt_df['VYN'] = mh_a_pt_df['V_V1'].where(
+        mh_a_pt_df['V_V1'].notna() & (mh_a_pt_df['V_V1'] != ""),
+        mh_a_pt_df['VYN']
     )
         
-    MH_A_PT_df['MACROCL12'] = MH_A_PT_df['MACROCL1'].where(
-        MH_A_PT_df['MACROCL1'].notna() & (MH_A_PT_df['MACROCL1'] != ""),
-        MH_A_PT_df['MACROCL2']
+    # 处理宏观分类(MACROCL12)字段，优先使用MACROCL1
+    mh_a_pt_df['MACROCL12'] = mh_a_pt_df['MACROCL1'].where(
+        mh_a_pt_df['MACROCL1'].notna() & (mh_a_pt_df['MACROCL1'] != ""),
+        mh_a_pt_df['MACROCL2']
     )
     
-    MH_A_PT_df['PNYN'] = MH_A_PT_df['PN_PN1'].where(
-        MH_A_PT_df['PN_PN1'].notna() & (MH_A_PT_df['PN_PN1'] != ""),
-        MH_A_PT_df['PNYN']
+    # 处理神经侵犯(PNYN)字段，优先使用PN_PN1
+    mh_a_pt_df['PNYN'] = mh_a_pt_df['PN_PN1'].where(
+        mh_a_pt_df['PN_PN1'].notna() & (mh_a_pt_df['PN_PN1'] != ""),
+        mh_a_pt_df['PNYN']
     )
     
-    MH_A_PT_df['EXYN'] = MH_A_PT_df['EX_Y'].where(
-        MH_A_PT_df['EX_Y'].notna() & (MH_A_PT_df['EX_Y'] != ""),
-        MH_A_PT_df['EXYN']
+    # 处理外科切缘(EXYN)字段，优先使用EX_Y
+    mh_a_pt_df['EXYN'] = mh_a_pt_df['EX_Y'].where(
+        mh_a_pt_df['EX_Y'].notna() & (mh_a_pt_df['EX_Y'] != ""),
+        mh_a_pt_df['EXYN']
     )
 
-    MH_A_PT_df['TSTAGE'] = MH_A_PT_df['TSTAGET1'].where(
-        MH_A_PT_df['TSTAGET1'].notna() & (MH_A_PT_df['TSTAGET1'] != ""),
-        MH_A_PT_df['TSTAGET4'].where(
-            MH_A_PT_df['TSTAGET4'].notna() & (MH_A_PT_df['TSTAGET4'] != ""),
-            MH_A_PT_df['TSTAGE']
+    # 处理T分期(TSTAGE)字段，按优先级使用TSTAGET1、TSTAGET4
+    mh_a_pt_df['TSTAGE'] = mh_a_pt_df['TSTAGET1'].where(
+        mh_a_pt_df['TSTAGET1'].notna() & (mh_a_pt_df['TSTAGET1'] != ""),
+        mh_a_pt_df['TSTAGET4'].where(
+            mh_a_pt_df['TSTAGET4'].notna() & (mh_a_pt_df['TSTAGET4'] != ""),
+            mh_a_pt_df['TSTAGE']
         )
     )
     
-    MH_A_PT_df['NSTAGE'] = MH_A_PT_df['NSTAGEN1'].where(
-        MH_A_PT_df['NSTAGEN1'].notna() & (MH_A_PT_df['NSTAGEN1'] != ""),
-        MH_A_PT_df['NSTAGEN2'].where(
-            MH_A_PT_df['NSTAGEN2'].notna() & (MH_A_PT_df['NSTAGEN2'] != ""),
-            MH_A_PT_df['NSTAGE']
+    # 处理N分期(NSTAGE)字段，按优先级使用NSTAGEN1、NSTAGEN2
+    mh_a_pt_df['NSTAGE'] = mh_a_pt_df['NSTAGEN1'].where(
+        mh_a_pt_df['NSTAGEN1'].notna() & (mh_a_pt_df['NSTAGEN1'] != ""),
+        mh_a_pt_df['NSTAGEN2'].where(
+            mh_a_pt_df['NSTAGEN2'].notna() & (mh_a_pt_df['NSTAGEN2'] != ""),
+            mh_a_pt_df['NSTAGE']
         )
     )
     
-    MH_A_PT_df['MSTAGE'] = MH_A_PT_df['MSTAGM1C'].where(
-        MH_A_PT_df['MSTAGM1C'].notna() & (MH_A_PT_df['MSTAGM1C'] != ""),
-        MH_A_PT_df['MSTAGEM1'].where(
-            MH_A_PT_df['MSTAGEM1'].notna() & (MH_A_PT_df['MSTAGEM1'] != ""),
-            MH_A_PT_df['MSTAGE']
+    # 处理M分期(MSTAGE)字段，按优先级使用MSTAGM1C、MSTAGEM1
+    mh_a_pt_df['MSTAGE'] = mh_a_pt_df['MSTAGM1C'].where(
+        mh_a_pt_df['MSTAGM1C'].notna() & (mh_a_pt_df['MSTAGM1C'] != ""),
+        mh_a_pt_df['MSTAGEM1'].where(
+            mh_a_pt_df['MSTAGEM1'].notna() & (mh_a_pt_df['MSTAGEM1'] != ""),
+            mh_a_pt_df['MSTAGE']
         )
     )
     
-    MH_A_PT_df['PTNM_T'] = MH_A_PT_df['PTNM_T4'].where(
-        MH_A_PT_df['PTNM_T4'].notna() & (MH_A_PT_df['PTNM_T4'] != ""),
-        MH_A_PT_df['PTNM_T']
+    # 处理病理T分期(PTNM_T)字段，优先使用PTNM_T4
+    mh_a_pt_df['PTNM_T'] = mh_a_pt_df['PTNM_T4'].where(
+        mh_a_pt_df['PTNM_T4'].notna() & (mh_a_pt_df['PTNM_T4'] != ""),
+        mh_a_pt_df['PTNM_T']
     )
     
-    MH_A_PT_df['PTNM_N'] = MH_A_PT_df['PTNM_N1'].where(
-        MH_A_PT_df['PTNM_N1'].notna() & (MH_A_PT_df['PTNM_N1'] != ""),
-        MH_A_PT_df['PTNM_N2'].where(
-            MH_A_PT_df['PTNM_N2'].notna() & (MH_A_PT_df['PTNM_N2'] != ""),
-            MH_A_PT_df['PTNM_N']
+    # 处理病理N分期(PTNM_N)字段，按优先级使用PTNM_N1、PTNM_N2
+    mh_a_pt_df['PTNM_N'] = mh_a_pt_df['PTNM_N1'].where(
+        mh_a_pt_df['PTNM_N1'].notna() & (mh_a_pt_df['PTNM_N1'] != ""),
+        mh_a_pt_df['PTNM_N2'].where(
+            mh_a_pt_df['PTNM_N2'].notna() & (mh_a_pt_df['PTNM_N2'] != ""),
+            mh_a_pt_df['PTNM_N']
         )
     )
     
-    return MH_A_PT_df.astype(str)
+    # 返回结果，所有列转换为字符串类型
+    return mh_a_pt_df.astype(str)
 
 def process_RGACOHD_MH():
     """
-    处理RGACOHD_MH数据集的所有字段
+    处理RGACOHD_MH数据集的所有字段。
+    
+    该函数合并RGACOHD_MH和RGACOHD数据集，并处理多个字段，包括类型层级、
+    淋巴结、血管、雌激素受体、神经等相关字段，以及TNM分期相关字段。
+    
+    返回:
+        pandas.DataFrame: 处理后的RGACOHD_MH数据集，所有值转换为字符串类型
     """
-    # 获取RGACOHD_MH数据集
-    format_dataset = getFormatDataset('RGACOHD_MH','RGACOHD')
-    RGACOHD_MH_df = format_dataset['RGACOHD_MH']
-    RGACOHD_df = format_dataset['RGACOHD']
+    # 获取RGACOHD_MH和RGACOHD数据集
+    format_dataset = getFormatDataset('RGACOHD_MH', 'RGACOHD')
+    rgacohd_mh_df = format_dataset['RGACOHD_MH']
+    rgacohd_df = format_dataset['RGACOHD']
     
-    # 添加一列BLANK，值为空字符串
-    RGACOHD_MH_df['BLANK'] = ""
+    # 添加空白列
+    rgacohd_mh_df['BLANK'] = ""
        
-    RGACOHD_MH_df = pandas.merge(RGACOHD_MH_df, RGACOHD_df, how='left', on='SUBJID').fillna('')
+    # 合并数据集
+    rgacohd_mh_df = pandas.merge(rgacohd_mh_df, rgacohd_df, how='left', on='SUBJID').fillna('')
 
-    # 覆盖原有的 TYPE 字段，使用提取出来的公共函数
-    RGACOHD_MH_df["TYPE"] = RGACOHD_MH_df.apply(lambda row: get_updated_type_from_hierarchy(row, "type"), axis=1)  
+    # 使用层级关系更新TYPE字段
+    rgacohd_mh_df["TYPE"] = rgacohd_mh_df.apply(
+        lambda row: get_updated_type_from_hierarchy(row, "type"), axis=1
+    )  
 
-    RGACOHD_MH_df['LYYN'] = RGACOHD_MH_df['LY_LY1'].where(
-        RGACOHD_MH_df['LY_LY1'].notna() & (RGACOHD_MH_df['LY_LY1'] != ""),
-        RGACOHD_MH_df['LYYN']
+    # 处理淋巴结侵犯(LYYN)字段，优先使用LY_LY1
+    rgacohd_mh_df['LYYN'] = rgacohd_mh_df['LY_LY1'].where(
+        rgacohd_mh_df['LY_LY1'].notna() & (rgacohd_mh_df['LY_LY1'] != ""),
+        rgacohd_mh_df['LYYN']
     )
     
-    RGACOHD_MH_df['VYN'] = RGACOHD_MH_df['V_V1'].where(
-        RGACOHD_MH_df['V_V1'].notna() & (RGACOHD_MH_df['V_V1'] != ""),
-        RGACOHD_MH_df['VYN']
+    # 处理血管侵犯(VYN)字段，优先使用V_V1
+    rgacohd_mh_df['VYN'] = rgacohd_mh_df['V_V1'].where(
+        rgacohd_mh_df['V_V1'].notna() & (rgacohd_mh_df['V_V1'] != ""),
+        rgacohd_mh_df['VYN']
     )
     
-    RGACOHD_MH_df['ERSTM'] = RGACOHD_MH_df['ERSTM_ER'].where(
-        RGACOHD_MH_df['ERSTM_ER'].notna() & (RGACOHD_MH_df['ERSTM_ER'] != ""),
-        RGACOHD_MH_df['ERSTM']
+    # 处理雌激素受体(ERSTM)字段，优先使用ERSTM_ER
+    rgacohd_mh_df['ERSTM'] = rgacohd_mh_df['ERSTM_ER'].where(
+        rgacohd_mh_df['ERSTM_ER'].notna() & (rgacohd_mh_df['ERSTM_ER'] != ""),
+        rgacohd_mh_df['ERSTM']
     )
     
-    RGACOHD_MH_df['MACROCL12'] = RGACOHD_MH_df['MACROCL1'].where(
-        RGACOHD_MH_df['MACROCL1'].notna() & (RGACOHD_MH_df['MACROCL1'] != ""),
-        RGACOHD_MH_df['MACROCL2']
+    # 处理宏观分类(MACROCL12)字段，优先使用MACROCL1
+    rgacohd_mh_df['MACROCL12'] = rgacohd_mh_df['MACROCL1'].where(
+        rgacohd_mh_df['MACROCL1'].notna() & (rgacohd_mh_df['MACROCL1'] != ""),
+        rgacohd_mh_df['MACROCL2']
     )
     
-    RGACOHD_MH_df['PNYN'] = RGACOHD_MH_df['PN_PN1'].where(
-        RGACOHD_MH_df['PN_PN1'].notna() & (RGACOHD_MH_df['PN_PN1'] != ""),
-        RGACOHD_MH_df['PNYN']
+    # 处理神经侵犯(PNYN)字段，优先使用PN_PN1
+    rgacohd_mh_df['PNYN'] = rgacohd_mh_df['PN_PN1'].where(
+        rgacohd_mh_df['PN_PN1'].notna() & (rgacohd_mh_df['PN_PN1'] != ""),
+        rgacohd_mh_df['PNYN']
     )
 
-    RGACOHD_MH_df['TSTAGE'] = RGACOHD_MH_df['TSTAGET1'].where(
-        RGACOHD_MH_df['TSTAGET1'].notna() & (RGACOHD_MH_df['TSTAGET1'] != ""),
-        RGACOHD_MH_df['TSTAGET4'].where(
-            RGACOHD_MH_df['TSTAGET4'].notna() & (RGACOHD_MH_df['TSTAGET4'] != ""),
-            RGACOHD_MH_df['TSTAGE']
+    # 处理T分期(TSTAGE)字段，按优先级使用TSTAGET1、TSTAGET4
+    rgacohd_mh_df['TSTAGE'] = rgacohd_mh_df['TSTAGET1'].where(
+        rgacohd_mh_df['TSTAGET1'].notna() & (rgacohd_mh_df['TSTAGET1'] != ""),
+        rgacohd_mh_df['TSTAGET4'].where(
+            rgacohd_mh_df['TSTAGET4'].notna() & (rgacohd_mh_df['TSTAGET4'] != ""),
+            rgacohd_mh_df['TSTAGE']
         )
     )
     
-    RGACOHD_MH_df['PTNM_T'] = RGACOHD_MH_df['PTNM_T4'].where(
-        RGACOHD_MH_df['PTNM_T4'].notna() & (RGACOHD_MH_df['PTNM_T4'] != ""),
-        RGACOHD_MH_df['PTNM_T']
+    # 处理病理T分期(PTNM_T)字段，优先使用PTNM_T4
+    rgacohd_mh_df['PTNM_T'] = rgacohd_mh_df['PTNM_T4'].where(
+        rgacohd_mh_df['PTNM_T4'].notna() & (rgacohd_mh_df['PTNM_T4'] != ""),
+        rgacohd_mh_df['PTNM_T']
     )
     
-    return RGACOHD_MH_df.astype(str)
+    # 返回结果，所有列转换为字符串类型
+    return rgacohd_mh_df.astype(str)
 
 def process_MH_A():
     """
-    处理MH_A数据集的所有字段
+    处理MH_A数据集的所有字段。
+    
+    该函数处理MH_A数据集中的类型层级字段和TNM分期相关字段，
+    包括临床TNM分期和病理TNM分期。
+    
+    返回:
+        pandas.DataFrame: 处理后的MH_A数据集，所有值转换为字符串类型
     """
     # 获取MH_A数据集
     format_dataset = getFormatDataset('MH_A')
-    MH_A_df = format_dataset['MH_A']
+    mh_a_df = format_dataset['MH_A']
     
-    # 覆盖原有的 TYPE_F 字段，使用提取出来的公共函数
-    MH_A_df["TYPE_F"] = MH_A_df.apply(lambda row: get_updated_type_from_hierarchy(row, "typef"), axis=1) 
+    # 使用层级关系更新TYPE_F字段
+    mh_a_df["TYPE_F"] = mh_a_df.apply(
+        lambda row: get_updated_type_from_hierarchy(row, "typef"), axis=1
+    ) 
     
-    # 覆盖原有的 TYPE_R 字段，使用提取出来的公共函数
-    MH_A_df["TYPE_R"] = MH_A_df.apply(lambda row: get_updated_type_from_hierarchy(row, "typer"), axis=1) 
+    # 使用层级关系更新TYPE_R字段
+    mh_a_df["TYPE_R"] = mh_a_df.apply(
+        lambda row: get_updated_type_from_hierarchy(row, "typer"), axis=1
+    ) 
     
-    MH_A_df['TNM_T'] = MH_A_df['TNM_T4'].where(
-        MH_A_df['TNM_T4'].notna() & (MH_A_df['TNM_T4'] != ""),
-        MH_A_df['TNM_T']
+    # 处理临床T分期(TNM_T)字段，优先使用TNM_T4
+    mh_a_df['TNM_T'] = mh_a_df['TNM_T4'].where(
+        mh_a_df['TNM_T4'].notna() & (mh_a_df['TNM_T4'] != ""),
+        mh_a_df['TNM_T']
     )
     
-    MH_A_df['TNM_N'] = MH_A_df['TNM_N2'].where(
-        MH_A_df['TNM_N2'].notna() & (MH_A_df['TNM_N2'] != ""),
-        MH_A_df['TNM_N1'].where(
-            MH_A_df['TNM_N1'].notna() & (MH_A_df['TNM_N1'] != ""),
-            MH_A_df['TNM_N']
+    # 处理临床N分期(TNM_N)字段，按优先级使用TNM_N2、TNM_N1
+    mh_a_df['TNM_N'] = mh_a_df['TNM_N2'].where(
+        mh_a_df['TNM_N2'].notna() & (mh_a_df['TNM_N2'] != ""),
+        mh_a_df['TNM_N1'].where(
+            mh_a_df['TNM_N1'].notna() & (mh_a_df['TNM_N1'] != ""),
+            mh_a_df['TNM_N']
         )
     )
     
-    MH_A_df['TNM_M'] = MH_A_df['TNM_M1'].where(
-        MH_A_df['TNM_M1'].notna() & (MH_A_df['TNM_M1'] != ""),
-        MH_A_df['TNM_M']
+    # 处理临床M分期(TNM_M)字段，优先使用TNM_M1
+    mh_a_df['TNM_M'] = mh_a_df['TNM_M1'].where(
+        mh_a_df['TNM_M1'].notna() & (mh_a_df['TNM_M1'] != ""),
+        mh_a_df['TNM_M']
     )
     
-    MH_A_df['PTNM_T'] = MH_A_df['PTNM_T4'].where(
-        MH_A_df['PTNM_T4'].notna() & (MH_A_df['PTNM_T4'] != ""),
-        MH_A_df['PTNM_T']
+    # 处理病理T分期(PTNM_T)字段，优先使用PTNM_T4
+    mh_a_df['PTNM_T'] = mh_a_df['PTNM_T4'].where(
+        mh_a_df['PTNM_T4'].notna() & (mh_a_df['PTNM_T4'] != ""),
+        mh_a_df['PTNM_T']
     )
     
-    MH_A_df['PTNM_N'] = MH_A_df['PTNM_N1'].where(
-        MH_A_df['PTNM_N1'].notna() & (MH_A_df['PTNM_N1'] != ""),
-        MH_A_df['PTNM_N2'].where(
-            MH_A_df['PTNM_N2'].notna() & (MH_A_df['PTNM_N2'] != ""),
-            MH_A_df['PTNM_N']
+    # 处理病理N分期(PTNM_N)字段，按优先级使用PTNM_N1、PTNM_N2
+    mh_a_df['PTNM_N'] = mh_a_df['PTNM_N1'].where(
+        mh_a_df['PTNM_N1'].notna() & (mh_a_df['PTNM_N1'] != ""),
+        mh_a_df['PTNM_N2'].where(
+            mh_a_df['PTNM_N2'].notna() & (mh_a_df['PTNM_N2'] != ""),
+            mh_a_df['PTNM_N']
         )
     )
     
-    MH_A_df['TSTAGE'] = MH_A_df['TSTAGET1'].where(
-        MH_A_df['TSTAGET1'].notna() & (MH_A_df['TSTAGET1'] != ""),
-        MH_A_df['TSTAGET4'].where(
-            MH_A_df['TSTAGET4'].notna() & (MH_A_df['TSTAGET4'] != ""),
-            MH_A_df['TSTAGE']
+    # 处理T分期(TSTAGE)字段，按优先级使用TSTAGET1、TSTAGET4
+    mh_a_df['TSTAGE'] = mh_a_df['TSTAGET1'].where(
+        mh_a_df['TSTAGET1'].notna() & (mh_a_df['TSTAGET1'] != ""),
+        mh_a_df['TSTAGET4'].where(
+            mh_a_df['TSTAGET4'].notna() & (mh_a_df['TSTAGET4'] != ""),
+            mh_a_df['TSTAGE']
         )
     )
     
-    MH_A_df['NSTAGE'] = MH_A_df['NSTAGEN1'].where(
-        MH_A_df['NSTAGEN1'].notna() & (MH_A_df['NSTAGEN1'] != ""),
-        MH_A_df['NSTAGEN2'].where(
-            MH_A_df['NSTAGEN2'].notna() & (MH_A_df['NSTAGEN2'] != ""),
-            MH_A_df['NSTAGE']
+    # 处理N分期(NSTAGE)字段，按优先级使用NSTAGEN1、NSTAGEN2
+    mh_a_df['NSTAGE'] = mh_a_df['NSTAGEN1'].where(
+        mh_a_df['NSTAGEN1'].notna() & (mh_a_df['NSTAGEN1'] != ""),
+        mh_a_df['NSTAGEN2'].where(
+            mh_a_df['NSTAGEN2'].notna() & (mh_a_df['NSTAGEN2'] != ""),
+            mh_a_df['NSTAGE']
         )
     )
     
-    MH_A_df['MSTAGE'] = MH_A_df['MSTAGM1C'].where(
-        MH_A_df['MSTAGM1C'].notna() & (MH_A_df['MSTAGM1C'] != ""),
-        MH_A_df['MSTAGEM1'].where(
-            MH_A_df['MSTAGEM1'].notna() & (MH_A_df['MSTAGEM1'] != ""),
-            MH_A_df['MSTAGE']
+    # 处理M分期(MSTAGE)字段，按优先级使用MSTAGM1C、MSTAGEM1
+    mh_a_df['MSTAGE'] = mh_a_df['MSTAGM1C'].where(
+        mh_a_df['MSTAGM1C'].notna() & (mh_a_df['MSTAGM1C'] != ""),
+        mh_a_df['MSTAGEM1'].where(
+            mh_a_df['MSTAGEM1'].notna() & (mh_a_df['MSTAGEM1'] != ""),
+            mh_a_df['MSTAGE']
         )
     )
     
-    return MH_A_df.astype(str)
+    # 返回结果，所有列转换为字符串类型
+    return mh_a_df.astype(str)
 
 def process_MH_A_RC():
     """
-    处理MH_A_RC数据集的所有字段
+    处理MH_A_RC数据集的所有字段。
+    
+    该函数合并MH_A_RC和SUPR数据集，并处理类型层级字段。
+    
+    返回:
+        pandas.DataFrame: 处理后的MH_A_RC数据集，所有值转换为字符串类型
     """
     # 获取MH_A_RC数据集
     format_dataset = getFormatDataset('MH_A_RC','SUPR')
-    MH_A_RC_df = format_dataset['MH_A_RC']
-    SUPR_df = format_dataset['SUPR']
+    mh_a_rc_df = format_dataset['MH_A_RC']
+    supr_df = format_dataset['SUPR']
  
-    MH_A_RC_df = pandas.merge(MH_A_RC_df, SUPR_df, how='left', on='SUBJID').fillna('')
+    # 合并数据集
+    mh_a_rc_df = pandas.merge(mh_a_rc_df, supr_df, how='left', on='SUBJID').fillna('')
     
-    # 覆盖原有的 TYPE 字段，使用提取出来的公共函数
-    MH_A_RC_df["TYPE"] = MH_A_RC_df.apply(lambda row: get_updated_type_from_hierarchy(row, "type"), axis=1) 
+    # 使用层级关系更新TYPE字段
+    mh_a_rc_df["TYPE"] = mh_a_rc_df.apply(
+        lambda row: get_updated_type_from_hierarchy(row, "type"), axis=1
+    ) 
     
-    return MH_A_RC_df.astype(str)  
+    # 返回结果，所有列转换为字符串类型
+    return mh_a_rc_df.astype(str)  
 
 def process_CO():
+    """
+    处理CO数据集的所有字段。
     
-    # 获取CO这个dataframe
+    该函数处理CO数据集中的临床和病理字段，将多个相关字段合并为汇总字段，
+    并格式化转移器官数量字段。
+    
+    返回:
+        pandas.DataFrame: 处理后的CO数据集，所有值转换为字符串类型
+    """
+    # 获取CO数据集
     format_dataset = getFormatDataset('CO')
-    CO_CO_df = format_dataset['CO']
+    co_df = format_dataset['CO']
     
-    # 定义字段集合
+    # 定义临床和病理字段集合
     clinical_columns = ['COCNCLV', 'COCNCLNG', 'COCNCPRT', 'COCNCDLY', 'COCNCOTH']
     pathological_columns = ['COCNPLVR', 'COCNPLNG', 'COCNPPRT', 'COCNPDLY', 'COCNPOTH']
     
-    # 处理CLINICAL字段
+    # 处理临床字段，生成汇总字段COCNC
     def generate_clinical(row):
         # 筛选非空值
-        values = [str(row[col]).strip() for col in clinical_columns if pandas.notnull(row[col]) and row[col] != '']
+        values = [
+            str(row[col]).strip() 
+            for col in clinical_columns 
+            if pandas.notnull(row[col]) and row[col] != ''
+        ]
         if values:  # 如果有非空值
             return 'CLINICAL: ' + ','.join(values)
         return ''  # 如果全为空，则返回空字符串
     
-    CO_CO_df['COCNC'] = CO_CO_df.apply(generate_clinical, axis=1)
+    co_df['COCNC'] = co_df.apply(generate_clinical, axis=1)
     
-    # 处理PATHOLOGICAL字段
+    # 处理病理字段，生成汇总字段COCNP
     def generate_pathological(row):
         # 筛选非空值
-        values = [str(row[col]).strip() for col in pathological_columns if pandas.notnull(row[col]) and row[col] != '']
+        values = [
+            str(row[col]).strip() 
+            for col in pathological_columns 
+            if pandas.notnull(row[col]) and row[col] != ''
+        ]
         if values:  # 如果有非空值
             return 'PATHOLOGICAL: ' + ','.join(values)
         return ''  # 如果全为空，则返回空字符串
     
-    CO_CO_df['COCNP'] = CO_CO_df.apply(generate_pathological, axis=1)
+    co_df['COCNP'] = co_df.apply(generate_pathological, axis=1)
     
-    # 处理COCNEMON字段
-    CO_CO_df['COCNEMON'] = CO_CO_df['COCNEMON'].apply(
+    # 处理转移器官数量字段COCNEMON，格式化为描述性文本
+    co_df['COCNEMON'] = co_df['COCNEMON'].apply(
         lambda x: f'Number of metastatic organs＝{x}' if pandas.notnull(x) and x != '' else ''
     )
     
-    return CO_CO_df.astype(str)
+    # 返回结果，所有列转换为字符串类型
+    return co_df.astype(str)
 
 def get_DD_from_SS_ALL():
+    """
+    从SS_A_ALL数据集获取死亡数据。
     
-    # 获取SS_A_ALL这个dataframe
+    该函数从SS_A_ALL数据集中提取与死亡相关的字段，并进行处理：
+    1. 提取SUBJID、SURVSTAT、OUTDAT1、OUTDAT2、PRCDTH、PRCDTHDE字段
+    2. 过滤掉SURVSTAT为空的记录
+    3. 合并OUTDAT1和OUTDAT2为OUTDAT字段
+    4. 按照死亡状态优先级和日期排序
+    5. 为每个受试者保留一条记录
+    
+    返回:
+        pandas.DataFrame: 处理后的死亡数据集，所有值转换为字符串类型
+    """
+    # 获取SS_A_ALL数据集
     format_dataset = getFormatDataset('SS_A_ALL')
-    SS_A_ALL_DD_df = format_dataset['SS_A_ALL']
+    ss_a_all_dd_df = format_dataset['SS_A_ALL']
     
     # 提取指定字段并转换为字符串
-    SS_A_ALL_DD_df = SS_A_ALL_DD_df[['SUBJID', 'SURVSTAT', 'OUTDAT1', 'OUTDAT2', 'PRCDTH', 'PRCDTHDE']].astype(str)
+    ss_a_all_dd_df = ss_a_all_dd_df[
+        ['SUBJID', 'SURVSTAT', 'OUTDAT1', 'OUTDAT2', 'PRCDTH', 'PRCDTHDE']
+    ].astype(str)
     
     # 删除SURVSTAT为空的行
-    SS_A_ALL_DD_df = SS_A_ALL_DD_df[SS_A_ALL_DD_df['SURVSTAT'] != '']
+    ss_a_all_dd_df = ss_a_all_dd_df[ss_a_all_dd_df['SURVSTAT'] != '']
     
-    # 新建OUTDAT字段
-    SS_A_ALL_DD_df['OUTDAT'] = SS_A_ALL_DD_df['OUTDAT1'].where(
-        SS_A_ALL_DD_df['OUTDAT1'].notna() & (SS_A_ALL_DD_df['OUTDAT1'] != ""),
-        SS_A_ALL_DD_df['OUTDAT2']
+    # 新建OUTDAT字段，优先使用OUTDAT1
+    ss_a_all_dd_df['OUTDAT'] = ss_a_all_dd_df['OUTDAT1'].where(
+        ss_a_all_dd_df['OUTDAT1'].notna() & (ss_a_all_dd_df['OUTDAT1'] != ""),
+        ss_a_all_dd_df['OUTDAT2']
     )
     
-    # 将OUTDAT为“”的行替换为NA
-    SS_A_ALL_DD_df['OUTDAT'] = SS_A_ALL_DD_df['OUTDAT'].replace("", np.nan)
+    # 添加优先级字段，死亡状态优先级更高
+    ss_a_all_dd_df['SURVSTAT_PRIORITY'] = ss_a_all_dd_df['SURVSTAT'].apply(
+        lambda x: 0 if x == 'DEAD' else 1
+    )
     
-    # 按SUBJID顺序，OUTDAT倒序排列数据。如果OUTDAT为""，则排在最前面
-    SS_A_ALL_DD_df = SS_A_ALL_DD_df.sort_values(
-        by=['SUBJID', 'OUTDAT'],
-        ascending=[True, False],
-        na_position='first'  # 将空值排在最前面
+    # 按照受试者ID、状态优先级和日期排序
+    ss_a_all_dd_df = ss_a_all_dd_df.sort_values(
+        by=['SUBJID', 'SURVSTAT_PRIORITY', 'OUTDAT'],
+        ascending=[True, True, False]
     )
     
     # 对每个SUBJID只保留第一条记录，使用drop_duplicates保持行的完整性
-    SS_A_ALL_DD_df = SS_A_ALL_DD_df.drop_duplicates(subset=['SUBJID'], keep='first')
-        
-    return SS_A_ALL_DD_df.astype(str)
+    ss_a_all_dd_df = ss_a_all_dd_df.drop_duplicates(subset=['SUBJID'], keep='first')
+    
+    # 删除临时使用的SURVSTAT_PRIORITY字段
+    ss_a_all_dd_df = ss_a_all_dd_df.drop(columns=['SURVSTAT_PRIORITY'])
+    
+    # 返回结果，所有列转换为字符串类型
+    return ss_a_all_dd_df.astype(str)
     
 def add_field_to_file(data_source_key, fields_with_values):
-    
-    # add_field_to_file('FILE' ,{"NEW_FIELD_1": "Value1","NEW_FIELD_2": "Value2"})
-    
     """
     给数据集添加指定的字段并填充固定的值。
 
-    参数：
-        data_source_key (str): 用于从 getFormatDataset 函数获取数据集的键值。
-        fields_with_values (dict): 字典形式，键为需要添加的字段名，值为对应的固定值。
+    示例用法:
+        add_field_to_file('FILE', {"NEW_FIELD_1": "Value1", "NEW_FIELD_2": "Value2"})
 
-    返回值：
-        pd.DataFrame: 修改后的 DataFrame，所有列均转换为字符串类型。
+    参数:
+        data_source_key (str): 用于从getFormatDataset函数获取数据集的键值
+        fields_with_values (dict): 字典形式，键为需要添加的字段名，值为对应的固定值
+
+    返回:
+        pandas.DataFrame: 修改后的DataFrame，所有列均转换为字符串类型
     """
-    # 从 getFormatDataset 获取指定键对应的数据集
+    # 从getFormatDataset获取指定键对应的数据集
     format_dataset = getFormatDataset(data_source_key)
     
-    # 提取目标 DataFrame
+    # 提取目标DataFrame
     add_field_df = format_dataset[data_source_key]
 
     # 遍历字典，为每个字段添加对应的固定值
     for field, value in fields_with_values.items():
         add_field_df[field] = value
-
-    # 将所有列转换为字符串类型并返回
+        
+    # 返回结果，所有列转换为字符串类型
     return add_field_df.astype(str)
 
 def get_GF_from_LB_A_BM():
     """
-    获取 'LB_A_BM' 数据集并处理特定字段。
+    从LB_A_BM数据集获取基因检测结果并进行处理。
     
-    返回值：
-        pandas.DataFrame: 包含处理后数据的数据框，所有列均转换为字符串类型。
+    该函数处理LB_A_BM数据集中的基因检测结果，主要功能包括：
+    1. 对每个受试者的每种检测类型，如果全部为WILD TYPE则只保留一条记录
+    2. 处理KRAS和NRAS突变，更新RAS状态
+    3. 根据检测值添加分类字段(CLASSIFICATION)
+    
+    返回:
+        pandas.DataFrame: 处理后的基因检测数据集，所有值转换为字符串类型
     """
-    # 获取 'LB_A_BM' 数据集
+    # 获取LB_A_BM数据集
     format_dataset = getFormatDataset('LB_A_BM[BM]')
-    LB_A_BM_df = format_dataset['LB_A_BM[BM]']
+    lb_a_bm_df = format_dataset['LB_A_BM[BM]']
     
     def process_group(group):
+        """处理每个分组的数据，保留非野生型记录或仅一条野生型记录"""
         if (group['CHKVALUE'] == 'WILD TYPE').all():
-            return group.head(1)
+            return group.head(1)  # 如果全部为野生型，只保留第一条记录
         else:
-            return group[group['CHKVALUE'] != 'WILD TYPE']
+            return group[group['CHKVALUE'] != 'WILD TYPE']  # 否则保留所有非野生型记录
 
-    # 应用处理逻辑
-    processed_df = LB_A_BM_df.groupby(['SUBJID', 'CHKTYPE'], group_keys=False).apply(process_group)
+    # 按受试者ID和检测类型分组处理
+    processed_df = lb_a_bm_df.groupby(
+        ['SUBJID', 'CHKTYPE'], group_keys=False
+    ).apply(process_group)
+    
+    # 处理RAS相关的逻辑
+    # 获取所有KRAS和NRAS中CHKVALUE不为WILD TYPE的受试者
+    kras_mutations = processed_df[
+        (processed_df['CHKTYPE'] == 'KRAS') & 
+        (processed_df['CHKVALUE'] != 'WILD TYPE')
+    ]['SUBJID'].unique()
+    
+    nras_mutations = processed_df[
+        (processed_df['CHKTYPE'] == 'NRAS') & 
+        (processed_df['CHKVALUE'] != 'WILD TYPE')
+    ]['SUBJID'].unique()
+    
+    # 合并所有需要更新RAS为POSITIVE的受试者ID
+    ras_positive_subjects = list(set(kras_mutations) | set(nras_mutations))
+    
+    # 更新这些受试者对应的RAS记录为POSITIVE
+    processed_df.loc[
+        (processed_df['SUBJID'].isin(ras_positive_subjects)) & 
+        (processed_df['CHKTYPE'] == 'RAS'), 
+        'CHKVALUE'
+    ] = 'POSITIVE'
 
-    # 添加 CLASSIFICATION 字段
+    # 添加CLASSIFICATION字段，根据检测值进行分类
     def classify(value):
+        """根据检测值确定分类"""
         if value == 'UNKNOWN':
             return 'UNKNOWN'
         elif value == 'OTHER':
@@ -539,26 +692,101 @@ def get_GF_from_LB_A_BM():
             return 'POSITIVE'
 
     processed_df['CLASSIFICATION'] = processed_df['CHKVALUE'].map(classify)
+    
+    # 对数据集进行去重
+    processed_df = processed_df.drop_duplicates()
 
-    # 返回所有列转换为字符串后的结果
+    # 返回结果，所有列转换为字符串类型
     return processed_df.astype(str)
 
 def process_INEX():
     """
-    处理INEX数据集
+    处理INEX数据集并合并RGACOHB数据集的相关字段。
+    
+    该函数从INEX和RGACOHB数据集中提取数据，并进行合并处理：
+    1. 获取INEX和RGACOHB数据集
+    2. 从RGACOHB中提取SUBJID、ARMCOHBX、ARMCOHBT字段
+    3. 将两个数据集按SUBJID外连接合并
+    
+    返回:
+        pandas.DataFrame: 合并后的数据集，所有值转换为字符串类型
     """
-    # 获取INEX数据集
-    format_dataset = getFormatDataset('INEX','RGACOHB')
-    INEX_df = format_dataset['INEX']
-    RGACOHB_df = format_dataset['RGACOHB']
+    # 获取INEX和RGACOHB数据集
+    format_dataset = getFormatDataset('INEX', 'RGACOHB')
+    inex_df = format_dataset['INEX']
+    rgacohb_df = format_dataset['RGACOHB']
     
-    # 提取SUBJID、ARMCOHBX、ARMCOHBT字段
-    RGACOHB_df = RGACOHB_df[['SUBJID','ARMCOHBX','ARMCOHBT']].copy()
+    # 提取RGACOHB中的SUBJID、ARMCOHBX、ARMCOHBT字段
+    rgacohb_df = rgacohb_df[['SUBJID', 'ARMCOHBX', 'ARMCOHBT']].copy()
     
-    # 合并INEX和RGACOHB数据集
-    INEX_df = pandas.merge(INEX_df, RGACOHB_df, how='left', on='SUBJID').fillna('')
+    # 合并INEX和RGACOHB数据集，使用外连接确保保留所有记录
+    merged_df = pandas.merge(
+        inex_df, rgacohb_df, how='outer', on='SUBJID'
+    ).fillna('')
     
-    # 返回所有列转换为字符串后的结果
-    return INEX_df.astype(str)
+    # 返回结果，所有列转换为字符串类型
+    return merged_df.astype(str)
+
+def get_CE():
+    """
+    获取并处理CE数据集，将宽格式数据转换为长格式。
     
+    该函数从CE和CE_OTH数据集中提取数据，并进行处理：
+    1. 合并CE和CE_OTH数据集
+    2. 将宽格式数据(CETERM1-20和CETOXG1-20)转换为长格式
+    3. 处理CETERMOT字段，仅在CETERM20有值时保留
     
+    返回:
+        pandas.DataFrame: 转换为长格式的CE数据集，所有值转换为字符串类型
+    """
+    # 获取CE和CE_OTH数据集
+    format_dataset = getFormatDataset('CE', 'CE_OTH')
+    ce_df = format_dataset['CE']
+    ce_oth_df = format_dataset['CE_OTH']
+   
+    # 合并数据集
+    merged_df = pandas.merge(ce_df, ce_oth_df, how='left', on='SUBJID').fillna('')
+
+    # 对数据进行宽格式到长格式的转换
+    result_rows = []
+    
+    # 遍历每一行数据
+    for _, row in merged_df.iterrows():
+        subjid = row['SUBJID']
+        ceyn = row['CEYN']
+        cetermot = row['CETERMOT'] if 'CETERMOT' in row else ''
+        
+        # 处理CETERM1-20和CETOXG1-20的配对
+        for i in range(1, 21):
+            ceterm_col = f'CETERM{i}'
+            cetoxg_col = f'CETOXG{i}'
+            
+            # 确保列存在于数据中
+            if ceterm_col in row and cetoxg_col in row:
+                ceterm_value = str(row[ceterm_col]).strip()
+                cetoxg_value = str(row[cetoxg_col]).strip()
+                
+                # 只有当CETERM有值时才添加行
+                if ceterm_value and ceterm_value != '' and ceterm_value != 'nan':
+                    # CETERMOT只在CETERM20有值的地方出现
+                    current_cetermot = cetermot if i == 20 and ceterm_value else ''
+                    
+                    # 添加到结果行列表
+                    result_rows.append({
+                        'SUBJID': subjid,
+                        'CEYN': ceyn,
+                        'CETERM': ceterm_value,
+                        'CETOXG': cetoxg_value,
+                        'CETERMOT': current_cetermot
+                    })
+    
+    # 创建结果DataFrame
+    if result_rows:
+        result_df = pandas.DataFrame(result_rows)
+    else:
+        # 如果没有数据，创建空的DataFrame但保持列结构
+        result_df = pandas.DataFrame(columns=['SUBJID', 'CETERM', 'CETOXG', 'CETERMOT'])
+    
+    # 返回结果，所有列转换为字符串类型
+    return result_df.astype(str)
+

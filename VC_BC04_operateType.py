@@ -19,36 +19,15 @@ def tableJoinType1(*tableList):
             left_info = be_converted_list
     return be_converted_list.astype(str)
 
-#   singleTableWithFilter(table='TRF',filterField='SAMPTYP',filterValue='腫瘍組織検体')
-#   singleTableWithFilter(table='TRF',filterField='SAMPTYP',filterValue='血液検体')
-# def singleTableWithFilter(**kwargs):
-#     table = kwargs.get('table')
-#     filterField = kwargs.get('filterField')
-#     filterValue = kwargs.get('filterValue')
-#     format_dataset = getFormatDataset(table)
-#     be_converted_list = format_dataset[table]
-#     be_converted_list = be_converted_list[(be_converted_list[filterField] == filterValue)]
-#     return be_converted_list.astype(str)
-
-
-### 
-# 执行mapping
-# domain_row：移行目标行，除STUDYID，DOMAIN，USUBJID，SUBJID外，其余字段值皆为空
-# standard_field：移行目标行字段
-# opertype：操作类别，Mapping表OPERTYPE列
-# parameter：操作时所需参数，Mapping表PARAMETER列
-# be_converted_row：移行对象行
-# updated_column_names：移行对象列名
-# column_names：移行对象文件实际列名
-# codeDict：
-### 
-def handle_key_error(standard_field, opertype, parameter):
+def handle_key_error(standard_field, opertype, parameter, definition_row_num=None):
     print(f'KeyError: field: {standard_field} have some error')
     print(f'KeyError: opertype: {opertype} have some error')
     print(f'KeyError: parameter: {parameter} have some error')
+    if definition_row_num:
+        print(f'错误发生在Excel的第 {definition_row_num} 行')
     sys.exit()
 
-def doMapping(domain_row, standard_field, opertype, parameter, be_converted_row, updated_column_names, codeDict, continue_flg):
+def doMapping(domain_row, standard_field, opertype, parameter, be_converted_row, updated_column_names, codeDict, continue_flg, definition_row_num=None):
     try:
         if opertype == OPERTYPE_DEF:
             domain_row[standard_field] = parameter
@@ -83,6 +62,8 @@ def doMapping(domain_row, standard_field, opertype, parameter, be_converted_row,
                 except KeyError:
                     print(f"KeyError: '{be_converted_row[updated_column_names[0]]}' not found in codeDict for parameter '{parameter}'.")
                     print(f"Available keys: {list(codeDict[parameter].keys())}")
+                    if definition_row_num:
+                        print(f"错误发生在Excel的第 {definition_row_num} 行")
                     domain_row[standard_field] = None
                     
         elif opertype == OPERTYPE_PRF:
@@ -108,7 +89,13 @@ def doMapping(domain_row, standard_field, opertype, parameter, be_converted_row,
         elif opertype:
             domain_row, continue_flg = specialType(domain_row, standard_field, opertype, parameter, be_converted_row, updated_column_names, codeDict, continue_flg) # type: ignore
     except KeyError:
-        handle_key_error(standard_field, opertype, parameter)
+        handle_key_error(standard_field, opertype, parameter, definition_row_num)
+    except Exception as e:
+        print(f"处理时发生错误: {str(e)}")
+        print(f"处理字段: {standard_field}, 操作类型: {opertype}, 参数: {parameter}")
+        if definition_row_num:
+            print(f"错误发生在Excel的第 {definition_row_num} 行")
+        sys.exit(1)
 
     return domain_row, continue_flg
 
