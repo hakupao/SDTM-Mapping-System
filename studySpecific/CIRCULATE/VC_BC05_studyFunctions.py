@@ -685,7 +685,7 @@ def get_GF_from_LB_A_BM():
         if value == 'UNKNOWN':
             return 'UNKNOWN'
         elif value == 'OTHER':
-            return ''
+            return 'OTHER'
         elif value in ('WILD TYPE', 'NEGATIVE'):
             return 'NEGATIVE'
         else:
@@ -693,6 +693,12 @@ def get_GF_from_LB_A_BM():
 
     processed_df['CLASSIFICATION'] = processed_df['CHKVALUE'].map(classify)
     
+    # 处理 CHKVALUE 字段，如果 CHKVALUE 字段为 "WILD TYPE", "POSITIVE", "NEGATIVE" 则将 CHKVALUE 字段设置为空
+    processed_df['CHKVALUE'] = processed_df['CHKVALUE'].apply(
+        lambda x: '' if x in ('WILD TYPE', 'POSITIVE', 'NEGATIVE') else x
+    )
+    
+
     # 对数据集进行去重
     processed_df = processed_df.drop_duplicates()
 
