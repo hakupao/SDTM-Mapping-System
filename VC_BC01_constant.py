@@ -1,4 +1,28 @@
-import os,sys,logging,re,csv,copy,shutil,json,pandas,mysql.connector,traceback,ast,numpy
+"""
+VAPORCONE 项目常量定义模块
+
+该模块包含了VAPORCONE项目中使用的所有常量定义，包括：
+- 研究配置参数
+- 数据库连接参数
+- 文件路径配置
+- 字段映射常量
+- 标准字段定义
+"""
+
+import ast
+import copy
+import csv
+import json
+import logging
+import os
+import re
+import shutil
+import sys
+import traceback
+
+import mysql.connector
+import numpy
+import pandas
 from openpyxl import load_workbook
 from mysql.connector import errorcode
 from dateutil import parser 

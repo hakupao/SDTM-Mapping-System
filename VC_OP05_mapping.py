@@ -1,15 +1,35 @@
+"""
+VAPORCONE 项目映射模块
+
+该模块负责将格式化的数据映射为SDTM标准格式，包括：
+- 读取映射配置
+- 执行字段映射操作
+- 处理序列号生成
+- 生成SDTM数据集
+"""
+
 from VC_BC03_fetchConfig import *
 from VC_BC04_operateType import *
 
+
 def main():
-    logger = create_logger(os.path.join(SPECIFIC_PATH, 'log_file.log'), log_level=logging.DEBUG)
+    """
+    主函数，执行数据映射流程
+    """
+    logger = create_logger(
+        os.path.join(SPECIFIC_PATH, 'log_file.log'), 
+        log_level=logging.DEBUG
+    )
     sdtm_dataset_path = create_directory(SDTMDATASET_PATH, SDTMDATASET_FILE_PATH)
+    
     workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
     sheetSetting = getSheetSetting(workbook)
-    caseDict = getCaseDict(workbook,sheetSetting)
-    codeDict, _, _ = getCodeListInfo(workbook,sheetSetting)
-    mappingDict, definition_merge_rule = getMapping(workbook,sheetSetting)
+    caseDict = getCaseDict(workbook, sheetSetting)
+    codeDict, _, _ = getCodeListInfo(workbook, sheetSetting)
+    mappingDict, definition_merge_rule = getMapping(workbook, sheetSetting)
     domainsSettingDict = getDomainsSetting(workbook, sheetSetting)
+    
+    # 初始化序列号字典
     sequenceDict = {}
     for usubjid in caseDict.values():
         if usubjid not in sequenceDict:

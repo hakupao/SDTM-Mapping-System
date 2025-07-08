@@ -1,7 +1,28 @@
+"""
+VAPORCONE 项目配置获取模块
+
+该模块负责从Excel配置文件中读取各种配置信息，包括：
+- 工作表设置
+- 病例信息
+- 文件配置
+- 字段映射
+- 代码列表
+- 域设置等
+"""
+
 from VC_BC02_baseUtils import *
 
-# 仕様書からシートSheetSetting読込
+
 def getSheetSetting(workbook):
+    """
+    从工作簿中读取工作表设置配置
+    
+    参数:
+    - workbook: Excel工作簿对象
+    
+    返回:
+    - dict: 工作表设置字典，包含各工作表的列配置和起始行信息
+    """
     # 动态设置max_col，使其为第一行从左至右直到值为空的列数
     max_col = 0
     for cell in workbook[SHEETSETTING_SHEET_NAME][1]:
@@ -10,37 +31,60 @@ def getSheetSetting(workbook):
         max_col += 1
 
     sheet_setting = {}
-    for row in workbook[SHEETSETTING_SHEET_NAME].iter_rows(min_row=2, min_col=1, max_col=max_col, values_only=True):
+    for row in workbook[SHEETSETTING_SHEET_NAME].iter_rows(
+        min_row=2, min_col=1, max_col=max_col, values_only=True
+    ):
         if not any(row):
             break
+        
         sheet_name = get_cell_value(row, 0)
         starting_row = get_cell_value(row, 1)
+        
         if sheet_name not in sheet_setting:
             sheet_setting[sheet_name] = {}
+        
         if starting_row:
             sheet_setting[sheet_name][COL_STARTINGROW] = int(get_cell_value(row, 1))
+        
         for colnum in range(2, max_col):
             cell_val = get_cell_value(row, colnum)
             if cell_val:
                 sheet_setting[sheet_name][cell_val] = colnum - 2
                 sheet_setting[sheet_name][COL_MAXCOL] = colnum - 1
+    
     return sheet_setting
 
-# 仕様書からシートPatients読込
 def getCaseDict(workbook, sheetSetting):
+    """
+    从工作簿中读取病例字典配置
+    
+    参数:
+    - workbook: Excel工作簿对象
+    - sheetSetting: 工作表设置字典
+    
+    返回:
+    - dict: 病例字典，SUBJID -> USUBJID 的映射
+    """
     patients_sheetsetting = sheetSetting[CASELIST_SHEET_NAME]
     colnum_subjid = patients_sheetsetting[COL_SUBJID]
     colnum_usubjid = patients_sheetsetting[COL_USUBJID]
     colnum_migration_flag = patients_sheetsetting[COL_MIGRATIONFLAG]
 
     caseDict = {}
-    for row in workbook[CASELIST_SHEET_NAME].iter_rows(min_row=patients_sheetsetting[COL_STARTINGROW], min_col=1, max_col=patients_sheetsetting[COL_MAXCOL], values_only=True):
+    for row in workbook[CASELIST_SHEET_NAME].iter_rows(
+        min_row=patients_sheetsetting[COL_STARTINGROW], 
+        min_col=1, 
+        max_col=patients_sheetsetting[COL_MAXCOL], 
+        values_only=True
+    ):
         if not any(row):
             break
+        
         subjid = get_cell_value(row, colnum_subjid)
         usubjid = get_cell_value(row, colnum_usubjid)
         migration_flag = get_cell_value(row, colnum_migration_flag)
 
+        # 跳过标记为不迁移的病例
         if migration_flag in MARK_CROSS:
             continue
         if migration_flag not in MARK_CIRCLE:
@@ -48,6 +92,7 @@ def getCaseDict(workbook, sheetSetting):
             sys.exit()
 
         caseDict[subjid] = usubjid
+    
     return caseDict
 
 # 仕様書からシートFiles読込

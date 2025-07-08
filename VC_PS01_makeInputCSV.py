@@ -1,6 +1,20 @@
+"""
+VAPORCONE 项目输入CSV创建模块
+
+该模块负责将SDTM数据集转换为输入CSV文件，包括：
+- 分离标准字段和补充字段
+- 生成主数据文件
+- 生成补充数据文件
+- 处理站点代码转换
+"""
+
 from VC_BC03_fetchConfig import *
 
+
 def main():
+    """
+    主函数，执行输入CSV文件创建流程
+    """
     create_directory(INPUTFILE_PATH)
     workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
     sheetSetting = getSheetSetting(workbook)
@@ -15,6 +29,7 @@ def main():
         domain = full_name.replace('.csv', '')
         standard_fields = STANDARD_FIELDS[domain]
 
+        # 读取SDTM数据文件
         data_list = []
         with open(sdtm_data_file_path, 'r', newline='', encoding="utf-8-sig") as csvfile:
             reader = csv.DictReader(csvfile)
@@ -22,9 +37,12 @@ def main():
             for row in reader:
                 data_list.append(row)
         
+        # 区分标准字段和补充字段
         common_fields = list(set(standard_fields) & set(fieldnames))
         supp_fields = list(set(fieldnames) - set(standard_fields))
         supp_data_list = []
+        
+        # 为非排除域添加PAGEID和RECORDID字段
         for shorten_name in list(set(inclusion_domain) - set(EXCLUSION_DOMAIN)):                
             if shorten_name in full_name:
                 common_fields.append("PAGEID")

@@ -1,10 +1,15 @@
+"""
+VAPORCONE 项目基础工具模块
+
+该模块提供了项目中使用的基础工具函数和数据库管理类，包括：
+- 日志记录器创建
+- 数据处理工具函数
+- 数据库操作管理类
+"""
+
 from VC_BC01_constant import *
 
-###
-#
-# 共通方法
-#
-###
+
 def create_logger(file_name, log_level=logging.DEBUG):
     """
     创建一个日志记录器(Logger)，避免重复添加 Handler 造成资源泄露。
@@ -36,73 +41,119 @@ def create_logger(file_name, log_level=logging.DEBUG):
     return logger
 
 def get_cell_value(row, idx):
+    """
+    获取单元格值并进行格式化处理
+    
+    参数:
+    - row: 行数据
+    - idx (int): 列索引
+    
+    返回:
+    - str: 格式化后的单元格值
+    """
     cell_value = row[idx]
     if cell_value is None:
         return ''
     return str(cell_value).strip()
 
 def create_directory(*paths):
+    """
+    创建目录，如果目录包含'sdtm_dataset'则添加时间戳
+    
+    参数:
+    - *paths: 可变长度的路径参数
+    
+    返回:
+    - str: 返回包含时间戳的路径（如果适用）
+    """
     current_time = datetime.now()
     current_time_str = current_time.strftime('%Y%m%d%H%M%S')
     folder = 'sdtm_dataset'
     return_path = ''
+    
     for path in paths:
         if folder in path:
-            path = path.replace(folder,f'{folder}-{current_time_str}')
+            path = path.replace(folder, f'{folder}-{current_time_str}')
             return_path = path
         try:
             os.makedirs(path, exist_ok=True)
         except Exception as e:
             print(f'Error: {e}')
             sys.exit(1)
+    
     return return_path
 
 def try_convert_to_int(value):
+    """
+    尝试将值转换为整数
+    
+    参数:
+    - value: 要转换的值
+    
+    返回:
+    - int 或 原值: 转换成功返回整数，失败返回原值
+    """
     try:
         return int(value)
     except ValueError:
         return value
     
 def make_format_value(tMETAVAL, isDateType, field_param, row, codeDict4other):
-    logger = create_logger(os.path.join(SPECIFIC_PATH, 'log_file.log'), log_level=logging.DEBUG)
+    """
+    格式化字段值，处理日期类型和其他特殊值
+    
+    参数:
+    - tMETAVAL (str): 原始元数据值
+    - isDateType (bool): 是否为日期类型
+    - field_param (dict): 字段参数配置
+    - row (dict): 当前行数据
+    - codeDict4other (dict): 其他值的代码字典
+    
+    返回:
+    - str: 格式化后的值
+    """
+    logger = create_logger(
+        os.path.join(SPECIFIC_PATH, 'log_file.log'), 
+        log_level=logging.DEBUG
+    )
 
     tFORMVAL = None
 
-    # replace_dict = {'1':'8','2':'1','3':'6','4':'7','5':'0','6':'4','7':'2','8':'3','9':'5','0':'9',
-    #                 'A':'V','B':'a','C':'O','D':'l','E':'C','F':'W','G':'J','H':'p','I':'N','J':'e',
-    #                 'K':'Q','L':'K','M':'R','N':'I','O':'d','P':'F','Q':'H','R':'i','S':'f','T':'Y',
-    #                 'U':'k','V':'y','W':'U','X':'G','Y':'r','Z':'L','a':'X','b':'S','c':'z','d':'T',
-    #                 'e':'M','f':'E','g':'j','h':'c','i':'v','j':'u','k':'x','l':'B','m':'o','n':'w',
-    #                 'o':'A','p':'m','q':'b','r':'s','s':'t','t':'q','u':'h','v':'Z','w':'D','x':'g',
-    #                 'y':'P','z':'n'
-    #                 }
-
+    # 日期匹配的正则表达式模式
     regex_patterns = [
-        '\d{4}-\d{1,2}-\d{1,2}$',
-        '\d{4}-\d{1,2}(-\D*\d*)?',
-        '\d{4}(-\D*\d*){0,2}'
+        r'\d{4}-\d{1,2}-\d{1,2}$',
+        r'\d{4}-\d{1,2}(-\D*\d*)?',
+        r'\d{4}(-\D*\d*){0,2}'
     ]
+    
     tMETAVAL = tMETAVAL.strip()
     if isDateType:
+        # 处理日期类型字段
         formatted_date = ''
         if tMETAVAL:
+            # 将 '/' 替换为 '-'
             tMETAVAL = tMETAVAL.replace('/', '-')
             year, month, day = tMETAVAL.split('-')
+            
+            # 处理特殊的日期值（9999, 99等表示未知）
             if year == '9999':
                 year = ''
             if month == '99':
                 month = ''
             if day == '99':
                 day = ''
+            
             tMETAVAL = '-'.join([year, month, day])
+            
+            # 根据不同的日期格式进行解析
             for idx, regex_pattern in enumerate(regex_patterns, start=1):
                 match = re.match(regex_pattern, tMETAVAL)
                 if match:
-                    if idx == 1:
+                    if idx == 1:  # 完整日期格式 YYYY-MM-DD
                         parsed_date = parser.parse(tMETAVAL)
                         formatted_date = parsed_date.strftime('%Y-%m-%d')
                         break
-                    elif idx == 2:
+                    elif idx == 2:  # 年月格式 YYYY-MM
                         if len(tMETAVAL) > 6:
                             tMETAVAL = tMETAVAL[:7]
                             if not tMETAVAL[-1].isdigit():
@@ -110,7 +161,7 @@ def make_format_value(tMETAVAL, isDateType, field_param, row, codeDict4other):
                         parsed_date = parser.parse(tMETAVAL)
                         formatted_date = parsed_date.strftime('%Y-%m')
                         break
-                    elif idx == 3:
+                    elif idx == 3:  # 年格式 YYYY
                         if len(tMETAVAL) > 4:
                             tMETAVAL = tMETAVAL[:4]
                         parsed_date = parser.parse(tMETAVAL)
@@ -119,10 +170,11 @@ def make_format_value(tMETAVAL, isDateType, field_param, row, codeDict4other):
                     else:
                         print(f'Date:[{tMETAVAL}] is wrong')
         tFORMVAL = formatted_date  
-    # elif field_param[COL_CODELISTNAME]:
-    #     tFORMVAL = tMETAVAL
     else:
+        # 处理非日期类型字段
         tFORMVAL = tMETAVAL
+        
+        # 如果是"其他"选项，需要从详细信息中获取具体值
         if tMETAVAL == field_param[COL_OTHERVAL]:
             othValField_codelist = field_param[COL_CODELISTNAME] + SUFFIX_4OTHER
             if othValField_codelist in codeDict4other:
@@ -135,18 +187,18 @@ def make_format_value(tMETAVAL, isDateType, field_param, row, codeDict4other):
             else:
                 print(f'CodeListName:[{othValField_codelist}] is not existed')
                 logger.info(f'CodeListName:[{othValField_codelist}] is not existed')
-    # else:
-    #     tFORMVAL = tMETAVAL
 
     return tFORMVAL
 
-###
-#
-# 数据库工具
-#
-###
 class DatabaseManager:
+    """
+    数据库管理类，提供MySQL数据库的连接和操作功能
+    """
+    
     def __init__(self):
+        """
+        初始化数据库管理器
+        """
         self.host = DB_HOST
         self.user = DB_USER
         self.password = DB_PASSWORD
@@ -155,6 +207,9 @@ class DatabaseManager:
         self.cursor = None
 
     def connect(self):
+        """
+        连接到MySQL数据库
+        """
         try:
             self.connection = mysql.connector.connect(
                 host=self.host,
