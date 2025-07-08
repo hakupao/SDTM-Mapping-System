@@ -1,28 +1,42 @@
+"""
+VAPORCONE 项目元数据插入模块
+
+该模块负责将处理后的数据作为元数据插入到数据库中，包括：
+- 读取清洗后的数据文件
+- 判断字段类型（日期类型等）
+- 格式化字段值
+- 插入元数据表
+"""
+
 from VC_BC03_fetchConfig import *
 
+
 def main():
-    # コードーリストを取込
+    """
+    主函数，执行元数据插入流程
+    """
+    # 获取配置信息
     workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
     sheetSetting = getSheetSetting(workbook)
 
-    # 参加者リストを取込
-    caseDict = getCaseDict(workbook,sheetSetting)
-    fileDict = getFileDict(workbook,sheetSetting)
-    _, _, codeDict4other = getCodeListInfo(workbook,sheetSetting)
-    # 除外リスト（フィールド）を取込
-    _, transFieldDict, _, _ = getProcess(workbook,sheetSetting)
+    # 获取相关字典和配置
+    caseDict = getCaseDict(workbook, sheetSetting)
+    fileDict = getFileDict(workbook, sheetSetting)
+    _, _, codeDict4other = getCodeListInfo(workbook, sheetSetting)
+    _, transFieldDict, _, _ = getProcess(workbook, sheetSetting)
 
-    # 根据mapping定义的SDTM字段判读是否为日期型。
+    # 根据mapping定义的SDTM字段判断是否为日期型
     # SDTM字段以DTC结尾则说明mapping至该字段的原文件字段一定为日期型，否则则一定不是
     dateTypeDict = {}
-    mappingDict, _ = getMapping(workbook,sheetSetting)
+    mappingDict, _ = getMapping(workbook, sheetSetting)
+    
     for domain_val in mappingDict.values():
         for row_param in domain_val.values():
             for variable in row_param.keys():
                 if variable in TIME_VARIABLE or row_param[variable]['SUPPTIMEFLG']:
                     rFieldName = row_param[variable][COL_FIELDNAME]
                     if re.match(PATTERN_CYCLE_PRA, rFieldName):
-                        rFieldName = re.sub(PATTERN_CYCLE_PRA, r"\1", rFieldName)                  
+                        rFieldName = re.sub(PATTERN_CYCLE_PRA, r"\1", rFieldName)
                     fieldname_list = rFieldName.split(MARK_DOLLAR)
                     for fieldname in fieldname_list:
                         dateTypeDict[fieldname] = True
@@ -32,15 +46,29 @@ def main():
     try:
         db.create_metadata_table(METADATA_TABLE_NAME)
         data = []
-        # ローデータファイルリストを取込
+        # 获取清洗后的数据文件列表
         all_files = os.listdir(CLEANINGSTEP_TRANSFER_FILE_PATH)
-        files_only = [file for file in all_files if os.path.isfile(os.path.join(CLEANINGSTEP_TRANSFER_FILE_PATH, file))]
+        files_only = [
+            file for file in all_files 
+            if os.path.isfile(os.path.join(CLEANINGSTEP_TRANSFER_FILE_PATH, file))
+        ]
+        
         for fileName in fileDict.keys():
             if fileName not in transFieldDict:
                 continue
-            full_name = next((file_name for file_name in files_only if f'C-{fileName}{EXTENSION}' == file_name), None)
+            
+            # 查找对应的清洗文件
+            full_name = next((
+                file_name for file_name in files_only 
+                if f'C-{fileName}{EXTENSION}' == file_name
+            ), None)
+            
             if not full_name:
-                full_name = next((file_name for file_name in files_only if f'C-{fileName}{EXTENSION}' in file_name), None)
+                full_name = next((
+                    file_name for file_name in files_only 
+                    if f'C-{fileName}{EXTENSION}' in file_name
+                ), None)
+            
             if not full_name:
                 print(f'{fileName}{EXTENSION} is undefined')
                 sys.exit()

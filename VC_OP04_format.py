@@ -1,27 +1,54 @@
+"""
+VAPORCONE 项目格式化模块
+
+该模块负责将元数据转换为格式化的数据，包括：
+- 创建转换数据视图
+- 处理检查文件
+- 生成格式化的数据文件
+- 处理组合文件
+"""
+
 from VC_BC03_fetchConfig import *
 from VC_BC04_operateType import *
 
+
 def process_combine_files(workbook, sheetSetting):
-    """Process combine files based on configuration"""
+    """
+    处理组合文件，根据配置执行特定的组合函数
+    
+    参数:
+    - workbook: Excel工作簿对象
+    - sheetSetting: 工作表设置字典
+    """
     for file_name, function_name in getCombineInfo(workbook, sheetSetting).items():
         be_converted_list = eval(function_name)
-        be_converted_list.fillna('').to_csv(os.path.join(FORMAT_TRANSFER_FILE_PATH, f'{PREFIX_F}{file_name}{EXTENSION}'), index=False, encoding='utf-8-sig')
+        be_converted_list.fillna('').to_csv(
+            os.path.join(FORMAT_TRANSFER_FILE_PATH, f'{PREFIX_F}{file_name}{EXTENSION}'), 
+            index=False, 
+            encoding='utf-8-sig'
+        )
         print(f'{file_name} is outputting')
 
-def main():
 
+def main():
+    """
+    主函数，执行格式化流程
+    """
     db = DatabaseManager()
     db.connect()
     db.create_transdata_view(TRANSDATA_VIEW_NAME, METADATA_TABLE_NAME, CODELIST_TABLE_NAME)
 
-    logger = create_logger(os.path.join(SPECIFIC_PATH, 'log_file.log'), log_level=logging.DEBUG)
+    logger = create_logger(
+        os.path.join(SPECIFIC_PATH, 'log_file.log'), 
+        log_level=logging.DEBUG
+    )
 
     create_directory(FORMAT_TRANSFER_FILE_PATH)
     
     workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
     sheetSetting = getSheetSetting(workbook)
-    fileDict = getFileDict(workbook,sheetSetting)
-    _,transFieldDict,chkFileDict,ex_fieldsDict = getProcess(workbook,sheetSetting)
+    fileDict = getFileDict(workbook, sheetSetting)
+    _, transFieldDict, chkFileDict, ex_fieldsDict = getProcess(workbook, sheetSetting)
     
     for fileName in transFieldDict.keys():
         if fileName not in fileDict:

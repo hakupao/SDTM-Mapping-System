@@ -1,25 +1,71 @@
+"""
+VAPORCONE 项目操作类型处理模块
+
+该模块实现了数据转换过程中的各种操作类型，包括：
+- 单表操作
+- 多表联合操作
+- 字段映射处理
+- 特殊操作类型处理
+"""
+
 from VC_BC03_fetchConfig import *
 sys.path.append(SPECIFIC_PATH)
 from VC_BC05_studyFunctions import * # type: ignore
 
+
 def singleTable(table):
+    """
+    单表操作，获取并返回指定表的数据
+    
+    参数:
+    - table (str): 表名
+    
+    返回:
+    - DataFrame: 转换为字符串类型的数据框
+    """
     format_dataset = getFormatDataset(table)
     be_converted_list = format_dataset[table]
     return be_converted_list.astype(str)
 
 def tableJoinType1(*tableList):
+    """
+    多表联合操作类型1，基于SUBJID字段进行外连接
+    
+    参数:
+    - *tableList: 可变长度的表名列表
+    
+    返回:
+    - DataFrame: 联合后的数据框，转换为字符串类型
+    """
     format_dataset = getFormatDataset(*tableList)
     left_info = pandas.DataFrame()
+    
     for file_name in tableList:
         file_filter_data = format_dataset[file_name]
         if left_info.empty:
             left_info = file_filter_data
         else:
-            be_converted_list = pandas.merge(left_info, file_filter_data, left_on='SUBJID', right_on='SUBJID', how='outer').fillna('')
+            be_converted_list = pandas.merge(
+                left_info, 
+                file_filter_data, 
+                left_on='SUBJID', 
+                right_on='SUBJID', 
+                how='outer'
+            ).fillna('')
             left_info = be_converted_list
+    
     return be_converted_list.astype(str)
 
 def handle_key_error(standard_field, opertype, parameter, definition_row_num=None):
+    """
+    处理键错误，输出错误信息并退出程序
+    
+    参数:
+    - standard_field (str): 标准字段名
+    - opertype (str): 操作类型
+    - parameter (str): 参数
+    - definition_row_num (int, optional): 定义行号
+    """
     print(f'KeyError: field: {standard_field} have some error')
     print(f'KeyError: opertype: {opertype} have some error')
     print(f'KeyError: parameter: {parameter} have some error')

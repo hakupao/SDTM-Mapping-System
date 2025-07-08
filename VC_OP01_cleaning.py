@@ -1,25 +1,61 @@
+"""
+VAPORCONE 项目数据清洗模块
+
+该模块负责对原始数据进行清洗处理，包括：
+- 根据配置筛选需要迁移的数据
+- 分离迁移和非迁移的列
+- 处理空白行和无效数据
+- 输出清洗后的数据文件
+"""
+
 from VC_BC03_fetchConfig import *
 
-def main():
-    logger = create_logger(os.path.join(SPECIFIC_PATH, 'log_file.log'), log_level=logging.DEBUG)
 
-    create_directory(CLEANINGSTEP_PATH, CLEANINGSTEP_TRANSFER_FILE_PATH, CLEANINGSTEP_NOT_TRANSFER_COLS_PATH, CLEANINGSTEP_NOT_TRANSFER_ROWS_PATH)
+def main():
+    """
+    主函数，执行数据清洗流程
+    """
+    logger = create_logger(
+        os.path.join(SPECIFIC_PATH, 'log_file.log'), 
+        log_level=logging.DEBUG
+    )
+
+    create_directory(
+        CLEANINGSTEP_PATH, 
+        CLEANINGSTEP_TRANSFER_FILE_PATH, 
+        CLEANINGSTEP_NOT_TRANSFER_COLS_PATH, 
+        CLEANINGSTEP_NOT_TRANSFER_ROWS_PATH
+    )
 
     workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
     sheetSetting = getSheetSetting(workbook)
-    caseDict = getCaseDict(workbook,sheetSetting)
-    fileDict = getFileDict(workbook,sheetSetting)
-    fieldDict,_,_,_ = getProcess(workbook,sheetSetting)
+    caseDict = getCaseDict(workbook, sheetSetting)
+    fileDict = getFileDict(workbook, sheetSetting)
+    fieldDict, _, _, _ = getProcess(workbook, sheetSetting)
 
     fileList = list(fileDict.keys())
 
-    # ローデータファイルリストを取込
+    # 获取原始数据文件列表
     all_files = os.listdir(RAW_DATA_ROOT_PATH)
-    files_only = [file for file in all_files if os.path.isfile(os.path.join(RAW_DATA_ROOT_PATH, file))]
+    files_only = [
+        file for file in all_files 
+        if os.path.isfile(os.path.join(RAW_DATA_ROOT_PATH, file))
+    ]
+    
     for shorten_name in fileList:
-        full_name = next((file_name for file_name in files_only if f'{shorten_name}{EXTENSION}' == file_name), None)
+        # 优先查找完全匹配的文件名
+        full_name = next((
+            file_name for file_name in files_only 
+            if f'{shorten_name}{EXTENSION}' == file_name
+        ), None)
+        
+        # 如果没有找到，查找包含短名称的文件
         if not full_name:
-            full_name = next((file_name for file_name in files_only if shorten_name in file_name), None)
+            full_name = next((
+                file_name for file_name in files_only 
+                if shorten_name in file_name
+            ), None)
+        
         if not full_name:
             print(f'Study:[{STUDY_ID}] File:[{shorten_name}] is not existed')
             sys.exit()
