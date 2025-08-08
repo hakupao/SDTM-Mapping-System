@@ -1,110 +1,67 @@
 # 贡献指南
 
-感谢您对SDTM数据迁移工具的关注！我们欢迎来自社区的贡献，帮助改进和完善这个工具。
+感谢您对 SDTM 数据迁移工具的关注！欢迎通过 Issue/PR 改进本项目。
 
-## 贡献流程
+## 工作流（Workflow）
 
-### 1. Fork仓库
-
-首先，在GitHub上fork本仓库到您自己的账户。
-
-### 2. 克隆仓库
-
+1. Fork 仓库并克隆到本地：
 ```bash
 git clone https://github.com/your-username/SDTM-Mapping-System.git
 cd SDTM-Mapping-System
 ```
-
-### 3. 创建分支
-
+2. 创建开发分支：
 ```bash
 git checkout -b feature/your-feature-name
 ```
+分支命名建议：
+- `feat/xxx`：新功能
+- `fix/xxx`：缺陷修复
+- `docs/xxx`：文档变更
+- `refactor/xxx`：重构
 
-分支命名规范：
-- `feature/xxx`: 新功能开发
-- `bugfix/xxx`: 错误修复
-- `docs/xxx`: 文档改进
-- `refactor/xxx`: 代码重构
+3. 开发与测试：
+- 遵循 PEP8（Python）与本仓库代码风格
+- 较复杂函数需添加 docstring（PEP257）
+- 新功能/修复应包含必要的单元测试（pytest）
+- 文档更新：`docs/` 与 `README.md`
 
-### 4. 开发与测试
-
-- 确保代码遵循项目的编码规范
-- 添加必要的注释和文档
-- 编写测试用例验证功能正确性
-
-### 5. 提交更改
-
+4. 提交（Commit）：
+- 推荐使用 Conventional Commits：
+  - `feat: 模块/功能 简述`
+  - `fix: 问题 简述`
+  - `docs: 文档变更 简述`
+  - `refactor: 重构 简述`
+  - `test: 测试 简述`
+  - `chore: 杂项 简述`
 ```bash
 git add .
-git commit -m "描述你的更改"
+git commit -m "feat: format 阶段输出检查型 F-<name>[chk].csv"
 ```
 
-提交信息格式建议：
-```
-类型: 简短描述
-
-详细描述（如有必要）
-```
-
-类型包括：
-- `feat`: 新功能
-- `fix`: 错误修复
-- `docs`: 文档变更
-- `style`: 格式调整（不影响代码功能）
-- `refactor`: 代码重构
-- `test`: 测试相关
-- `chore`: 构建过程或辅助工具变动
-
-### 6. 推送到远程仓库
-
+5. 推送与 PR：
 ```bash
 git push origin feature/your-feature-name
 ```
+在 GitHub 创建 Pull Request 至 `main`。
 
-### 7. 创建Pull Request
+## 代码与文档风格
 
-在GitHub上从您的分支创建Pull Request到主仓库的main分支。
+- Python：
+  - PEP8/PEP257
+  - 强类型倾向、具名变量、避免深层嵌套
+  - 重要逻辑添加中文注释与简明 docstring
+- 文档：
+  - Markdown，中文标点
+  - 引用文件/函数请使用反引号包裹，如 `VC_OP05_mapping.py`
 
-## 编码规范
+## 安全与合规
 
-### Python代码规范
+- 禁止提交明文凭据（密码、Token）；请使用环境变量或 `.env`（未入库）
+- 不要提交大体量数据/受保护数据集
+- 版权遵循各数据及依赖许可
 
-- 遵循PEP 8编码风格
-- 使用有意义的变量名和函数名
-- 添加适当的注释
-- 函数和类应有docstring说明用途和参数
+## Issue 报告模版建议
 
-### 文档规范
+- 问题简述、复现步骤、期望与实际、环境信息（OS、Python、MySQL）、日志与截图
 
-- 使用Markdown格式编写文档
-- 保持文档结构清晰
-- 中文文档使用中文标点符号
-
-## 版本控制
-
-项目使用语义化版本控制 (Semantic Versioning)：
-
-- 主版本号：不兼容的API变更
-- 次版本号：向后兼容的功能性新增
-- 修订号：向后兼容的问题修正
-
-## 问题报告
-
-如果您发现了问题但没有时间或能力修复，请创建Issue。
-
-创建Issue时请包含：
-- 问题的简要描述
-- 重现步骤
-- 期望行为
-- 实际行为
-- 环境信息（操作系统、Python版本等）
-- 相关的日志或屏幕截图
-
-## 行为准则
-
-- 尊重所有贡献者
-- 保持专业和友好的交流
-- 接受建设性批评
-- 聚焦在项目改进而非个人
-- 欢迎新人参与 
+感谢您的贡献！ 
