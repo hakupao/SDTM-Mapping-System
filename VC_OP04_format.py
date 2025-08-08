@@ -11,7 +11,6 @@ VAPORCONE 项目格式化模块
 from VC_BC03_fetchConfig import *
 from VC_BC04_operateType import *
 
-
 def process_combine_files(workbook, sheetSetting):
     """
     处理组合文件，根据配置执行特定的组合函数
@@ -28,7 +27,6 @@ def process_combine_files(workbook, sheetSetting):
             encoding='utf-8-sig'
         )
         print(f'{file_name} is outputting')
-
 
 def main():
     """
@@ -91,8 +89,6 @@ def main():
                             select_fieldIDs.append(f't.`CHKTYPE`')
                         if 't.`CHKVALUE`' not in select_fieldIDs:
                             select_fieldIDs.append(f't.`CHKVALUE`')
-                        # if other_fields_sql and other_fields_sql not in select_fieldIDs:
-                        #     select_fieldIDs.append(other_fields_sql)
                         chk_fieldIDs.append(f'\'{_chkFieldID}\'')
                         if flg not in case_fieldIDs:
                             case_fieldIDs[flg] = []

@@ -9,6 +9,13 @@ VAPORCONE 项目数据清洗模块
 """
 
 from VC_BC03_fetchConfig import *
+# 导入研究特定的排序函数，如果导入失败则跳过排序处理
+try:
+    from studySpecific.CIRCULATE.VC_BC05_studyFunctions import sort_csv_data
+    SORT_FUNCTION_AVAILABLE = True
+except ImportError:
+    print("警告：未找到排序函数，将跳过排序处理")
+    SORT_FUNCTION_AVAILABLE = False
 
 
 def main():
@@ -128,7 +135,24 @@ def main():
 
             if not_define_fields:
                 print(f'Study:[{STUDY_ID}] File:[{shorten_name}] {len(not_define_fields)} Fields:[{not_define_fields}] are undefined')
-
+        
+        # 对迁移数据进行排序处理，如果VC_BC05_studyFunctions.py没有sort_csv_data函数，则跳过处理
+        if not transfer_file_fields:
+            print(f'Study:[{STUDY_ID}] File:[{shorten_name}] is not migration')
+            continue
+        
+        if transfer_data and SORT_FUNCTION_AVAILABLE:
+            try:
+                transfer_data = sort_csv_data(transfer_data, shorten_name, subjid_field_id)
+                print(f'Study:[{STUDY_ID}] File:[{shorten_name}] Transfer data sorted: {len(transfer_data)} records')
+                logger.info(f'Study:[{STUDY_ID}] File:[{shorten_name}] Transfer data sorted: {len(transfer_data)} records')
+            except Exception as e:
+                print(f'Study:[{STUDY_ID}] File:[{shorten_name}] 排序处理失败，跳过排序: {str(e)}')
+                logger.warning(f'Study:[{STUDY_ID}] File:[{shorten_name}] 排序处理失败，跳过排序: {str(e)}')
+        elif transfer_data and not SORT_FUNCTION_AVAILABLE:
+            print(f'Study:[{STUDY_ID}] File:[{shorten_name}] 排序函数不可用，跳过排序处理')
+            logger.info(f'Study:[{STUDY_ID}] File:[{shorten_name}] 排序函数不可用，跳过排序处理')
+        
         # 移行データを出力
         if transfer_file_fields:
             with open(os.path.join(CLEANINGSTEP_TRANSFER_FILE_PATH, f'{PREFIX_C}{shorten_name}{EXTENSION}'), 'w', newline=MARK_BLANK, encoding="utf-8-sig") as writer_transfer_file:

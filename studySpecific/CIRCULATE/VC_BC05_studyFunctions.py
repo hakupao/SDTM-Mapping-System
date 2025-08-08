@@ -41,6 +41,7 @@ def tableMerge(*tableList):
     
     检查所有输入表的列名是否一致，如果一致则进行拼接。
     所有数据在处理过程中都会被转换为字符串类型。
+    拼接后的数据会按照主key：SUBJID排序，副key：按照tableList的前后顺序排序。
     
     参数:
         *tableList: 可变参数，包含所有需要拼接的表名
@@ -55,20 +56,33 @@ def tableMerge(*tableList):
     format_dataset = getFormatDataset(*tableList)
     merged_info = pandas.DataFrame()
     
-    for file_name in tableList:
+    for table_index, file_name in enumerate(tableList):
         # 获取当前表的格式化数据
-        file_filter_data = format_dataset[file_name]
+        file_filter_data = format_dataset[file_name].copy()
+        
+        # 为每个表添加排序字段，表示它在tableList中的顺序
+        file_filter_data['_TABLE_ORDER'] = table_index
         
         # 如果结果表为空，直接赋值
         if merged_info.empty:
             merged_info = file_filter_data
         else:
-            # 检查列名是否一致
-            if set(merged_info.columns) != set(file_filter_data.columns):
+            # 检查列名是否一致（排除临时添加的排序字段）
+            merged_columns = set(merged_info.columns) - {'_TABLE_ORDER'}
+            current_columns = set(file_filter_data.columns) - {'_TABLE_ORDER'}
+            
+            if merged_columns != current_columns:
                 raise ValueError(f"表 {file_name} 的列名与其他表不一致，无法拼接。")
             
             # 垂直拼接数据
             merged_info = pandas.concat([merged_info, file_filter_data], axis=0)
+    
+    # 对拼接后的数据进行排序处理
+    # 主key：SUBJID，副key：表的顺序（前面的表排在前面）
+    merged_info = merged_info.sort_values(by=['SUBJID', '_TABLE_ORDER'], ascending=[True, True])
+    
+    # 删除临时的排序字段
+    merged_info = merged_info.drop('_TABLE_ORDER', axis=1)
     
     # 返回拼接后的数据表，所有列转换为字符串类型
     return merged_info.astype(str)
@@ -104,7 +118,7 @@ def make_DMFrame():
     dmframe = pandas.merge(dmframe, inex_subset, how='left', on='SUBJID').fillna('')
     
     # 处理生存状态(SS_A_ALL)数据
-    ss_a_all_df = ss_a_all_df[['SUBJID', 'OUTDAT1', 'OUTDAT2', 'SURVSTAT']].astype(str)
+    ss_a_all_df = ss_a_all_df[['SUBJID', 'OUTDAT1', 'OUTDAT2', 'SURVSTAT','FUDAT']].astype(str)
     
     # 删除生存状态为空的行
     ss_a_all_df = ss_a_all_df[ss_a_all_df['SURVSTAT'] != '']
@@ -120,8 +134,8 @@ def make_DMFrame():
     
     # 按受试者ID、生存状态优先级、结局日期排序
     ss_a_all_df = ss_a_all_df.sort_values(
-        by=['SUBJID', 'SURVSTAT_PRIORITY', 'OUTDAT'],
-        ascending=[True, True, False]
+        by=['SUBJID', 'SURVSTAT_PRIORITY', 'OUTDAT','FUDAT'],
+        ascending=[True, True, False, False]
     )
     
     # 对每个受试者只保留第一条记录
@@ -218,8 +232,12 @@ def process_MH_A_PT():
     """
     # 获取MH_A_PT和SUPR数据集
     format_dataset = getFormatDataset('MH_A_PT', 'SUPR')
+    
     mh_a_pt_df = format_dataset['MH_A_PT']
     supr_df = format_dataset['SUPR']
+    
+    # 提取SUPR中的SUBJID、SUDAT字段
+    supr_df = supr_df[['SUBJID', 'SUDAT']].copy()
         
     # 添加空白列
     mh_a_pt_df['BLANK'] = ""
@@ -321,6 +339,8 @@ def process_RGACOHD_MH():
     format_dataset = getFormatDataset('RGACOHD_MH', 'RGACOHD')
     rgacohd_mh_df = format_dataset['RGACOHD_MH']
     rgacohd_df = format_dataset['RGACOHD']
+    
+    rgacohd_df = rgacohd_df[['SUBJID', 'SUDAT_D']].copy()
     
     # 添加空白列
     rgacohd_mh_df['BLANK'] = ""
@@ -481,12 +501,16 @@ def process_MH_A_RC():
         pandas.DataFrame: 处理后的MH_A_RC数据集，所有值转换为字符串类型
     """
     # 获取MH_A_RC数据集
-    format_dataset = getFormatDataset('MH_A_RC','SUPR')
+    format_dataset = getFormatDataset('MH_A_RC','SUPR_MR_FULL')
     mh_a_rc_df = format_dataset['MH_A_RC']
-    supr_df = format_dataset['SUPR']
- 
+    supr_mr_full_df = format_dataset['SUPR_MR_FULL']
+    
+    # 提取 supr_mr_full_df 中的SUBJID、DAT字段，并对两个字段去重
+    supr_mr_full_df = supr_mr_full_df[['SUBJID', 'DAT']].copy()
+    supr_mr_full_df = supr_mr_full_df.drop_duplicates(subset=['SUBJID', 'DAT'], keep='first')
+    
     # 合并数据集
-    mh_a_rc_df = pandas.merge(mh_a_rc_df, supr_df, how='left', on='SUBJID').fillna('')
+    mh_a_rc_df = pandas.merge(mh_a_rc_df, supr_mr_full_df, how='left', on='SUBJID').fillna('')
     
     # 使用层级关系更新TYPE字段
     mh_a_rc_df["TYPE"] = mh_a_rc_df.apply(
@@ -570,7 +594,7 @@ def get_DD_from_SS_ALL():
     
     # 提取指定字段并转换为字符串
     ss_a_all_dd_df = ss_a_all_dd_df[
-        ['SUBJID', 'SURVSTAT', 'OUTDAT1', 'OUTDAT2', 'PRCDTH', 'PRCDTHDE']
+        ['SUBJID', 'SURVSTAT', 'OUTDAT1', 'OUTDAT2', 'PRCDTH', 'PRCDTHDE','FUDAT']
     ].astype(str)
     
     # 删除SURVSTAT为空的行
@@ -589,8 +613,8 @@ def get_DD_from_SS_ALL():
     
     # 按照受试者ID、状态优先级和日期排序
     ss_a_all_dd_df = ss_a_all_dd_df.sort_values(
-        by=['SUBJID', 'SURVSTAT_PRIORITY', 'OUTDAT'],
-        ascending=[True, True, False]
+        by=['SUBJID', 'SURVSTAT_PRIORITY', 'OUTDAT','FUDAT'],
+        ascending=[True, True, False, False]
     )
     
     # 对每个SUBJID只保留第一条记录，使用drop_duplicates保持行的完整性
@@ -602,33 +626,6 @@ def get_DD_from_SS_ALL():
     # 返回结果，所有列转换为字符串类型
     return ss_a_all_dd_df.astype(str)
     
-def add_field_to_file(data_source_key, fields_with_values):
-    """
-    给数据集添加指定的字段并填充固定的值。
-
-    示例用法:
-        add_field_to_file('FILE', {"NEW_FIELD_1": "Value1", "NEW_FIELD_2": "Value2"})
-
-    参数:
-        data_source_key (str): 用于从getFormatDataset函数获取数据集的键值
-        fields_with_values (dict): 字典形式，键为需要添加的字段名，值为对应的固定值
-
-    返回:
-        pandas.DataFrame: 修改后的DataFrame，所有列均转换为字符串类型
-    """
-    # 从getFormatDataset获取指定键对应的数据集
-    format_dataset = getFormatDataset(data_source_key)
-    
-    # 提取目标DataFrame
-    add_field_df = format_dataset[data_source_key]
-
-    # 遍历字典，为每个字段添加对应的固定值
-    for field, value in fields_with_values.items():
-        add_field_df[field] = value
-        
-    # 返回结果，所有列转换为字符串类型
-    return add_field_df.astype(str)
-
 def get_GF_from_LB_A_BM():
     """
     从LB_A_BM数据集获取基因检测结果并进行处理。
@@ -658,21 +655,23 @@ def get_GF_from_LB_A_BM():
     ).apply(process_group)
     
     # 处理RAS相关的逻辑
-    # 获取所有KRAS和NRAS中CHKVALUE不为WILD TYPE的受试者
+    # 获取所有KRAS和NRAS中CHKVALUE不为WILD TYPE且不为UNKNOWN的受试者
     kras_mutations = processed_df[
         (processed_df['CHKTYPE'] == 'KRAS') & 
-        (processed_df['CHKVALUE'] != 'WILD TYPE')
+        (processed_df['CHKVALUE'] != 'WILD TYPE') &
+        (processed_df['CHKVALUE'] != 'UNKNOWN')
     ]['SUBJID'].unique()
     
     nras_mutations = processed_df[
         (processed_df['CHKTYPE'] == 'NRAS') & 
-        (processed_df['CHKVALUE'] != 'WILD TYPE')
+        (processed_df['CHKVALUE'] != 'WILD TYPE') &
+        (processed_df['CHKVALUE'] != 'UNKNOWN')
     ]['SUBJID'].unique()
     
     # 合并所有需要更新RAS为POSITIVE的受试者ID
     ras_positive_subjects = list(set(kras_mutations) | set(nras_mutations))
     
-    # 更新这些受试者对应的RAS记录为POSITIVE
+    # 仅对有明确突变的受试者更新RAS记录为POSITIVE，其余情况保持原值
     processed_df.loc[
         (processed_df['SUBJID'].isin(ras_positive_subjects)) & 
         (processed_df['CHKTYPE'] == 'RAS'), 
@@ -693,9 +692,9 @@ def get_GF_from_LB_A_BM():
 
     processed_df['CLASSIFICATION'] = processed_df['CHKVALUE'].map(classify)
     
-    # 处理 CHKVALUE 字段，如果 CHKVALUE 字段为 "WILD TYPE", "POSITIVE", "NEGATIVE" 则将 CHKVALUE 字段设置为空
+    # 处理 CHKVALUE 字段，如果 CHKVALUE 字段为 "WILD TYPE", "POSITIVE", "NEGATIVE", "UNKNOWN" 则将 CHKVALUE 字段设置为空
     processed_df['CHKVALUE'] = processed_df['CHKVALUE'].apply(
-        lambda x: '' if x in ('WILD TYPE', 'POSITIVE', 'NEGATIVE') else x
+        lambda x: '' if x in ('WILD TYPE', 'POSITIVE', 'NEGATIVE', 'UNKNOWN') else x
     )
     
 
@@ -750,49 +749,130 @@ def get_CE():
     ce_df = format_dataset['CE']
     ce_oth_df = format_dataset['CE_OTH']
    
-    # 合并数据集
+    # 合并数据集并填充空值
     merged_df = pandas.merge(ce_df, ce_oth_df, how='left', on='SUBJID').fillna('')
 
-    # 对数据进行宽格式到长格式的转换
-    result_rows = []
-    
-    # 遍历每一行数据
-    for _, row in merged_df.iterrows():
-        subjid = row['SUBJID']
-        ceyn = row['CEYN']
-        cetermot = row['CETERMOT'] if 'CETERMOT' in row else ''
-        
-        # 处理CETERM1-20和CETOXG1-20的配对
-        for i in range(1, 21):
-            ceterm_col = f'CETERM{i}'
-            cetoxg_col = f'CETOXG{i}'
-            
-            # 确保列存在于数据中
-            if ceterm_col in row and cetoxg_col in row:
-                ceterm_value = str(row[ceterm_col]).strip()
-                cetoxg_value = str(row[cetoxg_col]).strip()
-                
-                # 只有当CETERM有值时才添加行
-                if ceterm_value and ceterm_value != '' and ceterm_value != 'nan':
-                    # CETERMOT只在CETERM20有值的地方出现
-                    current_cetermot = cetermot if i == 20 and ceterm_value else ''
-                    
-                    # 添加到结果行列表
-                    result_rows.append({
-                        'SUBJID': subjid,
-                        'CEYN': ceyn,
-                        'CETERM': ceterm_value,
-                        'CETOXG': cetoxg_value,
-                        'CETERMOT': current_cetermot
-                    })
-    
-    # 创建结果DataFrame
-    if result_rows:
-        result_df = pandas.DataFrame(result_rows)
+    # 确定ID变量，这些变量在转换后保持不变
+    id_vars = ['SUBJID', 'CEYN']
+    # CETERMOT需要特殊处理，但我们先将其作为ID变量
+    if 'CETERMOT' in merged_df.columns:
+        id_vars.append('CETERMOT')
     else:
-        # 如果没有数据，创建空的DataFrame但保持列结构
-        result_df = pandas.DataFrame(columns=['SUBJID', 'CETERM', 'CETOXG', 'CETERMOT'])
+        # 如果CETERMOT列不存在，创建一个空列以避免错误
+        merged_df['CETERMOT'] = ''
+        id_vars.append('CETERMOT')
+
+    # 使用 pandas.wide_to_long 高效地将宽表转换为长表
+    # stubnames 定义了需要转换的列的前缀
+    try:
+        long_df = pandas.wide_to_long(
+            merged_df,
+            stubnames=['CETERM', 'CETOXG'],
+            i=id_vars,
+            j='_event_num',  # 临时列，用于存储事件编号 (1-20)
+            sep='',
+            suffix='\\d+'
+        ).reset_index()
+    except ValueError:
+        # 如果输入数据为空或不包含任何CETERM/CETOXG列，则返回一个空的DataFrame
+        return pandas.DataFrame(columns=['SUBJID', 'CEYN', 'CETERM', 'CETOXG', 'CETERMOT'])
+
+    # 清理数据：删除 CETERM 为空或'nan'的行
+    long_df.dropna(subset=['CETERM'], inplace=True)
+    long_df = long_df[~long_df['CETERM'].astype(str).str.strip().isin(['', 'nan'])]
+
+    # 应用 CETERMOT 的特殊逻辑：仅在事件编号为20时保留其值
+    long_df['CETERMOT'] = np.where(long_df['_event_num'] == 20, long_df['CETERMOT'], '')
+
+    # 删除不再需要的临时事件编号列，并选择最终需要的列
+    result_df = long_df.drop(columns=['_event_num'])[['SUBJID', 'CEYN', 'CETERM', 'CETOXG', 'CETERMOT']]
     
     # 返回结果，所有列转换为字符串类型
     return result_df.astype(str)
 
+def sort_csv_data(data_list, file_name, subjid_field_id):
+    """
+    对CSV数据进行排序处理。
+    
+    根据指定的文件名和受试者ID字段进行二级排序：
+    - 主key：受试者ID字段（升序）
+    - 副key：根据文件类型确定的特定字段（升序）
+    
+    参数:
+        data_list (list): 包含字典的列表，每个字典代表一行数据
+        file_name (str): 文件名，用于确定副key字段
+        subjid_field_id (str): 受试者ID字段名（主key）
+        
+    返回:
+        list: 排序后的数据列表
+    """
+    if not data_list:
+        return data_list
+    
+    # 定义文件名与副key字段的映射关系
+    secondary_key_mapping = {
+        'LB_A_CTDNA': 'CTDNATP',
+        'LB_A_TM': 'TMTPT',
+        'MO_A': 'MOTIMEPP',
+        'SS_A': 'SSTIMEP'
+    }
+    
+    # 获取副key字段名
+    secondary_key = secondary_key_mapping.get(file_name)
+    
+    if secondary_key:
+        # 如果存在副key字段，按主key和副key进行二级排序（升序）
+        sorted_data = sorted(data_list, key=lambda x: (
+            x.get(subjid_field_id, ''),
+            x.get(secondary_key, '')
+        ))
+    else:
+        # # 如果没有定义副key，仅按主key排序（升序）
+        # sorted_data = sorted(data_list, key=lambda x: x.get(subjid_field_id, ''))
+        
+        # 如果文件不在secondary_key_mapping，则不进行任何排序处理
+        sorted_data = data_list
+        
+    return sorted_data
+
+def process_SUPR_SMPL():
+    # 获取 SUPR_SMPL 和 SUPR 数据集
+    format_dataset = getFormatDataset('SUPR_SMPL', 'SUPR')
+    supr_smp_df = format_dataset['SUPR_SMPL']
+    supr_df = format_dataset['SUPR']
+    
+    # 提取SUPR中的SUBJID、SUDAT字段
+    supr_df = supr_df[['SUBJID', 'SUDAT']].copy()
+
+    # 合并数据集
+    merged_df = pandas.merge(supr_smp_df, supr_df, how='left', on='SUBJID').fillna('')
+    
+    # 生成一个新字段DAT，如果 SUTTDATS 为TISSUE COLLECTION DATE IS SAME AS THE SURGERY DATE，则 DAT 的值为 SUPR 的 SUDAT 的值，否则 DAT 的值为 SUPR_SMPL 的 SUTTDAT 的值
+    merged_df['DAT'] = merged_df['SUDAT'].where(merged_df['SUTTDATS'] == 'TISSUE COLLECTION DATE IS SAME AS THE SURGERY DATE', merged_df['SUTTDAT'])
+
+    # 对DAT 字段的数据(一部分是yyyy/mm/dd，一部分是yyyy-mm-dd)进行ISO 8601 格式化(将/变为-，对mm和dd进行补零)
+    merged_df['DAT'] = merged_df['DAT'].apply(lambda x: datetime.strptime(x, '%Y/%m/%d').strftime('%Y-%m-%d') if '/' in x else x)
+
+    # 返回结果，所有列转换为字符串类型
+    return merged_df.astype(str)
+
+def process_SUPR_MR():
+    # 获取 SUPR_MR 和 SUPR 数据集
+    format_dataset = getFormatDataset('SUPR_MR[SUPR_MR]', 'SUPR')
+    supr_mr_df = format_dataset['SUPR_MR[SUPR_MR]']
+    supr_df = format_dataset['SUPR']
+    
+    # 提取SUPR中的SUBJID、SUDAT字段
+    supr_df = supr_df[['SUBJID', 'SUDAT']].copy()
+
+    # 合并数据集
+    merged_df = pandas.merge(supr_mr_df, supr_df, how='left', on='SUBJID').fillna('')
+
+    # 生成一个新字段DAT，如果SUDATS 的值为SAME DAY AS PRIMARY RESECTION ，则DAT的值为 SUPR 的 SUDAT_y 的值，否则DAT的值为 SUPR_MR 的 SUDAT_x 的值
+    merged_df['DAT'] = merged_df['SUDAT_y'].where(merged_df['SUDATS'] == 'SAME DAY AS PRIMARY RESECTION', merged_df['SUDAT_x'])
+
+    # 对DAT 字段的数据(一部分是yyyy/mm/dd，一部分是yyyy-mm-dd)进行ISO 8601 格式化(将/变为-，对mm和dd进行补零)
+    merged_df['DAT'] = merged_df['DAT'].apply(lambda x: datetime.strptime(x, '%Y/%m/%d').strftime('%Y-%m-%d') if '/' in x else x)
+
+    # 返回结果，所有列转换为字符串类型
+    return merged_df.astype(str)
