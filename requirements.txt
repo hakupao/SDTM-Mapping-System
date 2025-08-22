@@ -1,5 +1,28 @@
-openpyxl>=3.1.2
-mysql-connector-python>=8.0.33
-python-dateutil>=2.8.2
-pandas>=2.1.0
-numpy>=1.24.0 
+# 统一的项目依赖文件 - 安全版本更新
+# 合并了根目录和后端的所有依赖，已更新到最新安全版本
+
+# Web框架和API (后端专用) - 已更新到最新安全版本
+Flask==3.1.2
+Flask-CORS==6.0.1
+Flask-SocketIO==5.5.1
+Flask-RESTX==1.3.0
+
+# WebSocket支持 - 已更新
+python-socketio==5.13.0
+
+# 数据库 - 已更新到最新版本
+mysql-connector-python==9.4.0
+
+# 数据处理 - 已更新到最新稳定版本
+pandas==2.3.1
+numpy==2.2.6
+openpyxl==3.1.5
+
+# 日期处理 - 已更新
+python-dateutil==2.9.0
+
+# 环境变量和工具 - 已更新
+python-dotenv==1.1.1
+
+# 系统监控 - 已更新
+psutil>=6.0.0,<7.0.0

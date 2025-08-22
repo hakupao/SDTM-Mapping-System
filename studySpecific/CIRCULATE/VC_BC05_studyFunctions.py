@@ -35,19 +35,20 @@ def leftjoin(table1, table2):
     # 返回结果，所有列转换为字符串类型
     return merged_df.astype(str)
 
-def tableMerge(*tableList):
+def tableMerge(sort_field, *tableList):
     """
-    将多个数据表垂直拼接（上下拼接）。
+    将多个数据表垂直拼接（上下拼接），并按指定字段排序。
     
     检查所有输入表的列名是否一致，如果一致则进行拼接。
     所有数据在处理过程中都会被转换为字符串类型。
-    拼接后的数据会按照主key：SUBJID排序，副key：按照tableList的前后顺序排序。
+    拼接后的数据会按照SUBJID和指定字段进行升序排序。
     
     参数:
+        sort_field (str): 用于排序的字段名，将与SUBJID一起用于排序
         *tableList: 可变参数，包含所有需要拼接的表名
         
     返回:
-        pandas.DataFrame: 拼接后的数据表，所有值转换为字符串类型
+        pandas.DataFrame: 拼接后并排序的数据表，所有值转换为字符串类型
         
     异常:
         ValueError: 当输入表的列名不一致时抛出
@@ -60,16 +61,13 @@ def tableMerge(*tableList):
         # 获取当前表的格式化数据
         file_filter_data = format_dataset[file_name].copy()
         
-        # 为每个表添加排序字段，表示它在tableList中的顺序
-        file_filter_data['_TABLE_ORDER'] = table_index
-        
         # 如果结果表为空，直接赋值
         if merged_info.empty:
             merged_info = file_filter_data
         else:
-            # 检查列名是否一致（排除临时添加的排序字段）
-            merged_columns = set(merged_info.columns) - {'_TABLE_ORDER'}
-            current_columns = set(file_filter_data.columns) - {'_TABLE_ORDER'}
+            # 检查列名是否一致
+            merged_columns = set(merged_info.columns)
+            current_columns = set(file_filter_data.columns)
             
             if merged_columns != current_columns:
                 raise ValueError(f"表 {file_name} 的列名与其他表不一致，无法拼接。")
@@ -77,12 +75,8 @@ def tableMerge(*tableList):
             # 垂直拼接数据
             merged_info = pandas.concat([merged_info, file_filter_data], axis=0)
     
-    # 对拼接后的数据进行排序处理
-    # 主key：SUBJID，副key：表的顺序（前面的表排在前面）
-    merged_info = merged_info.sort_values(by=['SUBJID', '_TABLE_ORDER'], ascending=[True, True])
-    
-    # 删除临时的排序字段
-    merged_info = merged_info.drop('_TABLE_ORDER', axis=1)
+    # 按照SUBJID和指定字段进行升序排序
+    merged_info = merged_info.sort_values(by=['SUBJID', sort_field], ascending=[True, True])
     
     # 返回拼接后的数据表，所有列转换为字符串类型
     return merged_info.astype(str)
@@ -118,7 +112,7 @@ def make_DMFrame():
     dmframe = pandas.merge(dmframe, inex_subset, how='left', on='SUBJID').fillna('')
     
     # 处理生存状态(SS_A_ALL)数据
-    ss_a_all_df = ss_a_all_df[['SUBJID', 'OUTDAT1', 'OUTDAT2', 'SURVSTAT','FUDAT']].astype(str)
+    ss_a_all_df = ss_a_all_df[['SUBJID', 'OUTDAT1', 'OUTDAT2', 'SURVSTAT','FUDAT','SSTIMEP']].astype(str)
     
     # 删除生存状态为空的行
     ss_a_all_df = ss_a_all_df[ss_a_all_df['SURVSTAT'] != '']
@@ -134,8 +128,8 @@ def make_DMFrame():
     
     # 按受试者ID、生存状态优先级、结局日期排序
     ss_a_all_df = ss_a_all_df.sort_values(
-        by=['SUBJID', 'SURVSTAT_PRIORITY', 'OUTDAT','FUDAT'],
-        ascending=[True, True, False, False]
+        by=['SUBJID', 'SURVSTAT_PRIORITY', 'OUTDAT','FUDAT','SSTIMEP'],
+        ascending=[True, True, False, False, False]
     )
     
     # 对每个受试者只保留第一条记录
@@ -594,7 +588,7 @@ def get_DD_from_SS_ALL():
     
     # 提取指定字段并转换为字符串
     ss_a_all_dd_df = ss_a_all_dd_df[
-        ['SUBJID', 'SURVSTAT', 'OUTDAT1', 'OUTDAT2', 'PRCDTH', 'PRCDTHDE','FUDAT']
+        ['SUBJID', 'SURVSTAT', 'OUTDAT1', 'OUTDAT2', 'PRCDTH', 'PRCDTHDE','FUDAT', 'SSTIMEP']
     ].astype(str)
     
     # 删除SURVSTAT为空的行
@@ -613,8 +607,8 @@ def get_DD_from_SS_ALL():
     
     # 按照受试者ID、状态优先级和日期排序
     ss_a_all_dd_df = ss_a_all_dd_df.sort_values(
-        by=['SUBJID', 'SURVSTAT_PRIORITY', 'OUTDAT','FUDAT'],
-        ascending=[True, True, False, False]
+        by=['SUBJID', 'SURVSTAT_PRIORITY', 'OUTDAT','FUDAT','SSTIMEP'],
+        ascending=[True, True, False, False, False]
     )
     
     # 对每个SUBJID只保留第一条记录，使用drop_duplicates保持行的完整性
@@ -789,51 +783,6 @@ def get_CE():
     
     # 返回结果，所有列转换为字符串类型
     return result_df.astype(str)
-
-def sort_csv_data(data_list, file_name, subjid_field_id):
-    """
-    对CSV数据进行排序处理。
-    
-    根据指定的文件名和受试者ID字段进行二级排序：
-    - 主key：受试者ID字段（升序）
-    - 副key：根据文件类型确定的特定字段（升序）
-    
-    参数:
-        data_list (list): 包含字典的列表，每个字典代表一行数据
-        file_name (str): 文件名，用于确定副key字段
-        subjid_field_id (str): 受试者ID字段名（主key）
-        
-    返回:
-        list: 排序后的数据列表
-    """
-    if not data_list:
-        return data_list
-    
-    # 定义文件名与副key字段的映射关系
-    secondary_key_mapping = {
-        'LB_A_CTDNA': 'CTDNATP',
-        'LB_A_TM': 'TMTPT',
-        'MO_A': 'MOTIMEPP',
-        'SS_A': 'SSTIMEP'
-    }
-    
-    # 获取副key字段名
-    secondary_key = secondary_key_mapping.get(file_name)
-    
-    if secondary_key:
-        # 如果存在副key字段，按主key和副key进行二级排序（升序）
-        sorted_data = sorted(data_list, key=lambda x: (
-            x.get(subjid_field_id, ''),
-            x.get(secondary_key, '')
-        ))
-    else:
-        # # 如果没有定义副key，仅按主key排序（升序）
-        # sorted_data = sorted(data_list, key=lambda x: x.get(subjid_field_id, ''))
-        
-        # 如果文件不在secondary_key_mapping，则不进行任何排序处理
-        sorted_data = data_list
-        
-    return sorted_data
 
 def process_SUPR_SMPL():
     # 获取 SUPR_SMPL 和 SUPR 数据集
