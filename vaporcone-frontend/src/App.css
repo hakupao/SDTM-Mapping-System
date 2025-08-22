@@ -1,0 +1,226 @@
+/* 全局样式重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 主应用样式 */
+.App {
+  text-align: center;
+}
+
+/* Ant Design 主题定制 */
+.ant-layout-header {
+  height: 64px !important;
+  line-height: 64px !important;
+}
+
+.ant-menu-item {
+  display: flex;
+  align-items: center;
+}
+
+.ant-menu-item-icon {
+  margin-right: 8px;
+}
+
+/* 自定义组件样式 */
+.status-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.process-step {
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 8px 0;
+  transition: all 0.3s;
+}
+
+.process-step:hover {
+  border-color: #1890ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
+}
+
+.process-step.completed {
+  border-color: #52c41a;
+  background-color: #f6ffed;
+}
+
+.process-step.running {
+  border-color: #faad14;
+  background-color: #fffbe6;
+}
+
+.process-step.error {
+  border-color: #ff4d4f;
+  background-color: #fff2f0;
+}
+
+.log-container {
+  background: #001529;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  padding: 16px;
+  border-radius: 6px;
+  height: 400px;
+  overflow-y: auto;
+}
+
+.log-line {
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+.log-info {
+  color: #1890ff;
+}
+
+.log-warning {
+  color: #faad14;
+}
+
+.log-error {
+  color: #ff4d4f;
+}
+
+.log-success {
+  color: #52c41a;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ant-layout-sider {
+    position: fixed;
+    height: 100vh;
+    z-index: 1000;
+  }
+  
+  .ant-layout-content {
+    margin-left: 0;
+  }
+}
+
+/* 动画效果 */
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 状态指示器 */
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-success {
+  background-color: #52c41a;
+}
+
+.status-warning {
+  background-color: #faad14;
+}
+
+.status-error {
+  background-color: #ff4d4f;
+}
+
+.status-running {
+  background-color: #1890ff;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* 卡片样式 */
+.dashboard-card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  transition: all 0.3s;
+}
+
+.dashboard-card:hover {
+  box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+}
+
+/* 进度条样式 */
+.progress-container {
+  margin: 16px 0;
+}
+
+.progress-label {
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+/* 功能按钮组 */
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.action-buttons .ant-btn {
+  flex: 1;
+}
+
+/* 数据表格样式 */
+.data-table {
+  margin-top: 16px;
+}
+
+.data-table .ant-table-thead > tr > th {
+  background-color: #fafafa;
+  font-weight: 600;
+}
+
+/* 加载状态 */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+/* 错误状态 */
+.error-container {
+  text-align: center;
+  padding: 40px;
+}
+
+.error-icon {
+  font-size: 48px;
+  color: #ff4d4f;
+  margin-bottom: 16px;
+}
