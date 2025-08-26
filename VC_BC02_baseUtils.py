@@ -136,7 +136,6 @@ def find_latest_timestamped_path(base_path, folder_pattern):
             timestamped_folders.sort(reverse=True)
             latest_folder = timestamped_folders[0]
             latest_path = os.path.join(base_path, latest_folder)
-            print(f'找到最新的时间戳文件夹: {latest_folder}')
             return latest_path
         else:
             # 如果没有找到时间戳文件夹，检查是否存在原始文件夹
@@ -242,6 +241,21 @@ def make_format_value(tMETAVAL, isDateType, field_param, row, codeDict4other):
     else:
         # 处理非日期类型字段
         tFORMVAL = tMETAVAL
+        
+        # 如果是"其他"选项，需要从详细信息中获取具体值
+        if tMETAVAL == field_param[COL_OTHERVAL]:
+            othValField_codelist = field_param[COL_CODELISTNAME] + SUFFIX_4OTHER
+            if othValField_codelist in codeDict4other:
+                other_details_val = row[field_param[COL_OTHERDETAILSFIELD]].strip()
+                if other_details_val in codeDict4other[othValField_codelist]:
+                    tFORMVAL = codeDict4other[othValField_codelist][other_details_val]
+                else:
+                    print(f'Other Details:[{other_details_val}] is untranslated')
+                    logger.info(f'Other Details:[{other_details_val}] is untranslated')
+            else:
+                print(f'CodeListName:[{othValField_codelist}] is not existed')
+                logger.info(f'CodeListName:[{othValField_codelist}] is not existed')
+
         
     return tFORMVAL
 
@@ -388,3 +402,191 @@ class DatabaseManager:
             '''
             self.execute_query(query)
             print(f'View {view_name} created.')
+
+    def index_exists(self, table_name, index_name):
+        """检查索引是否存在"""
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute(f"SHOW INDEX FROM {table_name} WHERE Key_name = '{index_name}'")
+            result = cursor.fetchone()
+            # 确保读取所有剩余结果
+            cursor.fetchall()
+            return result is not None
+        except mysql.connector.Error:
+            return False
+        finally:
+            cursor.close()
+
+    def create_performance_indexes(self, metadata_table_name):
+        """为性能优化创建必要的索引"""
+        indexes = [
+            {
+                'name': 'idx_filename_fieldid',
+                'sql': f'CREATE INDEX idx_filename_fieldid ON {metadata_table_name} (FILENAME, FIELDID)',
+                'description': '支持 WHERE FILENAME + IN FIELDID 过滤'
+            },
+            {
+                'name': 'idx_filename_rownum_subjid',
+                'sql': f'CREATE INDEX idx_filename_rownum_subjid ON {metadata_table_name} (FILENAME, ROWNUM, SUBJID)',
+                'description': '支持 GROUP BY 和 ORDER BY ROWNUM'
+            },
+            {
+                'name': 'idx_rownum',
+                'sql': f'CREATE INDEX idx_rownum ON {metadata_table_name} (ROWNUM)',
+                'description': '支持排序优化'
+            },
+            {
+                'name': 'idx_filename_fieldid_formval',
+                'sql': f'CREATE INDEX idx_filename_fieldid_formval ON {metadata_table_name} (FILENAME, FIELDID, FORMVAL(100))',
+                'description': '支持非空值过滤的三列复合索引（FORMVAL前100字符）'
+            }
+        ]
+        
+        created_count = 0
+        for index in indexes:
+            if not self.index_exists(metadata_table_name, index['name']):
+                try:
+                    self.execute_query(index['sql'])
+                    print(f"✓ 创建索引 {index['name']}: {index['description']}")
+                    created_count += 1
+                except mysql.connector.Error as e:
+                    if 'WHERE' in index['sql']:
+                        # 尝试创建不带WHERE条件的索引
+                        simple_sql = index['sql'].split(' WHERE')[0]
+                        try:
+                            self.execute_query(simple_sql)
+                            print(f"✓ 创建简化索引 {index['name']}: {index['description']}")
+                            created_count += 1
+                        except mysql.connector.Error as e2:
+                            print(f"✗ 创建索引 {index['name']} 失败: {e2}")
+                    else:
+                        print(f"✗ 创建索引 {index['name']} 失败: {e}")
+            else:
+                pass  # 索引已存在，静默跳过
+        
+        return created_count
+
+    def analyze_query_performance(self, query):
+        """分析查询性能（执行EXPLAIN）"""
+        cursor = self.connection.cursor()
+        try:
+            explain_query = f"EXPLAIN {query}"
+            cursor.execute(explain_query)
+            results = cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description]
+            
+            print("=== EXPLAIN 分析结果 ===")
+            for i, row in enumerate(results):
+                print(f"步骤 {i+1}:")
+                for j, col in enumerate(columns):
+                    if row[j] is not None:
+                        print(f"  {col}: {row[j]}")
+            
+            # 检查是否有性能问题
+            issues = []
+            for row in results:
+                if 'Using temporary' in str(row):
+                    issues.append("使用临时表")
+                if 'Using filesort' in str(row):
+                    issues.append("使用文件排序")
+                if 'ALL' in str(row):
+                    issues.append("全表扫描")
+            
+            if issues:
+                print(f"⚠️ 性能问题: {', '.join(issues)}")
+            else:
+                print("✓ 查询计划良好")
+                
+            return results, issues
+            
+        except mysql.connector.Error as e:
+            print(f"EXPLAIN 执行失败: {e}")
+            return None, []
+        finally:
+            # 确保游标正确关闭
+            try:
+                cursor.close()
+            except:
+                pass
+
+    def create_temp_table_for_file(self, table_name, view_name, filename):
+        """为特定文件创建优化的工作表"""
+        from VC_OP04_format import ENABLE_WORK_TABLE_PERSISTENCE
+        
+        work_table_name = f"work_{filename.lower().replace('-', '_')}"
+        
+        # 如果启用持久化且工作表已存在，直接复用
+        if ENABLE_WORK_TABLE_PERSISTENCE:
+            try:
+                self.cursor.execute(f"SHOW TABLES LIKE '{work_table_name}'")
+                if self.cursor.fetchone():
+                    print(f"  → 复用现有工作表: {work_table_name}")
+                    return work_table_name
+            except mysql.connector.Error:
+                pass
+        
+        # 如果不保留或工作表不存在，则删除重建
+        try:
+            self.execute_query(f"DROP TABLE IF EXISTS {work_table_name}")
+        except:
+            pass
+        
+        # 创建工作表（使用普通表而非临时表以避免重用问题）
+        create_sql = f'''
+        CREATE TABLE {work_table_name} AS
+        SELECT * FROM {view_name} 
+        WHERE FILENAME = '{filename}' AND FORMVAL IS NOT NULL
+        '''
+        
+        try:
+            self.execute_query(create_sql)
+            
+            # 为工作表创建索引
+            index_sqls = [
+                f"CREATE INDEX idx_{work_table_name}_fieldid ON {work_table_name} (FIELDID)",
+                f"CREATE INDEX idx_{work_table_name}_rownum_subjid ON {work_table_name} (ROWNUM, SUBJID)",
+                f"CREATE INDEX idx_{work_table_name}_rownum ON {work_table_name} (ROWNUM)"
+            ]
+            
+            for idx_sql in index_sqls:
+                try:
+                    self.execute_query(idx_sql)
+                except mysql.connector.Error:
+                    pass  # 索引创建失败不影响主流程
+            
+            if ENABLE_WORK_TABLE_PERSISTENCE:
+                print(f"  → 创建持久工作表: {work_table_name}")
+            else:
+                print(f"✓ 为文件 {filename} 创建优化工作表: {work_table_name}")
+            return work_table_name
+            
+        except mysql.connector.Error as e:
+            print(f"✗ 创建工作表失败: {e}")
+            return None
+
+    def cleanup_work_tables(self):
+        """清理所有工作表（可配置是否保留）"""
+        from VC_OP04_format import ENABLE_WORK_TABLE_PERSISTENCE
+        
+        if not ENABLE_WORK_TABLE_PERSISTENCE:
+            cursor = self.connection.cursor()
+            try:
+                cursor.execute("SHOW TABLES LIKE 'work_%'")
+                tables = cursor.fetchall()
+                
+                for (table_name,) in tables:
+                    try:
+                        self.execute_query(f"DROP TABLE IF EXISTS {table_name}")
+                        print(f"✓ 清理工作表: {table_name}")
+                    except:
+                        pass
+                        
+            except mysql.connector.Error:
+                pass
+            finally:
+                try:
+                    cursor.close()
+                except:
+                    pass
+        else:
+            print("✓ 工作表已保留以供下次使用")
