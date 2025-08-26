@@ -58,7 +58,12 @@ def get_cell_value(row, idx):
 
 def create_directory(*paths):
     """
-    创建目录，如果目录包含'sdtm_dataset'则添加时间戳
+    创建目录，如果目录包含时间戳文件夹名称则添加时间戳
+    
+    支持的时间戳文件夹类型：
+    - cleaning_dataset: 清洗步骤输出
+    - format_dataset: 格式化步骤输出  
+    - sdtm_dataset: 映射步骤输出
     
     参数:
     - *paths: 可变长度的路径参数
@@ -68,13 +73,24 @@ def create_directory(*paths):
     """
     current_time = datetime.now()
     current_time_str = current_time.strftime('%Y%m%d%H%M%S')
-    folder = 'sdtm_dataset'
+    
+    # 支持多种需要时间戳的文件夹类型
+    timestamp_folders = [
+        'cleaning_dataset',  # 清洗步骤
+        'format_dataset',    # 格式化步骤
+        'sdtm_dataset'       # 映射步骤（原有）
+    ]
+    
     return_path = ''
     
     for path in paths:
-        if folder in path:
-            path = path.replace(folder, f'{folder}-{current_time_str}')
-            return_path = path
+        # 检查路径是否包含任何需要时间戳的文件夹
+        for timestamp_folder in timestamp_folders:
+            if timestamp_folder in path:
+                path = path.replace(timestamp_folder, f'{timestamp_folder}-{current_time_str}')
+                return_path = path
+                break
+        
         try:
             os.makedirs(path, exist_ok=True)
         except Exception as e:
@@ -82,6 +98,59 @@ def create_directory(*paths):
             sys.exit(1)
     
     return return_path
+
+def find_latest_timestamped_path(base_path, folder_pattern):
+    """
+    查找最新的时间戳文件夹路径
+    
+    参数:
+    - base_path (str): 基础路径（父目录）
+    - folder_pattern (str): 文件夹模式名称（如 'cleaning_dataset', 'format_dataset', 'sdtm_dataset'）
+    
+    返回:
+    - str: 最新的时间戳文件夹完整路径，如果找不到则返回原始路径
+    """
+    try:
+        if not os.path.exists(base_path):
+            print(f'警告: 基础路径不存在 - {base_path}')
+            return os.path.join(base_path, folder_pattern)
+        
+        # 获取目录下所有文件夹
+        all_items = os.listdir(base_path)
+        folders = [item for item in all_items if os.path.isdir(os.path.join(base_path, item))]
+        
+        # 查找匹配模式的时间戳文件夹
+        timestamped_folders = []
+        for folder in folders:
+            if folder.startswith(f'{folder_pattern}-') and len(folder) == len(folder_pattern) + 15:  # pattern + '-' + 14位时间戳
+                try:
+                    # 验证时间戳格式 YYYYMMDDHHMMSS
+                    timestamp_part = folder[len(folder_pattern) + 1:]
+                    datetime.strptime(timestamp_part, '%Y%m%d%H%M%S')
+                    timestamped_folders.append(folder)
+                except ValueError:
+                    continue
+        
+        if timestamped_folders:
+            # 按时间戳排序，返回最新的
+            timestamped_folders.sort(reverse=True)
+            latest_folder = timestamped_folders[0]
+            latest_path = os.path.join(base_path, latest_folder)
+            print(f'找到最新的时间戳文件夹: {latest_folder}')
+            return latest_path
+        else:
+            # 如果没有找到时间戳文件夹，检查是否存在原始文件夹
+            original_path = os.path.join(base_path, folder_pattern)
+            if os.path.exists(original_path):
+                print(f'使用原始文件夹: {folder_pattern}')
+                return original_path
+            else:
+                print(f'警告: 未找到 {folder_pattern} 相关文件夹，返回原始路径')
+                return original_path
+                
+    except Exception as e:
+        print(f'查找时间戳文件夹时出错: {e}')
+        return os.path.join(base_path, folder_pattern)
 
 def try_convert_to_int(value):
     """

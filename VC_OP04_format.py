@@ -11,18 +11,19 @@ VAPORCONE 项目格式化模块
 from VC_BC03_fetchConfig import *
 from VC_BC04_operateType import *
 
-def process_combine_files(workbook, sheetSetting):
+def process_combine_files(workbook, sheetSetting, actual_format_path):
     """
     处理组合文件，根据配置执行特定的组合函数
     
     参数:
     - workbook: Excel工作簿对象
     - sheetSetting: 工作表设置字典
+    - actual_format_path: 实际的格式化数据输出路径（带时间戳）
     """
     for file_name, function_name in getCombineInfo(workbook, sheetSetting).items():
         be_converted_list = eval(function_name)
         be_converted_list.fillna('').to_csv(
-            os.path.join(FORMAT_TRANSFER_FILE_PATH, f'{PREFIX_F}{file_name}{EXTENSION}'), 
+            os.path.join(actual_format_path, f'{PREFIX_F}{file_name}{EXTENSION}'), 
             index=False, 
             encoding='utf-8-sig'
         )
@@ -41,7 +42,9 @@ def main():
         log_level=logging.DEBUG
     )
 
-    create_directory(FORMAT_TRANSFER_FILE_PATH)
+    # 🆕 创建时间戳文件夹并获取实际路径
+    actual_format_path = create_directory(FORMAT_TRANSFER_FILE_PATH)
+    print(f'使用格式化输出路径: {actual_format_path}')
     
     workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
     sheetSetting = getSheetSetting(workbook)
@@ -117,7 +120,7 @@ def main():
                 tFIELDID = MARK_BLANK
                 rFIELDID = MARK_BLANK
                 outputFileName = f'{PREFIX_F}{fileName}[{chkfileName}]{EXTENSION}'
-                outputfilePath = os.path.join(FORMAT_TRANSFER_FILE_PATH, outputFileName)
+                outputfilePath = os.path.join(actual_format_path, outputFileName)
 
                 max_fieldIDs_sql = MARK_BLANK
                 if max_fieldIDs:
@@ -184,12 +187,12 @@ def main():
             db.cursor.execute(query)
             results = db.cursor.fetchall()
 
-            with open(os.path.join(FORMAT_TRANSFER_FILE_PATH, f'{PREFIX_F}{fileName}{EXTENSION}'), 'w', newline=MARK_BLANK, encoding='utf-8-sig') as file:
+            with open(os.path.join(actual_format_path, f'{PREFIX_F}{fileName}{EXTENSION}'), 'w', newline=MARK_BLANK, encoding='utf-8-sig') as file:
                 writer = csv.writer(file)
                 writer.writerow([i[0] for i in db.cursor.description])
                 writer.writerows(results)
 
-    process_combine_files(workbook, sheetSetting)
+    process_combine_files(workbook, sheetSetting, actual_format_path)
 
 if __name__ == "__main__":
     print(f'Study:{STUDY_ID} Processing has begun.' )

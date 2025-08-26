@@ -46,11 +46,16 @@ def main():
     try:
         db.create_metadata_table(METADATA_TABLE_NAME)
         data = []
+        
+        # 🆕 动态获取最新的清洗数据文件夹路径
+        actual_cleaning_path = find_latest_timestamped_path(CLEANINGSTEP_PATH, 'cleaning_dataset')
+        print(f'使用清洗数据路径: {actual_cleaning_path}')
+        
         # 获取清洗后的数据文件列表
-        all_files = os.listdir(CLEANINGSTEP_TRANSFER_FILE_PATH)
+        all_files = os.listdir(actual_cleaning_path)
         files_only = [
             file for file in all_files 
-            if os.path.isfile(os.path.join(CLEANINGSTEP_TRANSFER_FILE_PATH, file))
+            if os.path.isfile(os.path.join(actual_cleaning_path, file))
         ]
         
         for fileName in fileDict.keys():
@@ -75,7 +80,7 @@ def main():
 
             subjectId_fieldID = fileDict[fileName][COL_SUBJIDFIELDID]
             file_param = transFieldDict[fileName]
-            with open(os.path.join(CLEANINGSTEP_TRANSFER_FILE_PATH, full_name), 'r', newline=MARK_BLANK, encoding='utf-8-sig') as read_file:
+            with open(os.path.join(actual_cleaning_path, full_name), 'r', newline=MARK_BLANK, encoding='utf-8-sig') as read_file:
                 dict_result = csv.DictReader(read_file)
                 tROWNUM = 0
                 for row in dict_result:

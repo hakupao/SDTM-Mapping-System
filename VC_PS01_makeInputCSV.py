@@ -20,11 +20,15 @@ def main():
     sheetSetting = getSheetSetting(workbook)
     siteDict = getSites(workbook, sheetSetting)
 
-    all_files = os.listdir(SDTMDATASET_FILE_PATH)
+    # 🆕 动态获取最新的SDTM数据文件夹路径
+    actual_sdtm_path = find_latest_timestamped_path(SDTMDATASET_PATH, 'sdtm_dataset')
+    print(f'使用SDTM数据路径: {actual_sdtm_path}')
+
+    all_files = os.listdir(actual_sdtm_path)
     inclusion_domain = [f.replace('.csv', '') for f in all_files]
 
     for full_name in all_files:
-        sdtm_data_file_path = os.path.join(SDTMDATASET_FILE_PATH, full_name)
+        sdtm_data_file_path = os.path.join(actual_sdtm_path, full_name)
         
         domain = full_name.replace('.csv', '')
         standard_fields = STANDARD_FIELDS[domain]

@@ -22,6 +22,10 @@ def main():
     )
     sdtm_dataset_path = create_directory(SDTMDATASET_PATH, SDTMDATASET_FILE_PATH)
     
+    # 🆕 动态获取最新的格式化数据文件夹路径
+    actual_format_path = find_latest_timestamped_path(FORMAT_PATH, 'format_dataset')
+    print(f'使用格式化数据路径: {actual_format_path}')
+    
     workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
     sheetSetting = getSheetSetting(workbook)
     caseDict = getCaseDict(workbook, sheetSetting)
@@ -62,7 +66,7 @@ def main():
                 continue
             cycle_time = definition_merge_rule[definition_row_num][COL_DEFINITION]
 
-            be_converted_list = pandas.read_csv(os.path.join(FORMAT_TRANSFER_FILE_PATH, f'{PREFIX_F}{combo_file_name}{EXTENSION}'), dtype=str, na_filter=False)
+            be_converted_list = pandas.read_csv(os.path.join(actual_format_path, f'{PREFIX_F}{combo_file_name}{EXTENSION}'), dtype=str, na_filter=False)
 
             # column_names = be_converted_list.columns.tolist()
             for i in range(cycle_time):

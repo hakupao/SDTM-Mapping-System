@@ -19,12 +19,22 @@ def main():
         log_level=logging.DEBUG
     )
 
-    create_directory(
-        CLEANINGSTEP_PATH, 
-        CLEANINGSTEP_TRANSFER_FILE_PATH, 
-        CLEANINGSTEP_NOT_TRANSFER_COLS_PATH, 
-        CLEANINGSTEP_NOT_TRANSFER_ROWS_PATH
-    )
+    # 🆕 创建时间戳文件夹并获取实际路径
+    # 只对主文件夹应用时间戳，子文件夹手动创建
+    actual_cleaning_path = create_directory(CLEANINGSTEP_PATH, CLEANINGSTEP_TRANSFER_FILE_PATH)
+    
+    # 构建实际的子文件夹路径并创建
+    actual_deleted_cols_path = os.path.join(actual_cleaning_path, 'deletedCols')
+    actual_deleted_rows_path = os.path.join(actual_cleaning_path, 'deletedRows')
+    
+    # 手动创建子文件夹
+    os.makedirs(actual_deleted_cols_path, exist_ok=True)
+    os.makedirs(actual_deleted_rows_path, exist_ok=True)
+    
+    print(f'使用清洗输出路径: {actual_cleaning_path}')
+    print(f'  ├── 清洗数据: {actual_cleaning_path}')
+    print(f'  ├── 删除列: {actual_deleted_cols_path}') 
+    print(f'  └── 删除行: {actual_deleted_rows_path}')
 
     workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
     sheetSetting = getSheetSetting(workbook)
@@ -132,22 +142,23 @@ def main():
             print(f'Study:[{STUDY_ID}] File:[{shorten_name}] is not migration')
             continue
         
-        # 移行データを出力
+        # 🆕 使用动态时间戳路径输出清洗数据
         if transfer_file_fields:
-            with open(os.path.join(CLEANINGSTEP_TRANSFER_FILE_PATH, f'{PREFIX_C}{shorten_name}{EXTENSION}'), 'w', newline=MARK_BLANK, encoding="utf-8-sig") as writer_transfer_file:
+            with open(os.path.join(actual_cleaning_path, f'{PREFIX_C}{shorten_name}{EXTENSION}'), 'w', newline=MARK_BLANK, encoding="utf-8-sig") as writer_transfer_file:
                 transfer_writer = csv.DictWriter(writer_transfer_file, fieldnames=transfer_file_fields)
                 transfer_writer.writeheader()
                 transfer_writer.writerows(transfer_data)
 
-        # 移行以外のデータを出力
+        # 🆕 使用动态时间戳路径输出未迁移列数据
         if not_transfer_file_fields:
-            with open(os.path.join(CLEANINGSTEP_NOT_TRANSFER_COLS_PATH, f'{PREFIX_DC}{shorten_name}{EXTENSION}'), 'w', newline=MARK_BLANK, encoding="utf-8-sig") as writer_not_transfer_file:
+            with open(os.path.join(actual_deleted_cols_path, f'{PREFIX_DC}{shorten_name}{EXTENSION}'), 'w', newline=MARK_BLANK, encoding="utf-8-sig") as writer_not_transfer_file:
                 not_transfer_writer = csv.DictWriter(writer_not_transfer_file, fieldnames=not_transfer_file_fields)
                 not_transfer_writer.writeheader()
                 not_transfer_writer.writerows(not_transfer_data)
 
+        # 🆕 使用动态时间戳路径输出未迁移行数据
         if not_transfer_rows_data:
-            with open(os.path.join(CLEANINGSTEP_NOT_TRANSFER_ROWS_PATH, f'{PREFIX_DR}{shorten_name}{EXTENSION}'), 'w', newline=MARK_BLANK, encoding="utf-8-sig") as writer_not_transfer_case_file:
+            with open(os.path.join(actual_deleted_rows_path, f'{PREFIX_DR}{shorten_name}{EXTENSION}'), 'w', newline=MARK_BLANK, encoding="utf-8-sig") as writer_not_transfer_case_file:
                 not_transfer_case_writer = csv.DictWriter(writer_not_transfer_case_file, fieldnames=header)
                 not_transfer_case_writer.writeheader()
                 not_transfer_case_writer.writerows(not_transfer_rows_data)
