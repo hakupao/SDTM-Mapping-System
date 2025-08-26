@@ -243,20 +243,6 @@ def make_format_value(tMETAVAL, isDateType, field_param, row, codeDict4other):
         # 处理非日期类型字段
         tFORMVAL = tMETAVAL
         
-        # 如果是"其他"选项，需要从详细信息中获取具体值
-        if tMETAVAL == field_param[COL_OTHERVAL]:
-            othValField_codelist = field_param[COL_CODELISTNAME] + SUFFIX_4OTHER
-            if othValField_codelist in codeDict4other:
-                other_details_val = row[field_param[COL_OTHERDETAILSFIELD]].strip()
-                if other_details_val in codeDict4other[othValField_codelist]:
-                    tFORMVAL = codeDict4other[othValField_codelist][other_details_val]
-                else:
-                    print(f'Other Details:[{other_details_val}] is untranslated')
-                    logger.info(f'Other Details:[{other_details_val}] is untranslated')
-            else:
-                print(f'CodeListName:[{othValField_codelist}] is not existed')
-                logger.info(f'CodeListName:[{othValField_codelist}] is not existed')
-
     return tFORMVAL
 
 class DatabaseManager:
@@ -286,7 +272,8 @@ class DatabaseManager:
                 password=self.password,
                 database=self.database,
                 charset="utf8mb4",
-                use_unicode=True
+                use_unicode=True,
+                allow_local_infile=True  # 启用LOCAL INFILE支持
             )
             self.cursor = self.connection.cursor()
             print('Connected to the database.')
