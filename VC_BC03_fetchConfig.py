@@ -409,13 +409,16 @@ def getFormatDataset(*fileNames, **fileNameList):
         allFileNameList = []
     allFileNameList.extend(fileNames)
 
+    # 🆕 动态获取最新的格式化数据文件夹路径
+    actual_format_path = find_latest_timestamped_path(FORMAT_PATH, 'format_dataset')
+    
     format_dataset = {}
-    all_files = os.listdir(FORMAT_TRANSFER_FILE_PATH)
-    files_only = [file for file in all_files if os.path.isfile(os.path.join(FORMAT_TRANSFER_FILE_PATH, file))]          
+    all_files = os.listdir(actual_format_path)
+    files_only = [file for file in all_files if os.path.isfile(os.path.join(actual_format_path, file))]          
     for fileName in files_only:
         shortFileName = fileName.removeprefix(PREFIX_F).removesuffix(EXTENSION)
         if shortFileName in allFileNameList:
-            format_dataset[shortFileName] = pandas.read_csv(os.path.join(FORMAT_TRANSFER_FILE_PATH, fileName), dtype=str, na_filter=False)
+            format_dataset[shortFileName] = pandas.read_csv(os.path.join(actual_format_path, fileName), dtype=str, na_filter=False)
     return format_dataset
 
 def getSites(workbook, sheetSetting):
