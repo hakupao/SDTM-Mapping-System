@@ -9,6 +9,7 @@ VAPORCONE 项目元数据插入模块
 """
 
 from VC_BC03_fetchConfig import *
+import time  # 性能计时
 
 
 def main():
@@ -41,15 +42,46 @@ def main():
                     for fieldname in fieldname_list:
                         dateTypeDict[fieldname] = True
                     
+    # 总体计时开始
+    t_total_start = time.perf_counter()
+                    
     db = DatabaseManager()
     db.connect()
     try:
+        # 创建正式表
         db.create_metadata_table(METADATA_TABLE_NAME)
+        
+        # 创建暂存表（使用AUTO_INCREMENT主键，无二级索引）
+        staging_table_name = f"{METADATA_TABLE_NAME}_STAGING"
+        staging_sql = f"""
+        CREATE TABLE IF NOT EXISTS {staging_table_name} (
+            No INT AUTO_INCREMENT PRIMARY KEY,
+            FILENAME VARCHAR(100),
+            ROWNUM INT,
+            USUBJID VARCHAR(50),
+            SUBJID VARCHAR(50),
+            FIELDLBL VARCHAR(200),
+            FIELDID VARCHAR(100),
+            METAVAL TEXT,
+            FORMVAL TEXT,
+            DATETYPE BOOLEAN,
+            CODELISTID VARCHAR(100),
+            CHKFIELDID VARCHAR(100)
+        ) ENGINE=InnoDB
+        """
+        db.cursor.execute(f"DROP TABLE IF EXISTS {staging_table_name}")
+        db.cursor.execute(staging_sql)
+        # 暂存表已创建
+        
         data = []
+        # 统计与计时变量
+        total_files_processed = 0
+        total_records_to_insert = 0
+        build_start = time.perf_counter()
         
         # 🆕 动态获取最新的清洗数据文件夹路径
         actual_cleaning_path = find_latest_timestamped_path(CLEANINGSTEP_PATH, 'cleaning_dataset')
-        print(f'使用清洗数据路径: {actual_cleaning_path}')
+        # 使用最新的清洗数据路径
         
         # 获取清洗后的数据文件列表
         all_files = os.listdir(actual_cleaning_path)
@@ -101,26 +133,140 @@ def main():
                         tFIELDLBL = field_param[COL_LABEL]
                         tCODELISTID = field_param[COL_CODELISTNAME]
                         tCHKFIELDID = field_param[COL_CHKTYPE]
-                        # tDATETYPE = field_param[COL_DATATYPE]
                         tDATETYPE = dateTypeDict[tFIELDID] if tFIELDID in dateTypeDict else False 
 
                         tFORMVAL = make_format_value(tMETAVAL, tDATETYPE, field_param, row, codeDict4other)
                         data.append((fileName, tROWNUM, tUSUBJID, tSUBJID, tFIELDLBL, tFIELDID, tMETAVAL, tFORMVAL, tDATETYPE, tCODELISTID, tCHKFIELDID))
 
-        sql = f"INSERT INTO {METADATA_TABLE_NAME} (No, FILENAME, ROWNUM, USUBJID, SUBJID, FIELDLBL, FIELDID, METAVAL, FORMVAL, DATETYPE, CODELISTID, CHKFIELDID) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        count = 0
-        for row in data:
-            count += 1
-            row_with_count = (count,) + row
-            db.cursor.execute(sql, row_with_count)
-            if count % 1000 == 0:
-                db.connection.commit()
-                if count % 10000 == 0:
-                    print(count, "records inserted.")
+            total_files_processed += 1
 
+        build_elapsed = time.perf_counter() - build_start
+        total_records_to_insert = len(data)
+        
+        # 生成CSV文件用于LOAD DATA
+        csv_file_path = os.path.join(SPECIFIC_PATH, f"{METADATA_TABLE_NAME}_staging.csv")
+        with open(csv_file_path, 'w', newline='', encoding='utf-8') as csvfile:
+            csv_writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
+            # 不写入表头，直接写入数据行（对应暂存表除了AUTO_INCREMENT主键外的所有列）
+            for row in data:
+                # 转换DATETYPE为1/0（MySQL BOOLEAN）
+                row_list = list(row)
+                row_list[8] = 1 if row_list[8] else 0  # DATETYPE列
+                csv_writer.writerow(row_list)
+        # CSV文件生成完成
+
+        # 使用LOAD DATA进行批量导入
+        load_data_start = time.perf_counter()
+        
+        # 性能优化设置（导入窗口内临时使用）
+        # 设置性能优化参数
+        optimization_settings = [
+            "SET SESSION foreign_key_checks = 0",
+            "SET SESSION unique_checks = 0", 
+            "SET SESSION sql_log_bin = 0",  # 如果不需要复制到从库
+        ]
+        
+        for setting in optimization_settings:
+            try:
+                db.cursor.execute(setting)
+            except Exception as e:
+                print(f"⚠ 设置跳过: {setting}, 错误: {e}")
+        
+        # 执行LOAD DATA INFILE
+        # 使用绝对路径并处理Windows路径分隔符
+        csv_file_path_normalized = csv_file_path.replace('\\', '/')
+        load_data_sql = f"""
+        LOAD DATA LOCAL INFILE '{csv_file_path_normalized}'
+        INTO TABLE {staging_table_name}
+        FIELDS TERMINATED BY ','
+        OPTIONALLY ENCLOSED BY '"'
+        LINES TERMINATED BY '\\n'
+        (FILENAME, ROWNUM, USUBJID, SUBJID, FIELDLBL, FIELDID, METAVAL, FORMVAL, DATETYPE, CODELISTID, CHKFIELDID)
+        """
+        
+        db.cursor.execute(load_data_sql)
         db.connection.commit()
-        print(count, "records inserted.")
+        
+        # 检查导入结果
+        db.cursor.execute(f"SELECT COUNT(*) FROM {staging_table_name}")
+        imported_count = db.cursor.fetchone()[0]
+        load_data_elapsed = time.perf_counter() - load_data_start
+        
+        print(f"LOAD DATA完成: {imported_count} 条记录, 耗时: {load_data_elapsed:.3f}s")
+        
+        # 从暂存表转移数据到正式表（保持原有表结构和索引）
+        transfer_start = time.perf_counter()
+        print("从暂存表转移数据到正式表...")
+        
+        # 清空正式表（如果需要）
+        db.cursor.execute(f"TRUNCATE TABLE {METADATA_TABLE_NAME}")
+        
+        # 使用INSERT INTO ... SELECT 转移数据，手动分配顺序主键No
+        # 分批转移数据以显示进度（同时手动分配No）
+        db.cursor.execute(f"SELECT COUNT(*) FROM {staging_table_name}")
+        total_staging_records = db.cursor.fetchone()[0]
+        batch_size = 50000
+        current_no = 1
+        
+        for offset in range(0, total_staging_records, batch_size):
+            batch_sql = f"""
+            INSERT INTO {METADATA_TABLE_NAME} 
+            (No, FILENAME, ROWNUM, USUBJID, SUBJID, FIELDLBL, FIELDID, METAVAL, FORMVAL, DATETYPE, CODELISTID, CHKFIELDID)
+            SELECT 
+            @row_number := @row_number + 1 as No,
+            FILENAME, ROWNUM, USUBJID, SUBJID, FIELDLBL, FIELDID, METAVAL, FORMVAL, DATETYPE, CODELISTID, CHKFIELDID
+            FROM (SELECT @row_number := {current_no - 1}) r, 
+            (SELECT * FROM {staging_table_name} ORDER BY No LIMIT {batch_size} OFFSET {offset}) s
+            """
+            
+            db.cursor.execute(batch_sql)
+            current_no += batch_size
+            
+            # 显示进度
+            if offset + batch_size < total_staging_records:
+                progress = min(offset + batch_size, total_staging_records)
+                print(f"转移进度: {progress}/{total_staging_records} ({progress/total_staging_records*100:.1f}%)")
+        
+        db.connection.commit()
+        
+        # 验证转移结果
+        db.cursor.execute(f"SELECT COUNT(*) FROM {METADATA_TABLE_NAME}")
+        final_count = db.cursor.fetchone()[0]
+        transfer_elapsed = time.perf_counter() - transfer_start
+        
+        print(f"数据转移完成: {final_count} 条记录, 耗时: {transfer_elapsed:.3f}s")
+        
+        # 清理暂存表和CSV文件
+        try:
+            db.cursor.execute(f"DROP TABLE {staging_table_name}")
+            os.remove(csv_file_path)
+        except Exception as e:
+            print(f"⚠ 清理时出现警告: {e}")
+        
+        # 恢复优化设置
+        restore_settings = [
+            "SET SESSION foreign_key_checks = 1",
+            "SET SESSION unique_checks = 1",
+            "SET SESSION sql_log_bin = 1",
+        ]
+        
+        for setting in restore_settings:
+            try:
+                db.cursor.execute(setting)
+            except Exception as e:
+                print(f"⚠ 恢复设置跳过: {setting}, 错误: {e}")
+        
+        # 总结统计输出
+        t_total_elapsed = time.perf_counter() - t_total_start
+        overall_rps = (total_records_to_insert / t_total_elapsed) if t_total_elapsed > 0 else 0.0
 
+        print("—— 性能统计 ——")
+        print(f"处理文件数: {total_files_processed}")
+        print(f"准备插入记录数: {total_records_to_insert}")
+        print(f"实际插入记录数: {final_count}")
+        print(f"总耗时: {t_total_elapsed:.3f}s")
+        print(f"总体吞吐: {overall_rps:.1f} rec/s")
+        
     except Exception as e:
         print(f'Error: {e}')
         traceback.print_exc()

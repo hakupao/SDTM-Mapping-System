@@ -364,7 +364,6 @@ def getMapping(workbook, sheetSetting):
             if variable.endswith('DTC'):
                 supp_time_flg = True
             STANDARD_FIELDS[domain_key].append(variable)
-            print(f'Study:[{STUDY_ID}] Domain:[{domain_key}] Suppfield:[{variable}] is appended')
 
         if domain_key not in mappingDict:
             mappingDict[domain_key] = {}

@@ -118,7 +118,6 @@ def main():
 
                 if isBlankRow:
                     not_transfer_rows_data.append(row)
-                    print(f'Study:[{STUDY_ID}] File:[{full_name}] Patient:[{subjid_field_val}] is null')
                     logger.info(f'Study:[{STUDY_ID}] File:[{full_name}] Patient:[{subjid_field_val}] is null')
                     continue
 
