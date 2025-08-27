@@ -321,6 +321,10 @@ def getMapping(workbook, sheetSetting):
         variable = get_cell_value(row, colnum_variable)
         nd_keys = get_cell_value(row, colnum_nd_keys)
         file_name = get_cell_value(row, colnum_file_name)
+        
+        # 🔑 每行重置cycle_time为默认值1，避免使用前一个Definition的值
+        cycle_time = 1
+        
         if MARK_LINEBREAK in file_name:
             cycle_string, file_name = file_name.split(MARK_LINEBREAK, 1)
             match = re.search(PATTERN_CYCLE_NUM, cycle_string)
