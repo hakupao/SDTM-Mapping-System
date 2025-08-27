@@ -1,5 +1,7 @@
 """
 VAPORCONE 项目操作类型处理模块 - 优化版本
+优化前参考：
+VC_BC04_operateType20250827.py
 
 该模块实现了数据转换过程中的各种操作类型，包括：
 - 单表操作
@@ -99,112 +101,6 @@ def tableJoinType1(*tableList):
             left_info = be_converted_list
     
     return be_converted_list.astype(str)
-
-def handle_key_error(standard_field, opertype, parameter, definition_row_num=None):
-    """
-    处理键错误，输出错误信息并退出程序
-    
-    参数:
-    - standard_field (str): 标准字段名
-    - opertype (str): 操作类型
-    - parameter (str): 参数
-    - definition_row_num (int, optional): 定义行号
-    """
-    print(f'KeyError: field: {standard_field} have some error')
-    print(f'KeyError: opertype: {opertype} have some error')
-    print(f'KeyError: parameter: {parameter} have some error')
-    if definition_row_num:
-        print(f'错误发生在Excel的第 {definition_row_num} 行')
-    sys.exit()
-
-def doMapping(domain_row, standard_field, opertype, parameter, be_converted_row, updated_column_names, codeDict, continue_flg, definition_row_num=None):
-    """
-    执行字段映射操作（原版兼容性接口）
-    
-    参数:
-    - domain_row (dict): 目标域数据行
-    - standard_field (str): 标准字段名
-    - opertype (str): 操作类型
-    - parameter (str): 操作参数
-    - be_converted_row (Series): 源数据行
-    - updated_column_names (list): 更新的列名列表
-    - codeDict (dict): 代码字典
-    - continue_flg (bool): 继续标志
-    - definition_row_num (int, optional): 定义行号
-    
-    返回:
-    - tuple: (更新后的域数据行, 继续标志)
-    """
-    try:
-        if opertype == OPERTYPE_DEF:
-            domain_row[standard_field] = parameter
-        elif opertype == OPERTYPE_FIX:
-            domain_row[standard_field] = be_converted_row[updated_column_names[0]]
-        elif opertype == OPERTYPE_FLG:
-            for part in parameter.split(MARK_DOLLAR):
-                sVal, fVal = part.split(MARK_COLON, 1)
-                if sVal.lower() == 'null':
-                    sVal = MARK_BLANK
-                if be_converted_row[updated_column_names[0]] == sVal:
-                    domain_row[standard_field] = fVal
-        elif opertype == OPERTYPE_IIF:
-            parameters = parameter.split(MARK_DOLLAR)
-            for idx, parameters_record in enumerate(parameters):
-                flg_field, flg_value = parameters_record.split(MARK_COLON, 1)
-                if be_converted_row[flg_field] == flg_value:
-                    if len(updated_column_names) == 1:
-                        idx = 0
-                    domain_row[standard_field] = be_converted_row[updated_column_names[idx]]
-        elif opertype == OPERTYPE_COB:
-            Separator = MARK_BLANK
-            if parameter:
-                Separator = parameter.split(MARK_COLON)[1]
-            domain_row[standard_field] = Separator.join([be_converted_row[c] for c in updated_column_names if c and be_converted_row[c]])
-        elif opertype == OPERTYPE_CDL:
-            if parameter == "BLANK":
-                domain_row[standard_field] = be_converted_row[updated_column_names[0]]
-            elif be_converted_row[updated_column_names[0]]:
-                try:
-                    domain_row[standard_field] = codeDict[parameter][be_converted_row[updated_column_names[0]]]
-                except KeyError:
-                    print(f"KeyError: '{be_converted_row[updated_column_names[0]]}' not found in codeDict for parameter '{parameter}'.")
-                    print(f"Available keys: {list(codeDict[parameter].keys())}")
-                    if definition_row_num:
-                        print(f"错误发生在Excel的第 {definition_row_num} 行")
-                    domain_row[standard_field] = None
-                    
-        elif opertype == OPERTYPE_PRF:
-            row_field_val = be_converted_row[updated_column_names[0]]
-            if row_field_val:
-                domain_row[standard_field] = parameter + row_field_val
-            
-        elif opertype == OPERTYPE_SEL:
-            domain_row[standard_field] = be_converted_row[updated_column_names[0]]
-            parameter_parts = parameter.split(MARK_COLON)
-            rVal = be_converted_row[parameter_parts[0]]
-            cVal = parameter_parts[1]
-            if cVal.lower() == 'not null':
-                if not rVal:
-                    continue_flg = True
-            else:
-                if cVal.startswith('!'):
-                    if rVal == cVal.replace('!', MARK_BLANK):
-                        continue_flg = True
-                else:
-                    if rVal != cVal:
-                        continue_flg = True
-        elif opertype:
-            domain_row, continue_flg = specialType(domain_row, standard_field, opertype, parameter, be_converted_row, updated_column_names, codeDict, continue_flg) # type: ignore
-    except KeyError:
-        handle_key_error(standard_field, opertype, parameter, definition_row_num)
-    except Exception as e:
-        print(f"处理时发生错误: {str(e)}")
-        print(f"处理字段: {standard_field}, 操作类型: {opertype}, 参数: {parameter}")
-        if definition_row_num:
-            print(f"错误发生在Excel的第 {definition_row_num} 行")
-        sys.exit(1)
-
-    return domain_row, continue_flg
 
 def precompute_mapping_rules(domain_param, definition_merge_rule):
     """
@@ -354,9 +250,9 @@ def ultra_fast_sequence_generation(df, seq_field, sort_keys, domain_key, sequenc
     
     return sort_df
 
-def vectorized_field_mapping(result_df, be_converted_df, standard_field, field_rule, cycle_idx, codeDict):
+def vectorized_field_mapping(result_df, be_converted_df, standard_field, field_rule, cycle_idx, codeDict, definition_row_num=None):
     """
-    向量化字段映射处理
+    向量化字段映射处理 - 集成所有操作类型处理
     
     参数:
     - result_df (DataFrame): 结果数据框
@@ -365,6 +261,7 @@ def vectorized_field_mapping(result_df, be_converted_df, standard_field, field_r
     - field_rule (dict): 字段规则
     - cycle_idx (int): 循环索引
     - codeDict (dict): 代码字典
+    - definition_row_num (int, optional): 定义行号（用于错误报告）
     
     返回:
     - tuple: (更新后的结果数据框, 继续标志数组)
@@ -383,11 +280,11 @@ def vectorized_field_mapping(result_df, be_converted_df, standard_field, field_r
         if opertype == OPERTYPE_DEF:
             result_df[standard_field] = parameter_cycle
         elif opertype == OPERTYPE_FIX:
-            if fieldname_cycle[0] in be_converted_df.columns:
+            if fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
                 result_df[standard_field] = be_converted_df[fieldname_cycle[0]].values
         elif opertype == OPERTYPE_FLG:
             # FLG: 基于条件的标志映射
-            if fieldname_cycle[0] in be_converted_df.columns:
+            if fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
                 source_col = be_converted_df[fieldname_cycle[0]]
                 result_values = [MARK_BLANK] * len(source_col)
                 
@@ -440,19 +337,19 @@ def vectorized_field_mapping(result_df, be_converted_df, standard_field, field_r
                     combined_values.append(separator.join(vals))
                 result_df[standard_field] = combined_values
         elif opertype == OPERTYPE_CDL:
-            if parameter_cycle == "BLANK" and fieldname_cycle[0] in be_converted_df.columns:
+            if parameter_cycle == "BLANK" and fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
                 result_df[standard_field] = be_converted_df[fieldname_cycle[0]].values
-            elif parameter_cycle in codeDict and fieldname_cycle[0] in be_converted_df.columns:
+            elif parameter_cycle in codeDict and fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
                 source_values = be_converted_df[fieldname_cycle[0]]
                 mapped_values = source_values.map(codeDict[parameter_cycle]).fillna('')
                 result_df[standard_field] = mapped_values.values
         elif opertype == OPERTYPE_PRF:
-            if fieldname_cycle[0] in be_converted_df.columns:
+            if fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
                 source_values = be_converted_df[fieldname_cycle[0]]
                 prefixed_values = [parameter_cycle + str(x) if x else '' for x in source_values]
                 result_df[standard_field] = prefixed_values
         elif opertype == OPERTYPE_SEL:
-            if fieldname_cycle[0] in be_converted_df.columns:
+            if fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
                 result_df[standard_field] = be_converted_df[fieldname_cycle[0]].values
                 
                 if MARK_COLON in parameter_cycle:
@@ -468,23 +365,55 @@ def vectorized_field_mapping(result_df, be_converted_df, standard_field, field_r
                         else:
                             continue_flags |= (rVal != cVal).values
         elif opertype:
-            # 处理特殊操作类型 - 回退到原始逐行处理
-            for idx in range(len(be_converted_df)):
-                be_converted_row = be_converted_df.iloc[idx]
-                domain_row = {col: result_df.iloc[idx][col] for col in result_df.columns}
+            # 处理特殊操作类型 - 调用specialType函数（如果存在）
+            try:
+                # 尝试导入并调用specialType函数
+                for idx in range(len(be_converted_df)):
+                    be_converted_row = be_converted_df.iloc[idx]
+                    domain_row = {col: result_df.iloc[idx][col] for col in result_df.columns}
+                    row_continue_flg = False
+                    
+                    try:
+                        # 尝试调用specialType函数
+                        domain_row, row_continue_flg = specialType(  # type: ignore
+                            domain_row, standard_field, opertype, parameter_cycle,
+                            be_converted_row, fieldname_cycle, codeDict, False
+                        )
+                        result_df.iloc[idx, result_df.columns.get_loc(standard_field)] = domain_row[standard_field]
+                        if row_continue_flg:
+                            continue_flags[idx] = True
+                    except NameError:
+                        # specialType函数未定义，跳过处理
+                        print(f"警告: 特殊操作类型 '{opertype}' 无法处理，specialType函数未定义")
+                        if definition_row_num:
+                            print(f"警告发生在Excel的第 {definition_row_num} 行")
+                        break
+                    except Exception as e:
+                        # specialType函数调用失败
+                        print(f"警告: 特殊操作类型 '{opertype}' 处理失败: {str(e)}")
+                        if definition_row_num:
+                            print(f"警告发生在Excel的第 {definition_row_num} 行")
+                        continue
+            except Exception as e:
+                print(f"处理特殊操作类型时发生错误: {str(e)}")
+                if definition_row_num:
+                    print(f"错误发生在Excel的第 {definition_row_num} 行")
                 
-                try:
-                    domain_row, row_continue_flg = doMapping(
-                        domain_row, standard_field, opertype, parameter_cycle,
-                        be_converted_row, fieldname_cycle, codeDict, False
-                    )
-                    result_df.iloc[idx, result_df.columns.get_loc(standard_field)] = domain_row[standard_field]
-                    if row_continue_flg:
-                        continue_flags[idx] = True
-                except Exception as e:
-                    continue
+    except KeyError as e:
+        # 处理键错误
+        print(f'KeyError: 字段 {standard_field} 处理出错')
+        print(f'KeyError: 操作类型 {opertype} 处理出错')
+        print(f'KeyError: 参数 {parameter_cycle} 处理出错')
+        print(f'KeyError: 详细错误信息: {str(e)}')
+        if definition_row_num:
+            print(f'错误发生在Excel的第 {definition_row_num} 行')
+        # 不退出程序，而是继续处理
                 
     except Exception as e:
-        pass
+        print(f"字段映射处理时发生错误: {str(e)}")
+        print(f"处理字段: {standard_field}, 操作类型: {opertype}, 参数: {parameter_cycle}")
+        if definition_row_num:
+            print(f"错误发生在Excel的第 {definition_row_num} 行")
+        # 不退出程序，继续处理其他字段
     
     return result_df, continue_flags
