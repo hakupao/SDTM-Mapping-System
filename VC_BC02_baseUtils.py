@@ -249,13 +249,6 @@ def make_format_value(tMETAVAL, isDateType, field_param, row, codeDict4other):
                 other_details_val = row[field_param[COL_OTHERDETAILSFIELD]].strip()
                 if other_details_val in codeDict4other[othValField_codelist]:
                     tFORMVAL = codeDict4other[othValField_codelist][other_details_val]
-                else:
-                    print(f'Other Details:[{other_details_val}] is untranslated')
-                    logger.info(f'Other Details:[{other_details_val}] is untranslated')
-            else:
-                print(f'CodeListName:[{othValField_codelist}] is not existed')
-                logger.info(f'CodeListName:[{othValField_codelist}] is not existed')
-
         
     return tFORMVAL
 
