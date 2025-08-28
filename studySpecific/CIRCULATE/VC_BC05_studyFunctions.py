@@ -625,7 +625,7 @@ def get_GF_from_LB_A_BM():
     从LB_A_BM数据集获取基因检测结果并进行处理。
     
     该函数处理LB_A_BM数据集中的基因检测结果，主要功能包括：
-    1. 对每个受试者的每种检测类型，如果全部为WILD TYPE则只保留一条记录
+    1. 对每个受试者的每种检测类型，如果全部为NEGATIVE则只保留一条记录
     2. 处理KRAS和NRAS突变，更新RAS状态
     3. 根据检测值添加分类字段(CLASSIFICATION)
     
@@ -638,63 +638,60 @@ def get_GF_from_LB_A_BM():
     
     def process_group(group):
         """处理每个分组的数据，保留非野生型记录或仅一条野生型记录"""
-        if (group['CHKVALUE'] == 'WILD TYPE').all():
-            return group.head(1)  # 如果全部为野生型，只保留第一条记录
+        if (group['CHKVALUE'] == 'NEGATIVE').all():
+            return group.head(1)  # 如果全部为NEGATIVE，只保留第一条记录
         else:
-            return group[group['CHKVALUE'] != 'WILD TYPE']  # 否则保留所有非野生型记录
+            return group[group['CHKVALUE'] != 'NEGATIVE']  # 否则保留所有非NEGATIVE记录
 
     # 按受试者ID和检测类型分组处理
-    processed_df = lb_a_bm_df.groupby(
-        ['SUBJID', 'CHKTYPE'], group_keys=False
-    ).apply(process_group)
+    # 使用 pandas.concat 来避免 apply 的 FutureWarning
+    grouped_results = []
+    for (subjid, chktype), group in lb_a_bm_df.groupby(['SUBJID', 'CHKTYPE']):
+        processed_group = process_group(group)
+        grouped_results.append(processed_group)
     
-    # 处理RAS相关的逻辑
-    # 获取所有KRAS和NRAS中CHKVALUE不为WILD TYPE且不为UNKNOWN的受试者
-    kras_mutations = processed_df[
-        (processed_df['CHKTYPE'] == 'KRAS') & 
-        (processed_df['CHKVALUE'] != 'WILD TYPE') &
-        (processed_df['CHKVALUE'] != 'UNKNOWN')
-    ]['SUBJID'].unique()
+    processed_df = pandas.concat(grouped_results, ignore_index=True)
     
-    nras_mutations = processed_df[
-        (processed_df['CHKTYPE'] == 'NRAS') & 
-        (processed_df['CHKVALUE'] != 'WILD TYPE') &
-        (processed_df['CHKVALUE'] != 'UNKNOWN')
-    ]['SUBJID'].unique()
+    # 新建字段 ORRES，内容和 CHKVALUE 一致
+    processed_df['ORRES'] = processed_df['CHKVALUE']
     
-    # 合并所有需要更新RAS为POSITIVE的受试者ID
-    ras_positive_subjects = list(set(kras_mutations) | set(nras_mutations))
+    # 重置索引以便后续操作
+    processed_df = processed_df.reset_index(drop=True)
     
-    # 仅对有明确突变的受试者更新RAS记录为POSITIVE，其余情况保持原值
-    processed_df.loc[
-        (processed_df['SUBJID'].isin(ras_positive_subjects)) & 
-        (processed_df['CHKTYPE'] == 'RAS'), 
-        'CHKVALUE'
-    ] = 'POSITIVE'
-
-    # 添加CLASSIFICATION字段，根据检测值进行分类
-    def classify(value):
-        """根据检测值确定分类"""
-        if value == 'UNKNOWN':
-            return 'UNKNOWN'
-        elif value == 'OTHER':
-            return 'OTHER'
-        elif value in ('WILD TYPE', 'NEGATIVE'):
-            return 'NEGATIVE'
-        else:
-            return 'POSITIVE'
-
-    processed_df['CLASSIFICATION'] = processed_df['CHKVALUE'].map(classify)
-    
-    # 处理 CHKVALUE 字段，如果 CHKVALUE 字段为 "WILD TYPE", "POSITIVE", "NEGATIVE", "UNKNOWN" 则将 CHKVALUE 字段设置为空
-    processed_df['CHKVALUE'] = processed_df['CHKVALUE'].apply(
-        lambda x: '' if x in ('WILD TYPE', 'POSITIVE', 'NEGATIVE', 'UNKNOWN') else x
+    # 按受试者ID分组，处理RAS状态更新逻辑
+    for subjid in processed_df['SUBJID'].unique():
+        # 获取当前受试者的所有记录
+        subjid_mask = processed_df['SUBJID'] == subjid
+        subjid_data = processed_df[subjid_mask]
+        
+        # 检查NRAS和KRAS是否有NEGATIVE值
+        nras_positive = any(
+            (subjid_data['CHKTYPE'] == 'NRAS') & (subjid_data['ORRES'] != 'NEGATIVE')
+        )
+        kras_positive = any(
+            (subjid_data['CHKTYPE'] == 'KRAS') & (subjid_data['ORRES'] != 'NEGATIVE')
+        )
+        
+        # 如果NRAS或KRAS任一不为NEGATIVE，则将该受试者的RAS设置为POSITIVE
+        if nras_positive or kras_positive:
+            ras_mask = subjid_mask & (processed_df['CHKTYPE'] == 'RAS')
+            processed_df.loc[ras_mask, 'ORRES'] = 'POSITIVE'
+        
+    # 将 ORRES 字段中为 POSITIVE 和 NEGATIVE 的数据赋值给新建字段 DETECTION
+    processed_df['DETECTION'] = processed_df['ORRES'].where(
+        processed_df['ORRES'].isin(['POSITIVE', 'NEGATIVE']), ''
+    )
+        
+    # 将 ORRES 字段中不为 POSITIVE 和 NEGATIVE 的数据赋值给新建字段 PREDICTED
+    processed_df['PREDICTED'] = processed_df['ORRES'].where(
+        ~processed_df['ORRES'].isin(['POSITIVE', 'NEGATIVE']), ''
     )
     
-
-    # 对数据集进行去重
-    processed_df = processed_df.drop_duplicates()
-
+    # 将 PREDICTED 字段中的数据赋值给新建字段 RESCAT ，将 RESCAT 字段中为 OTHER,"",MSI-H 变为 "" ，其余都变为 POSITIVE
+    processed_df['RESCAT'] = processed_df['PREDICTED'].apply(
+        lambda x: 'POSITIVE' if x != 'OTHER' and x != '' and x != 'MSI-H' else ''
+    )
+          
     # 返回结果，所有列转换为字符串类型
     return processed_df.astype(str)
 
