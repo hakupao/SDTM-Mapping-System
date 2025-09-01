@@ -166,27 +166,19 @@ def try_convert_to_int(value):
     except ValueError:
         return value
     
-def make_format_value(tMETAVAL, isDateType, field_param, row, codeDict4other):
+def make_format_value(tMETAVAL, isDateType):
     """
-    格式化字段值，处理日期类型和其他特殊值
+    格式化字段值，主要处理日期类型的转换
     
     参数:
     - tMETAVAL (str): 原始元数据值
     - isDateType (bool): 是否为日期类型
-    - field_param (dict): 字段参数配置
-    - row (dict): 当前行数据
-    - codeDict4other (dict): 其他值的代码字典
     
     返回:
     - str: 格式化后的值
+    
+    注意：已移除4OTHER功能，简化了函数参数和逻辑
     """
-    logger = create_logger(
-        os.path.join(SPECIFIC_PATH, 'log_file.log'), 
-        log_level=logging.DEBUG
-    )
-
-    tFORMVAL = None
-
     # 日期匹配的正则表达式模式
     regex_patterns = [
         r'\d{4}-\d{1,2}-\d{1,2}$',
@@ -195,13 +187,22 @@ def make_format_value(tMETAVAL, isDateType, field_param, row, codeDict4other):
     ]
     
     tMETAVAL = tMETAVAL.strip()
+    
     if isDateType:
         # 处理日期类型字段
         formatted_date = ''
         if tMETAVAL:
             # 将 '/' 替换为 '-'
             tMETAVAL = tMETAVAL.replace('/', '-')
-            year, month, day = tMETAVAL.split('-')
+            
+            # 安全地分割日期部分
+            parts = tMETAVAL.split('-')
+            if len(parts) >= 3:
+                year, month, day = parts[0], parts[1], parts[2]
+            elif len(parts) == 2:
+                year, month, day = parts[0], parts[1], ''
+            else:
+                year, month, day = parts[0], '', ''
             
             # 处理特殊的日期值（9999, 99等表示未知）
             if year == '9999':
@@ -211,46 +212,46 @@ def make_format_value(tMETAVAL, isDateType, field_param, row, codeDict4other):
             if day == '99':
                 day = ''
             
-            tMETAVAL = '-'.join([year, month, day])
+            # 重新组合日期字符串
+            if day:
+                tMETAVAL = '-'.join([year, month, day])
+            elif month:
+                tMETAVAL = '-'.join([year, month])
+            else:
+                tMETAVAL = year
             
             # 根据不同的日期格式进行解析
             for idx, regex_pattern in enumerate(regex_patterns, start=1):
                 match = re.match(regex_pattern, tMETAVAL)
                 if match:
-                    if idx == 1:  # 完整日期格式 YYYY-MM-DD
-                        parsed_date = parser.parse(tMETAVAL)
-                        formatted_date = parsed_date.strftime('%Y-%m-%d')
-                        break
-                    elif idx == 2:  # 年月格式 YYYY-MM
-                        if len(tMETAVAL) > 6:
-                            tMETAVAL = tMETAVAL[:7]
-                            if not tMETAVAL[-1].isdigit():
-                                tMETAVAL = tMETAVAL[:6]
-                        parsed_date = parser.parse(tMETAVAL)
-                        formatted_date = parsed_date.strftime('%Y-%m')
-                        break
-                    elif idx == 3:  # 年格式 YYYY
-                        if len(tMETAVAL) > 4:
-                            tMETAVAL = tMETAVAL[:4]
-                        parsed_date = parser.parse(tMETAVAL)
-                        formatted_date = parsed_date.strftime('%Y')
-                        break
-                    else:
-                        print(f'Date:[{tMETAVAL}] is wrong')
-        tFORMVAL = formatted_date  
+                    try:
+                        if idx == 1:  # 完整日期格式 YYYY-MM-DD
+                            parsed_date = parser.parse(tMETAVAL)
+                            formatted_date = parsed_date.strftime('%Y-%m-%d')
+                            break
+                        elif idx == 2:  # 年月格式 YYYY-MM
+                            if len(tMETAVAL) > 6:
+                                tMETAVAL = tMETAVAL[:7]
+                                if not tMETAVAL[-1].isdigit():
+                                    tMETAVAL = tMETAVAL[:6]
+                            parsed_date = parser.parse(tMETAVAL)
+                            formatted_date = parsed_date.strftime('%Y-%m')
+                            break
+                        elif idx == 3:  # 年格式 YYYY
+                            if len(tMETAVAL) > 4:
+                                tMETAVAL = tMETAVAL[:4]
+                            parsed_date = parser.parse(tMETAVAL)
+                            formatted_date = parsed_date.strftime('%Y')
+                            break
+                    except (ValueError, parser.ParserError):
+                        print(f'Date:[{tMETAVAL}] parsing failed')
+                        continue
+                        
+        return formatted_date
     else:
-        # 处理非日期类型字段
-        tFORMVAL = tMETAVAL
-        
-        # 如果是"其他"选项，需要从详细信息中获取具体值
-        if tMETAVAL == field_param[COL_OTHERVAL]:
-            othValField_codelist = field_param[COL_CODELISTNAME] + SUFFIX_4OTHER
-            if othValField_codelist in codeDict4other:
-                other_details_val = row[field_param[COL_OTHERDETAILSFIELD]].strip()
-                if other_details_val in codeDict4other[othValField_codelist]:
-                    tFORMVAL = codeDict4other[othValField_codelist][other_details_val]
-        
-    return tFORMVAL
+        # 处理非日期类型字段，直接返回原值
+        # 注意：已移除4OTHER功能，不再处理"其他"选项的详细信息映射
+        return tMETAVAL
 
 class DatabaseManager:
     """

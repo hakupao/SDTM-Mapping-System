@@ -23,7 +23,8 @@ def main():
     # 获取相关字典和配置
     caseDict = getCaseDict(workbook, sheetSetting)
     fileDict = getFileDict(workbook, sheetSetting)
-    _, _, codeDict4other = getCodeListInfo(workbook, sheetSetting)
+    # 注意：已移除4OTHER功能，不再需要codeDict4other
+    codeDict, _ = getCodeListInfo(workbook, sheetSetting)
     _, transFieldDict, _, _ = getProcess(workbook, sheetSetting)
 
     # 根据mapping定义的SDTM字段判断是否为日期型
@@ -135,7 +136,7 @@ def main():
                         tCHKFIELDID = field_param[COL_CHKTYPE]
                         tDATETYPE = dateTypeDict[tFIELDID] if tFIELDID in dateTypeDict else False 
 
-                        tFORMVAL = make_format_value(tMETAVAL, tDATETYPE, field_param, row, codeDict4other)
+                        tFORMVAL = make_format_value(tMETAVAL, tDATETYPE)
                         data.append((fileName, tROWNUM, tUSUBJID, tSUBJID, tFIELDLBL, tFIELDID, tMETAVAL, tFORMVAL, tDATETYPE, tCODELISTID, tCHKFIELDID))
 
             total_files_processed += 1

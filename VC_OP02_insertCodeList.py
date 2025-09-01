@@ -18,7 +18,7 @@ def main():
     # 获取代码列表配置
     workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
     sheetSetting = getSheetSetting(workbook)
-    _, codeList, _ = getCodeListInfo(workbook, sheetSetting)
+    _, codeList = getCodeListInfo(workbook, sheetSetting)
    
     db = DatabaseManager()
     db.connect()
