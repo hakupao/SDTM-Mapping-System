@@ -252,7 +252,6 @@ def getCodeListInfo(workbook, sheetSetting):
     colnum_value_sdtm = codeList_sheetsetting[COL_VALUESDTM]
 
     codeDict = {}
-    codeDict4other = {}
     codeList = []
 
     for row in workbook[CODELIST_SHEET_NAME].iter_rows(min_row=codeList_sheetsetting[COL_STARTINGROW], min_col=1, max_col=codeList_sheetsetting[COL_MAXCOL], values_only=True):
@@ -264,20 +263,12 @@ def getCodeListInfo(workbook, sheetSetting):
         value_en = get_cell_value(row, colnum_value_en)
         value_sdtm = get_cell_value(row, colnum_value_sdtm)
 
-        if codelist_name.endswith(SUFFIX_4OTHER):
-            if codelist_name not in codeDict4other:
-                codeDict4other[codelist_name] = {}
-            codeDict4other[codelist_name][code] = value_en
-            
-            if codelist_name[:-6] not in codeDict:
-                codeDict[codelist_name[:-6]] = {}
-            codeDict[codelist_name[:-6]][value_en] = value_sdtm
-        else:
-            if codelist_name not in codeDict:
-                codeDict[codelist_name] = {}
-            codeDict[codelist_name][value_en] = value_sdtm
+        # 注意：已移除4OTHER功能，不再处理带有4OTHER后缀的代码表
+        if codelist_name not in codeDict:
+            codeDict[codelist_name] = {}
+        codeDict[codelist_name][value_en] = value_sdtm
         codeList.append([codelist_name,code,value_raw,value_en,value_sdtm])
-    return codeDict, codeList, codeDict4other
+    return codeDict, codeList
 
 # 仕様書からシートRefactoring読込
 def getRefactoringInfo(workbook, sheetSetting):

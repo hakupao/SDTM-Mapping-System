@@ -256,7 +256,7 @@ def main():
     sheetSetting = getSheetSetting(workbook)
     
     caseDict = getCaseDict(workbook, sheetSetting)
-    codeDict, _, _ = getCodeListInfo(workbook, sheetSetting)
+    codeDict, _ = getCodeListInfo(workbook, sheetSetting)
     mappingDict, definition_merge_rule = getMapping(workbook, sheetSetting)
     domainsSettingDict = getDomainsSetting(workbook, sheetSetting)
     
