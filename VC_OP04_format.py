@@ -423,7 +423,6 @@ def main():
         fields = ['max(if((FIELDID = \'' + fieldID + '\'),TRANSVAL,NULL)) AS `' + fieldID  + '`' 
                   for fieldID in file_param.keys() 
                   if fieldID != fileDict[fileName][COL_SUBJIDFIELDID] 
-                  and not file_param[fieldID][COL_CHKTYPE]
                   and fieldID not in exceptFields
                   ]
         if fields:
