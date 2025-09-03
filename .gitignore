@@ -35,6 +35,7 @@ studySpecific/*/04_SDTM
 studySpecific/*/05_Inputfile/
 studySpecific/*/06_Inputpackage/
 studySpecific/*/08_Validation/
+studySpecific/*/09_COMBINE/
 
 # 数据库
 *.sqlite
@@ -60,11 +61,12 @@ ENV/
 Thumbs.db
 desktop.ini
 
-# Excel临时文件
+# Excel文件
 ~$*.xlsx
 ~$*.xls
 *.xlk
 *.~*
+*.xlsx
 
 # 其他文件
 .svn/
