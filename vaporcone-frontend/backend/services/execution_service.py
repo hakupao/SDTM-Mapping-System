@@ -355,33 +355,37 @@ class ExecutionService:
             )
             execution_time = round(time.time() - start_time, 2)
             
+            # 使用新的日志记录方法
+            log_service.add_process_log(
+                step_name=step_name,
+                script_name=script_name,
+                stdout=result.stdout,
+                stderr=result.stderr,
+                success=result.returncode == 0,
+                execution_time=execution_time
+            )
+            
             # 检查执行结果
             if result.returncode == 0:
                 message = f"{step_name} 执行成功"
                 
-                # 记录成功日志
-                log_details = f"执行时间: {execution_time}秒"
+                # 如果有输出内容，添加流式日志
                 if result.stdout:
-                    # 截取输出前500字符
-                    stdout_preview = result.stdout[:500]
-                    if len(result.stdout) > 500:
-                        stdout_preview += "...(输出被截断)"
-                    log_details += f"\n输出: {stdout_preview}"
-                    message += f"\n输出: {stdout_preview}"
-                
-                log_service.add_log('INFO', 'ProcessExecution', f'{step_name} 执行成功', log_details)
+                    # 按行分割输出，每行作为一个流式日志
+                    stdout_lines = result.stdout.strip().split('\n')
+                    for line in stdout_lines:
+                        if line.strip():
+                            log_service.add_stream_log(step_name, 'STDOUT', line.strip())
                 
             else:
                 message = f"{step_name} 执行失败\n错误: {result.stderr}"
                 
-                # 记录错误日志
-                error_details = f"执行时间: {execution_time}秒\n错误代码: {result.returncode}"
+                # 如果有错误输出，添加流式日志
                 if result.stderr:
-                    error_details += f"\n错误信息: {result.stderr}"
-                if result.stdout:
-                    error_details += f"\n标准输出: {result.stdout}"
-                
-                log_service.add_log('ERROR', 'ProcessExecution', f'{step_name} 执行失败', error_details)
+                    stderr_lines = result.stderr.strip().split('\n')
+                    for line in stderr_lines:
+                        if line.strip():
+                            log_service.add_stream_log(step_name, 'STDERR', line.strip())
             
             # 构造返回结果
             script_result = {

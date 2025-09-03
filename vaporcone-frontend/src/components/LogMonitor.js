@@ -11,7 +11,8 @@ import {
   DatePicker,
   Row,
   Col,
-  Statistic
+  Statistic,
+  notification
 } from 'antd';
 import {
   PlayCircleOutlined,
@@ -20,9 +21,12 @@ import {
   DownloadOutlined,
   SearchOutlined,
   FilterOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  WifiOutlined,
+  WifiOutlined as WifiOffOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
+import io from 'socket.io-client';
 
 const { Option } = Select;
 const { Search } = Input;
@@ -34,7 +38,97 @@ const LogMonitor = ({ currentStudy }) => {
   const [logLevel, setLogLevel] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [autoScroll, setAutoScroll] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  const [socket, setSocket] = useState(null);
   const logContainerRef = useRef(null);
+
+  // 初始化WebSocket连接
+  useEffect(() => {
+    const newSocket = io('http://localhost:5000');
+    
+    newSocket.on('connect', () => {
+      console.log('WebSocket连接已建立');
+      setIsConnected(true);
+      
+      // 加入日志监控房间
+      newSocket.emit('join_log_room', { study_id: currentStudy || 'default' });
+      
+      // 显示连接成功通知
+      notification.success({
+        message: '实时连接已建立',
+        description: '日志监控已连接到后端服务',
+        duration: 3
+      });
+    });
+    
+    newSocket.on('disconnect', () => {
+      console.log('WebSocket连接已断开');
+      setIsConnected(false);
+      
+      notification.warning({
+        message: '连接已断开',
+        description: '与后端服务的连接已断开，请检查网络连接',
+        duration: 5
+      });
+    });
+    
+    newSocket.on('connection_established', (data) => {
+      console.log('连接确认:', data);
+    });
+    
+    newSocket.on('room_joined', (data) => {
+      console.log('已加入房间:', data);
+    });
+    
+    newSocket.on('log_update', (data) => {
+      console.log('收到实时日志更新:', data);
+      
+      if (isRealTime && data.log) {
+        // 添加新的日志条目到列表开头
+        setLogs(prevLogs => {
+          const newLogs = [data.log, ...prevLogs];
+          // 保持日志数量在合理范围内
+          return newLogs.slice(0, 1000);
+        });
+        
+        // 显示实时日志通知
+        notification.info({
+          message: '新日志',
+          description: `${data.log.module}: ${data.log.message}`,
+          duration: 2,
+          placement: 'bottomRight'
+        });
+      }
+    });
+    
+    newSocket.on('system_notification', (data) => {
+      console.log('收到系统通知:', data);
+      
+      if (data.notification) {
+        notification.info({
+          message: '系统通知',
+          description: data.notification.message,
+          duration: 4
+        });
+      }
+    });
+    
+    setSocket(newSocket);
+    
+    // 清理函数
+    return () => {
+      if (newSocket) {
+        newSocket.disconnect();
+      }
+    };
+  }, [currentStudy]);
+  
+  // 当研究ID改变时，重新加入房间
+  useEffect(() => {
+    if (socket && isConnected) {
+      socket.emit('join_log_room', { study_id: currentStudy || 'default' });
+    }
+  }, [currentStudy, socket, isConnected]);
 
   // 从后端API获取真实日志数据
   const fetchLogs = async () => {
@@ -53,6 +147,20 @@ const LogMonitor = ({ currentStudy }) => {
     }
   };
 
+  // 通过WebSocket请求日志
+  const requestLogsViaSocket = () => {
+    if (socket && isConnected) {
+      socket.emit('request_logs', {
+        level: logLevel,
+        limit: 100,
+        search: searchTerm,
+        module: '',
+        start_time: '',
+        end_time: ''
+      });
+    }
+  };
+
   // 初始化时获取真实日志
   useEffect(() => {
     fetchLogs();
@@ -62,13 +170,19 @@ const LogMonitor = ({ currentStudy }) => {
   useEffect(() => {
     if (!isRealTime) return;
 
-    // 定期获取新日志
-    const interval = setInterval(() => {
-      fetchLogs();
-    }, 3000); // 每3秒刷新一次
+    if (socket && isConnected) {
+      // 使用WebSocket实时推送
+      console.log('启用WebSocket实时日志推送');
+    } else {
+      // 降级到定期轮询
+      console.log('WebSocket未连接，使用轮询模式');
+      const interval = setInterval(() => {
+        fetchLogs();
+      }, 3000); // 每3秒刷新一次
 
-    return () => clearInterval(interval);
-  }, [isRealTime]);
+      return () => clearInterval(interval);
+    }
+  }, [isRealTime, socket, isConnected]);
 
   // 自动滚动到底部
   useEffect(() => {
@@ -162,12 +276,30 @@ const LogMonitor = ({ currentStudy }) => {
     URL.revokeObjectURL(url);
   };
 
+  // 手动刷新日志
+  const handleRefresh = () => {
+    if (socket && isConnected) {
+      requestLogsViaSocket();
+    } else {
+      fetchLogs();
+    }
+  };
+
   return (
     <div className="log-monitor fade-in">
       {/* 日志监控标题 */}
       <Alert
         message={`${currentStudy} 研究日志监控`}
-        description="实时监控系统运行日志，包括数据处理过程、函数调用、错误信息等"
+        description={
+          <div>
+            <div>实时监控系统运行日志，包括数据处理过程、函数调用、错误信息等</div>
+            <div style={{ marginTop: 8 }}>
+              <Tag color={isConnected ? 'green' : 'red'} icon={isConnected ? <WifiOutlined /> : <WifiOffOutlined />}>
+                {isConnected ? '实时连接已建立' : '实时连接已断开'}
+              </Tag>
+            </div>
+          </div>
+        }
         type="info"
         showIcon
         style={{ marginBottom: 24 }}
@@ -233,6 +365,7 @@ const LogMonitor = ({ currentStudy }) => {
                 onChange={setIsRealTime}
                 checkedChildren={<PlayCircleOutlined />}
                 unCheckedChildren={<PauseCircleOutlined />}
+                disabled={!isConnected}
               />
               
               <span>自动滚动:</span>
@@ -267,7 +400,12 @@ const LogMonitor = ({ currentStudy }) => {
                 size="small"
               />
               
-              <Button size="small" icon={<ReloadOutlined />} onClick={fetchLogs}>
+              <Button 
+                size="small" 
+                icon={<ReloadOutlined />} 
+                onClick={handleRefresh}
+                loading={!isConnected && isRealTime}
+              >
                 刷新
               </Button>
               <Button size="small" icon={<ClearOutlined />} onClick={clearLogs}>
@@ -324,7 +462,7 @@ const LogMonitor = ({ currentStudy }) => {
           
           {filteredLogs.length === 0 && (
             <div style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>
-              暂无日志记录
+              {!isConnected ? '等待连接后端服务...' : '暂无日志记录'}
             </div>
           )}
         </div>
