@@ -541,7 +541,7 @@ def process_CO():
             if pandas.notnull(row[col]) and row[col] != ''
         ]
         if values:  # 如果有非空值
-            return 'CLINICAL: ' + ','.join(values)
+            return 'CLINICAL: ' + ', '.join(values)
         return ''  # 如果全为空，则返回空字符串
     
     co_df['COCNC'] = co_df.apply(generate_clinical, axis=1)
@@ -555,7 +555,7 @@ def process_CO():
             if pandas.notnull(row[col]) and row[col] != ''
         ]
         if values:  # 如果有非空值
-            return 'PATHOLOGICAL: ' + ','.join(values)
+            return 'PATHOLOGICAL: ' + ', '.join(values)
         return ''  # 如果全为空，则返回空字符串
     
     co_df['COCNP'] = co_df.apply(generate_pathological, axis=1)
