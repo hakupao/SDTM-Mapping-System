@@ -5,7 +5,7 @@ VAPORCONE 项目数据转换模块
 - 读取Combine_process工作表配置
 - 根据Step名调用不同的转换函数
 - 处理各种参数类型
-- 输出转换后的CSV文件到09_COMBINE目录
+- 输出转换后的CSV文件到COMBINE目录
 
 支持的操作类型：
 - MERGE: 合并多个文件
@@ -13,22 +13,57 @@ VAPORCONE 项目数据转换模块
 - CONCAT: 上下连接多个文件
 """
 
-import os
+import sys
 import time
-import pandas as pd
-import numpy as np
-from openpyxl import load_workbook
-from VC_BC03_fetchConfig import *
-from VC_BC04_operateType import *
+from pathlib import Path
 
-# ================== 常量定义 ==================
-# 使用VC_BC01_constant.py中定义的常量
-from VC_BC01_constant import *
+import pandas as pd
+from openpyxl import load_workbook
+
+CURRENT_DIR = Path(__file__).resolve().parent
+
+
+def find_repo_root(start: Path) -> Path:
+    for candidate in (start, *start.parents):
+        if (candidate / 'VC_BC01_constant.py').exists():
+            return candidate
+    return start
+
+
+REPO_ROOT = find_repo_root(CURRENT_DIR)
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from VC_BC02_baseUtils import find_latest_timestamped_path, get_cell_value
+from VC_BC03_fetchConfig import getSheetSetting
+from VC_BC01_constant import (
+    COL_FILENAME,
+    COL_STARTINGROW,
+    COL_STEP,
+    COMBINE_PROCESS_SHEET_NAME,
+    CONFIG_NAME,
+    EXTENSION,
+    FOLDER_FORMAT,
+    FORMAT_PATH,
+    PREFIX_F,
+    SPECIFIC_PATH,
+    STUDY_ID,
+)
 
 # 输出路径配置
-FOLDER_COMBINE = '09_COMBINE'
-COMBINE_PATH = os.path.join(SPECIFIC_PATH, FOLDER_COMBINE)
-COMBINE_TRANSFER_FILE_PATH = os.path.join(COMBINE_PATH, 'combine_dataset')
+FOLDER_COMBINE = 'TEST_COMBINE'
+EXPERIMENT_ROOT = CURRENT_DIR
+COMBINE_PATH = EXPERIMENT_ROOT / FOLDER_COMBINE
+COMBINE_TRANSFER_FILE_PATH = COMBINE_PATH / 'combine_dataset'
+EXPERIMENT_FORMAT_PATH = EXPERIMENT_ROOT / FOLDER_FORMAT
+
+def resolve_existing_path(*candidates):
+    "Return the first existing path from candidates, or None."
+    for candidate in candidates:
+        path = Path(candidate)
+        if path.exists():
+            return path
+    return None
 
 # 支持的Step类型
 SUPPORTED_STEPS = {
@@ -357,33 +392,26 @@ def main():
     start_time = time.time()
     
     # 调试路径常量
-    print(f"调试信息: SPECIFIC_PATH = {SPECIFIC_PATH}")
-    print(f"调试信息: FOLDER_COMBINE = {FOLDER_COMBINE}")
-    print(f"调试信息: COMBINE_PATH = {COMBINE_PATH}")
-    print(f"调试信息: COMBINE_TRANSFER_FILE_PATH = {COMBINE_TRANSFER_FILE_PATH}")
-    
-    # 创建日志记录器
-    logger = create_logger(
-        os.path.join(SPECIFIC_PATH, 'log_file.log'), 
-        log_level=logging.DEBUG
-    )
-    
+    print(f"调试信息: 原始 SPECIFIC_PATH = {SPECIFIC_PATH}")
+    print(f"调试信息: 实验目录 = {EXPERIMENT_ROOT}")
+    print(f"调试信息: 输出根目录 = {COMBINE_PATH}")
+    print(f"调试信息: 输出传输目录 = {COMBINE_TRANSFER_FILE_PATH}")
+        
     # 创建输出目录
     print(f"尝试创建输出目录: {COMBINE_TRANSFER_FILE_PATH}")
     
     try:
-        # 直接使用os.makedirs创建目录
-        os.makedirs(COMBINE_TRANSFER_FILE_PATH, exist_ok=True)
+        COMBINE_TRANSFER_FILE_PATH.mkdir(parents=True, exist_ok=True)
         
         # 生成带时间戳的目录名
         timestamp = time.strftime("%Y%m%d%H%M%S")
-        actual_combine_path = os.path.join(COMBINE_TRANSFER_FILE_PATH, f'combine_dataset-{timestamp}')
+        actual_combine_path = COMBINE_TRANSFER_FILE_PATH / f'combine_dataset-{timestamp}'
         
         # 创建最终的输出目录
-        os.makedirs(actual_combine_path, exist_ok=True)
+        actual_combine_path.mkdir(parents=True, exist_ok=True)
         
         print(f'✓ 成功创建输出目录: {actual_combine_path}')
-        print(f'输出目录绝对路径: {os.path.abspath(actual_combine_path)}')
+        print(f'输出目录绝对路径: {actual_combine_path.resolve()}')
         
     except Exception as e:
         print(f"✗ 创建输出目录失败: {e}")
@@ -391,8 +419,13 @@ def main():
         print(f"尝试创建路径: {COMBINE_TRANSFER_FILE_PATH}")
         return
     
-    # 加载Excel配置文件
-    workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
+    config_path = resolve_existing_path(EXPERIMENT_ROOT / CONFIG_NAME, Path(SPECIFIC_PATH) / CONFIG_NAME)
+    if not config_path:
+        print(f"错误: 未找到配置文件 {CONFIG_NAME}")
+        return
+    
+    print(f"使用配置文件: {config_path}")
+    workbook = load_workbook(filename=str(config_path))
     sheetSetting = getSheetSetting(workbook)
     
     # 读取Combine_process工作表配置
@@ -405,27 +438,31 @@ def main():
     print(f"找到 {len(tasks)} 个转换任务")
     
     # 获取格式化数据作为输入
-    actual_format_path = find_latest_timestamped_path(FORMAT_PATH, 'format_dataset')
-    if not actual_format_path:
-        print("错误: 未找到格式化数据目录")
+    format_base_path = resolve_existing_path(EXPERIMENT_FORMAT_PATH, Path(FORMAT_PATH))
+    if not format_base_path:
+        print("错误: 未找到格式化数据根目录")
+        return
+    
+    actual_format_path_str = find_latest_timestamped_path(str(format_base_path), 'format_dataset')
+    actual_format_path = Path(actual_format_path_str)
+    if not actual_format_path.exists():
+        print(f"错误: 未找到格式化数据目录: {actual_format_path}")
         return
     
     print(f'使用格式化数据路径: {actual_format_path}')
     
     # 读取所有格式化数据文件
     input_data = {}
-    all_files = os.listdir(actual_format_path)
-    files_only = [file for file in all_files if os.path.isfile(os.path.join(actual_format_path, file))]
-    
-    for fileName in files_only:
-        if fileName.startswith(PREFIX_F) and fileName.endswith(EXTENSION):
-            shortFileName = fileName.removeprefix(PREFIX_F).removesuffix(EXTENSION)
-            file_path = os.path.join(actual_format_path, fileName)
-            try:
-                input_data[shortFileName] = pd.read_csv(file_path, dtype=str, na_filter=False)
-                print(f"加载文件: {shortFileName} ({len(input_data[shortFileName])} 行)")
-            except Exception as e:
-                print(f"警告: 无法加载文件 {fileName}: {e}")
+    for file_path in actual_format_path.iterdir():
+        if file_path.is_file():
+            file_name = file_path.name
+            if file_name.startswith(PREFIX_F) and file_name.endswith(EXTENSION):
+                short_file_name = file_name.removeprefix(PREFIX_F).removesuffix(EXTENSION)
+                try:
+                    input_data[short_file_name] = pd.read_csv(file_path, dtype=str, na_filter=False)
+                    print(f"加载文件: {short_file_name} ({len(input_data[short_file_name])} 行)")
+                except Exception as e:
+                    print(f"警告: 无法加载文件 {file_name}: {e}")
     
     # 执行Combine_process工作表中定义的转换任务
     print("\n=== 执行Combine_process工作表转换任务 ===")
@@ -443,12 +480,12 @@ def main():
         if not result_df.empty:
             # 保存结果 - 添加F-前缀
             output_file = f'{PREFIX_F}{task["filename"]}{EXTENSION}'
-            output_path = os.path.join(actual_combine_path, output_file)
+            output_path = actual_combine_path / output_file
             
             print(f"调试信息: 准备保存文件")
             print(f"调试信息: 输出文件名: {output_file}")
             print(f"调试信息: 完整输出路径: {output_path}")
-            print(f"调试信息: 输出目录是否存在: {os.path.exists(actual_combine_path)}")
+            print(f"调试信息: 输出目录是否存在: {actual_combine_path.exists()}")
             
             try:
                 result_df.to_csv(output_path, index=False, encoding='utf-8-sig')
@@ -456,8 +493,8 @@ def main():
                 print(f"✓ 文件已保存到: {output_path}")
                 
                 # 验证文件是否真的保存了
-                if os.path.exists(output_path):
-                    file_size = os.path.getsize(output_path)
+                if output_path.exists():
+                    file_size = output_path.stat().st_size
                     print(f"✓ 文件保存验证成功，大小: {file_size} 字节")
                 else:
                     print(f"✗ 文件保存验证失败，文件不存在: {output_path}")
