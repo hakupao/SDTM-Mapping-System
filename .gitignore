@@ -105,3 +105,6 @@ coverage/
 
 # 保留空目录的占位文件
 !.gitkeep 
+
+# experiment 的csv输出目录
+experiment/combine_test/TEST_COMBINE/
