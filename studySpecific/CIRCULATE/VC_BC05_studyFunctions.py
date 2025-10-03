@@ -10,6 +10,7 @@ from VC_BC03_fetchConfig import *
 from VC_BC04_operateType import *
 import numpy as np
 import pandas
+from decimal import Decimal
 
 def leftjoin(table1, table2):
     """
@@ -104,8 +105,8 @@ def make_DMFrame():
     # 初始化主数据框，包含患者基本信息
     dmframe = pat_df[['SUBJID', 'INVESTIG', 'BRTHDAT', 'SEX', 'PATINT', 'Site_Object_SiteName']].copy()
     
-    # 处理研究者(INVESTIG)数据，去掉括号和括号内的内容
-    dmframe['INVESTIG'] = dmframe['INVESTIG'].str.replace(r'（.*?）', '', regex=True)
+    # 处理研究者(INVESTIG)数据，去掉括号和括号内的内容，去掉前后空格
+    dmframe['INVESTIG'] = dmframe['INVESTIG'].str.replace(r'（.*?）', '', regex=True).str.strip()
     
     # 处理入组(INEX)数据
     inex_subset = inex_df[['SUBJID', 'RFICDAT', 'REGDAT_A', 'COHORT', 'AGE', 'ICINVNAM', 'YEARS']].copy()
@@ -137,34 +138,24 @@ def make_DMFrame():
     
     # 删除临时的优先级字段
     ss_a_all_df = ss_a_all_df.drop('SURVSTAT_PRIORITY', axis=1)
-        
+
     # 合并生存状态数据到主数据框
     dmframe = pandas.merge(dmframe, ss_a_all_df, how='left', on='SUBJID').fillna('')
     
     # 处理治疗开始日期数据
     treatment_start_df = cm_a_ch_prp_df[['SUBJID', 'CHSPID', 'CMSTDCH']].copy()
-    treatment_start_df = treatment_start_df.drop_duplicates(subset=['SUBJID', 'CHSPID', 'CMSTDCH'], keep='first')
-    treatment_start_df = treatment_start_df[treatment_start_df['CHSPID'] == 'TREATMENT1']
-    treatment_start_df = treatment_start_df[['SUBJID', 'CMSTDCH']].drop_duplicates(subset=['SUBJID'], keep='first')
-    dmframe = pandas.merge(dmframe, treatment_start_df, how='left', on='SUBJID').fillna('')
+    # 按受试者ID和治疗ID排序（治疗ID升序，获取第一次治疗）
+    treatment_start_df = treatment_start_df[treatment_start_df['CHSPID'] == '1']
+    # 合并治疗开始日期到主数据框
+    dmframe = pandas.merge(dmframe, treatment_start_df[['SUBJID', 'CMSTDCH']], how='left', on='SUBJID').fillna('')
     
     # 处理最后治疗结束日期数据
     treatment_end_df = cm_a_ch_prp_df[['SUBJID', 'CHSPID', 'CMENDCH']].copy()
-    treatment_end_df = treatment_end_df.drop_duplicates(subset=['SUBJID', 'CHSPID', 'CMENDCH'], keep='first')
-    treatment_end_df['CHSPID'] = treatment_end_df['CHSPID'].str.replace('TREATMENT', '').astype(int)
-        
-    # 按受试者ID和治疗ID排序（治疗ID降序，获取最后一次治疗）
-    treatment_end_df = treatment_end_df.sort_values(
-        by=['SUBJID', 'CHSPID'],
-        ascending=[True, False]
-    )
-    
-    # 对每个受试者只保留第一条记录
+    # 按受试者ID和治疗ID排序（治疗ID降序，获取最后一次治疗）,每个受试者只保留第一条记录
+    treatment_end_df = treatment_end_df.sort_values(by=['SUBJID', 'CHSPID'], ascending=[True, False])
     treatment_end_df = treatment_end_df.drop_duplicates(subset=['SUBJID'], keep='first')
-    treatment_end_df = treatment_end_df[['SUBJID', 'CMENDCH']]
-    
     # 合并治疗结束日期到主数据框
-    dmframe = pandas.merge(dmframe, treatment_end_df, how='left', on='SUBJID').fillna('')
+    dmframe = pandas.merge(dmframe, treatment_end_df[['SUBJID', 'CMENDCH']], how='left', on='SUBJID').fillna('')
     
     # 处理版本信息数据
     ti_a_ver_df = ti_a_ver_df[['SUBJID', 'CHKVALUE']].rename(columns={'CHKVALUE': 'PRTVER'})
@@ -822,3 +813,23 @@ def process_SUPR_MR():
 
     # 返回结果，所有列转换为字符串类型
     return merged_df.astype(str)
+
+def process_LB_A_TM():
+    
+    format_dataset = getFormatDataset('LB_A_TM_ALL')
+    lb_a_tm_df = format_dataset['LB_A_TM_ALL']
+
+    # 当 CEARES 字段不为空时，给 NGML 字段赋值为常量"ng/mL"，给 MGL 字段赋值为常量 "mg/L"，否则赋值为空字符串
+    lb_a_tm_df['NGML'] = lb_a_tm_df['CEARES'].where(lb_a_tm_df['CEARES'] == '', 'ng/mL')
+    lb_a_tm_df['MGL'] = lb_a_tm_df['CEARES'].where(lb_a_tm_df['CEARES'] == '', 'mg/L')
+
+    # 当 CA199RES 字段不为空时，给 UML 字段赋值为常量　"U/mL"，否则赋值为空字符串
+    lb_a_tm_df['UML'] = lb_a_tm_df['CA199RES'].where(lb_a_tm_df['CA199RES'] == '', 'U/mL') 
+    
+    # 建立新字段 CEARES_STD 字段，将 CEARES 字段的值除 1000
+    lb_a_tm_df['CEARES_STD'] = lb_a_tm_df['CEARES'].apply(
+    lambda x: str(Decimal(x) / Decimal('1000')) if x.replace('.', '', 1).isdigit() else ''
+    )
+
+    # 返回结果，所有列转换为字符串类型
+    return lb_a_tm_df.astype(str)
