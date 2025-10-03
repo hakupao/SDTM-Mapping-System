@@ -17,6 +17,7 @@ import pandas as pd
 from VC_BC03_fetchConfig import *
 sys.path.append(SPECIFIC_PATH)
 from VC_BC05_studyFunctions import * # type: ignore
+from VC_BC06_operateTypeFunctions import get_opertype_function
 
 # 编译的正则表达式模式（优化性能）
 COMPILED_CYCLE_PATTERN = re.compile(PATTERN_CYCLE_PRA)
@@ -24,40 +25,43 @@ COMPILED_CYCLE_PATTERN = re.compile(PATTERN_CYCLE_PRA)
 # CSV缓存字典
 csv_cache = {}
 
-def get_cached_csv(file_path, needed_columns=None):
+def get_cached_csv(file_path, needed_columns=None, error_callback=None):
     """
     优化的CSV缓存读取
     
     参数:
     - file_path (str): CSV文件路径
     - needed_columns (list, optional): 需要读取的列名列表
+    - error_callback (callable, optional): 错误回调函数，用于记录读取异常
     
     返回:
-    - DataFrame: 读取的数据框
+    - DataFrame | None: 读取的数据框，读取失败时返回None
     """
-    # 在并行处理中，每个进程有自己的缓存
     global csv_cache
     if csv_cache is None:
         csv_cache = {}
-    
+
     cache_key = (file_path, tuple(sorted(needed_columns)) if needed_columns else None)
-    
+
     if cache_key not in csv_cache:
         try:
             read_kwargs = {
-                'dtype': str, 
+                'dtype': str,
                 'na_filter': False,
-                'engine': 'c',  # 使用C引擎提速
+                'engine': 'c',
                 'low_memory': False
             }
             if needed_columns:
                 read_kwargs['usecols'] = needed_columns
             csv_cache[cache_key] = pd.read_csv(file_path, **read_kwargs)
         except Exception as e:
-            print(f"读取CSV文件失败: {file_path}, 错误: {e}")
-            return pd.DataFrame()
-    
-    return csv_cache[cache_key]
+            message = f"读取CSV文件失败: {file_path}, 错误: {e}"
+            print(message)
+            if error_callback:
+                error_callback(message=message, stage='CSV读取', detail=str(e))
+            return None
+
+    return csv_cache.get(cache_key)
 
 def singleTable(table):
     """
@@ -250,10 +254,10 @@ def ultra_fast_sequence_generation(df, seq_field, sort_keys, domain_key, sequenc
     
     return sort_df
 
-def vectorized_field_mapping(result_df, be_converted_df, standard_field, field_rule, cycle_idx, codeDict, definition_row_num=None):
+def vectorized_field_mapping(result_df, be_converted_df, standard_field, field_rule, cycle_idx, codeDict, definition_row_num=None, error_callback=None):
     """
-    向量化字段映射处理 - 集成所有操作类型处理
-    
+    向量化字段映射处理 - 使用 VC_BC06 中拆分的操作类型函数
+
     参数:
     - result_df (DataFrame): 结果数据框
     - be_converted_df (DataFrame): 源数据框
@@ -262,117 +266,44 @@ def vectorized_field_mapping(result_df, be_converted_df, standard_field, field_r
     - cycle_idx (int): 循环索引
     - codeDict (dict): 代码字典
     - definition_row_num (int, optional): 定义行号（用于错误报告）
-    
+    - error_callback (callable, optional): 错误记录回调
+
     返回:
     - tuple: (更新后的结果数据框, 继续标志数组)
     """
     fieldname_cycle = field_rule['fieldname_cycles'][cycle_idx] if cycle_idx < len(field_rule['fieldname_cycles']) else []
     parameter_cycle = field_rule['parameter_cycles'][cycle_idx] if cycle_idx < len(field_rule['parameter_cycles']) else ""
     opertype = field_rule['opertype']
-    
+
     continue_flags = np.zeros(len(result_df), dtype=bool)
-    
+
     # DEF操作不需要fieldname，直接处理
     if not fieldname_cycle and opertype != OPERTYPE_DEF:
         return result_df, continue_flags
-    
+
     try:
-        if opertype == OPERTYPE_DEF:
-            result_df[standard_field] = parameter_cycle
-        elif opertype == OPERTYPE_FIX:
-            if fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
-                result_df[standard_field] = be_converted_df[fieldname_cycle[0]].values
-        elif opertype == OPERTYPE_FLG:
-            # FLG: 基于条件的标志映射
-            if fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
-                source_col = be_converted_df[fieldname_cycle[0]]
-                result_values = [MARK_BLANK] * len(source_col)
-                
-                for part in parameter_cycle.split(MARK_DOLLAR):
-                    if MARK_COLON in part:
-                        sVal, fVal = part.split(MARK_COLON, 1)
-                        if sVal.lower() == 'null':
-                            sVal = MARK_BLANK
-                        
-                        # 向量化条件匹配
-                        mask = (source_col == sVal)
-                        for i, match in enumerate(mask):
-                            if match:
-                                result_values[i] = fVal
-                
-                result_df[standard_field] = result_values
-        elif opertype == OPERTYPE_IIF:
-            # IIF: 条件选择
-            if fieldname_cycle:
-                result_values = [MARK_BLANK] * len(be_converted_df)
-                parameters = parameter_cycle.split(MARK_DOLLAR)
-                
-                for idx, param_record in enumerate(parameters):
-                    if MARK_COLON in param_record:
-                        flg_field, flg_value = param_record.split(MARK_COLON, 1)
-                        if flg_field in be_converted_df.columns:
-                            condition_mask = (be_converted_df[flg_field] == flg_value)
-                            
-                            # 选择对应的列
-                            col_idx = 0 if len(fieldname_cycle) == 1 else idx
-                            if col_idx < len(fieldname_cycle) and fieldname_cycle[col_idx] in be_converted_df.columns:
-                                source_values = be_converted_df[fieldname_cycle[col_idx]]
-                                for i, match in enumerate(condition_mask):
-                                    if match:
-                                        result_values[i] = source_values.iloc[i]
-                
-                result_df[standard_field] = result_values
-        elif opertype == OPERTYPE_COB:
-            separator = MARK_BLANK
-            if parameter_cycle and MARK_COLON in parameter_cycle:
-                separator = parameter_cycle.split(MARK_COLON)[1]
-            
-            valid_cols = [col for col in fieldname_cycle if col in be_converted_df.columns]
-            if valid_cols:
-                # 高效字符串连接
-                combined_values = []
-                for idx in range(len(be_converted_df)):
-                    vals = [str(be_converted_df.iloc[idx][col]) for col in valid_cols 
-                           if be_converted_df.iloc[idx][col]]
-                    combined_values.append(separator.join(vals))
-                result_df[standard_field] = combined_values
-        elif opertype == OPERTYPE_CDL:
-            if parameter_cycle == "BLANK" and fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
-                result_df[standard_field] = be_converted_df[fieldname_cycle[0]].values
-            elif parameter_cycle in codeDict and fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
-                source_values = be_converted_df[fieldname_cycle[0]]
-                mapped_values = source_values.map(codeDict[parameter_cycle]).fillna('')
-                result_df[standard_field] = mapped_values.values
-        elif opertype == OPERTYPE_PRF:
-            if fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
-                source_values = be_converted_df[fieldname_cycle[0]]
-                prefixed_values = [parameter_cycle + str(x) if x else '' for x in source_values]
-                result_df[standard_field] = prefixed_values
-        elif opertype == OPERTYPE_SEL:
-            if fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
-                result_df[standard_field] = be_converted_df[fieldname_cycle[0]].values
-                
-                if MARK_COLON in parameter_cycle:
-                    flg_field, cVal = parameter_cycle.split(MARK_COLON, 1)
-                    if flg_field in be_converted_df.columns:
-                        rVal = be_converted_df[flg_field]
-                        
-                        if cVal.lower() == 'not null':
-                            continue_flags |= (rVal.isna() | (rVal == '')).values
-                        elif cVal.startswith('!'):
-                            target_val = cVal.replace('!', MARK_BLANK)
-                            continue_flags |= (rVal == target_val).values
-                        else:
-                            continue_flags |= (rVal != cVal).values
+        # 获取操作类型对应的处理函数
+        opertype_func = get_opertype_function(opertype)
+
+        if opertype_func:
+            # 调用拆分的操作类型函数
+            result_df, continue_flags = opertype_func(
+                result_df=result_df,
+                be_converted_df=be_converted_df,
+                standard_field=standard_field,
+                fieldname_cycle=fieldname_cycle,
+                parameter_cycle=parameter_cycle,
+                codeDict=codeDict
+            )
         elif opertype:
             # 处理特殊操作类型 - 调用specialType函数（如果存在）
             try:
-                # 尝试导入并调用specialType函数
+                special_error_logged = False
                 for idx in range(len(be_converted_df)):
                     be_converted_row = be_converted_df.iloc[idx]
                     domain_row = {col: result_df.iloc[idx][col] for col in result_df.columns}
                     row_continue_flg = False
-                    
+
                     try:
                         # 尝试调用specialType函数
                         domain_row, row_continue_flg = specialType(  # type: ignore
@@ -383,22 +314,31 @@ def vectorized_field_mapping(result_df, be_converted_df, standard_field, field_r
                         if row_continue_flg:
                             continue_flags[idx] = True
                     except NameError:
-                        # specialType函数未定义，跳过处理
-                        print(f"警告: 特殊操作类型 '{opertype}' 无法处理，specialType函数未定义")
+                        warn_message = f"警告: 特殊操作类型 '{opertype}' 无法处理，specialType函数未定义"
+                        print(warn_message)
                         if definition_row_num:
                             print(f"警告发生在Excel的第 {definition_row_num} 行")
+                        if error_callback and not special_error_logged:
+                            error_callback(message=warn_message, stage='特殊操作类型', field=standard_field)
+                        special_error_logged = True
                         break
                     except Exception as e:
-                        # specialType函数调用失败
-                        print(f"警告: 特殊操作类型 '{opertype}' 处理失败: {str(e)}")
+                        warn_message = f"警告: 特殊操作类型 '{opertype}' 处理失败: {str(e)}"
+                        print(warn_message)
                         if definition_row_num:
                             print(f"警告发生在Excel的第 {definition_row_num} 行")
+                        if error_callback and not special_error_logged:
+                            error_callback(message=warn_message, stage='特殊操作类型', field=standard_field, detail=str(e))
+                        special_error_logged = True
                         continue
             except Exception as e:
-                print(f"处理特殊操作类型时发生错误: {str(e)}")
+                err_message = f"处理特殊操作类型时发生错误: {str(e)}"
+                print(err_message)
                 if definition_row_num:
                     print(f"错误发生在Excel的第 {definition_row_num} 行")
-                
+                if error_callback:
+                    error_callback(message=err_message, stage='特殊操作类型', field=standard_field, detail=str(e))
+
     except KeyError as e:
         # 处理键错误
         print(f'KeyError: 字段 {standard_field} 处理出错')
@@ -407,13 +347,27 @@ def vectorized_field_mapping(result_df, be_converted_df, standard_field, field_r
         print(f'KeyError: 详细错误信息: {str(e)}')
         if definition_row_num:
             print(f'错误发生在Excel的第 {definition_row_num} 行')
-        # 不退出程序，而是继续处理
-                
+        if error_callback:
+            error_callback(
+                message=f"字段 {standard_field} 映射发生 KeyError: {str(e)}",
+                stage='字段映射',
+                field=standard_field,
+                detail=f"操作类型 {opertype}, 参数 {parameter_cycle}"
+            )
+
     except Exception as e:
-        print(f"字段映射处理时发生错误: {str(e)}")
+        err_message = f"字段映射处理时发生错误: {str(e)}"
+        print(err_message)
         print(f"处理字段: {standard_field}, 操作类型: {opertype}, 参数: {parameter_cycle}")
         if definition_row_num:
             print(f"错误发生在Excel的第 {definition_row_num} 行")
-        # 不退出程序，继续处理其他字段
-    
+        if error_callback:
+            error_callback(
+                message=err_message,
+                stage='字段映射',
+                field=standard_field,
+                detail=f"操作类型 {opertype}, 参数 {parameter_cycle}"
+            )
+
     return result_df, continue_flags
+
