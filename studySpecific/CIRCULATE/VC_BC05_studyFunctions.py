@@ -505,60 +505,6 @@ def process_MH_A_RC():
     # 返回结果，所有列转换为字符串类型
     return mh_a_rc_df.astype(str)  
 
-def process_CO():
-    """
-    处理CO数据集的所有字段。
-    
-    该函数处理CO数据集中的临床和病理字段，将多个相关字段合并为汇总字段，
-    并格式化转移器官数量字段。
-    
-    返回:
-        pandas.DataFrame: 处理后的CO数据集，所有值转换为字符串类型
-    """
-    # 获取CO数据集
-    format_dataset = getFormatDataset('CO')
-    co_df = format_dataset['CO']
-    
-    # 定义临床和病理字段集合
-    clinical_columns = ['COCNCLV', 'COCNCLNG', 'COCNCPRT', 'COCNCDLY', 'COCNCOTH']
-    pathological_columns = ['COCNPLVR', 'COCNPLNG', 'COCNPPRT', 'COCNPDLY', 'COCNPOTH']
-    
-    # 处理临床字段，生成汇总字段COCNC
-    def generate_clinical(row):
-        # 筛选非空值
-        values = [
-            str(row[col]).strip() 
-            for col in clinical_columns 
-            if pandas.notnull(row[col]) and row[col] != ''
-        ]
-        if values:  # 如果有非空值
-            return 'CLINICAL: ' + ', '.join(values)
-        return ''  # 如果全为空，则返回空字符串
-    
-    co_df['COCNC'] = co_df.apply(generate_clinical, axis=1)
-    
-    # 处理病理字段，生成汇总字段COCNP
-    def generate_pathological(row):
-        # 筛选非空值
-        values = [
-            str(row[col]).strip() 
-            for col in pathological_columns 
-            if pandas.notnull(row[col]) and row[col] != ''
-        ]
-        if values:  # 如果有非空值
-            return 'PATHOLOGICAL: ' + ', '.join(values)
-        return ''  # 如果全为空，则返回空字符串
-    
-    co_df['COCNP'] = co_df.apply(generate_pathological, axis=1)
-    
-    # 处理转移器官数量字段COCNEMON，格式化为描述性文本
-    co_df['COCNEMON'] = co_df['COCNEMON'].apply(
-        lambda x: f'Number of metastatic organs＝{x}' if pandas.notnull(x) and x != '' else ''
-    )
-    
-    # 返回结果，所有列转换为字符串类型
-    return co_df.astype(str)
-
 def get_DD_from_SS_ALL():
     """
     从SS_A_ALL数据集获取死亡数据。
@@ -624,8 +570,9 @@ def get_GF_from_LB_A_BM():
         pandas.DataFrame: 处理后的基因检测数据集，所有值转换为字符串类型
     """
     # 获取LB_A_BM数据集
-    format_dataset = getFormatDataset('LB_A_BM[BM]')
+    format_dataset = getFormatDataset('LB_A_BM[BM]', 'CO')
     lb_a_bm_df = format_dataset['LB_A_BM[BM]']
+    co_df = format_dataset['CO']
     
     def process_group(group):
         """处理每个分组的数据，保留非野生型记录或仅一条野生型记录"""
@@ -682,6 +629,12 @@ def get_GF_from_LB_A_BM():
     processed_df['RESCAT'] = processed_df['PREDICTED'].apply(
         lambda x: 'POSITIVE' if x != 'OTHER' and x != '' and x != 'MSI-H' else ''
     )
+    
+    # 将 co_df 数据中，COVAL 字段为空的行删除 
+    co_df = co_df[co_df['COVAL'] != '']
+    
+    # 将 co_df 左连接至 processed_df ，连接键为 SUBJID
+    processed_df = pandas.merge(processed_df, co_df, on='SUBJID', how='left').fillna('')
           
     # 返回结果，所有列转换为字符串类型
     return processed_df.astype(str)
@@ -814,22 +767,3 @@ def process_SUPR_MR():
     # 返回结果，所有列转换为字符串类型
     return merged_df.astype(str)
 
-def process_LB_A_TM():
-    
-    format_dataset = getFormatDataset('LB_A_TM_ALL')
-    lb_a_tm_df = format_dataset['LB_A_TM_ALL']
-
-    # 当 CEARES 字段不为空时，给 NGML 字段赋值为常量"ng/mL"，给 MGL 字段赋值为常量 "mg/L"，否则赋值为空字符串
-    lb_a_tm_df['NGML'] = lb_a_tm_df['CEARES'].where(lb_a_tm_df['CEARES'] == '', 'ng/mL')
-    lb_a_tm_df['MGL'] = lb_a_tm_df['CEARES'].where(lb_a_tm_df['CEARES'] == '', 'mg/L')
-
-    # 当 CA199RES 字段不为空时，给 UML 字段赋值为常量　"U/mL"，否则赋值为空字符串
-    lb_a_tm_df['UML'] = lb_a_tm_df['CA199RES'].where(lb_a_tm_df['CA199RES'] == '', 'U/mL') 
-    
-    # 建立新字段 CEARES_STD 字段，将 CEARES 字段的值除 1000
-    lb_a_tm_df['CEARES_STD'] = lb_a_tm_df['CEARES'].apply(
-    lambda x: str(Decimal(x) / Decimal('1000')) if x.replace('.', '', 1).isdigit() else ''
-    )
-
-    # 返回结果，所有列转换为字符串类型
-    return lb_a_tm_df.astype(str)
