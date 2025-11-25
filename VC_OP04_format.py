@@ -306,7 +306,7 @@ def main():
             continue
         file_start = time.perf_counter()
         print(f'{fileName} is outputting')
-        exceptFields = ex_fieldsDict[fileName]
+        exceptFields = ex_fieldsDict.get(fileName, [])
         rownum_fieldID = MARK_BLANK
         file_param = transFieldDict[fileName]
 
@@ -422,8 +422,7 @@ def main():
                 
         fields = ['max(if((FIELDID = \'' + fieldID + '\'),TRANSVAL,NULL)) AS `' + fieldID  + '`' 
                   for fieldID in file_param.keys() 
-                  if fieldID != fileDict[fileName][COL_SUBJIDFIELDID] 
-                  and fieldID not in exceptFields
+                  if fieldID != fileDict[fileName][COL_SUBJIDFIELDID]
                   ]
         if fields:
             # 使用优化的主查询构建函数
