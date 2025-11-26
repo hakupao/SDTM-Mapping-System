@@ -138,33 +138,6 @@ graph TD
     H --> I[CSV转JSON VC_PS02]
     I --> J[M5数据包]
 ```
-
-## 环境要求
-
-### Python版本
-- Python 3.11.0
-
-### 依赖包
-请参考 `requirements.txt` 获取最新依赖列表。主要依赖包括：
-```
-Flask==3.1.2                    # Web框架
-Flask-CORS==6.0.1              # CORS支持
-Flask-SocketIO==5.5.1          # WebSocket支持
-Flask-RESTX==1.3.0             # REST API支持
-pandas==2.3.1                  # 数据处理
-numpy==2.2.6                   # 数值计算
-openpyxl==3.1.5                # Excel文件操作
-mysql-connector-python==9.4.0  # MySQL数据库连接
-python-dateutil==2.9.0         # 日期处理
-python-dotenv==1.1.1           # 环境变量管理
-psutil>=6.0.0,<7.0.0          # 系统监控
-python-socketio==5.13.0        # SocketIO客户端
-```
-
-## 安装和配置
-
-### 1. 环境准备
-```bash
 # 创建虚拟环境
 python -m venv venv
 
