@@ -286,10 +286,52 @@ class DatabaseManager:
             self.cursor = self.connection.cursor()
             print('Connected to the database.')
         except mysql.connector.Error as err:
-            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+            if err.errno == errorcode.ER_BAD_DB_ERROR:
+                print(f'Database {self.database} does not exist. Attempting to create it...')
+                try:
+                    # Connect without database to create it
+                    cnx = mysql.connector.connect(
+                        host=self.host,
+                        user=self.user,
+                        password=self.password,
+                        charset="utf8mb4",
+                        use_unicode=True,
+                        allow_local_infile=True
+                    )
+                    cursor = cnx.cursor()
+                    
+                    # Create database
+                    cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{self.database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci")
+                    print(f'Database {self.database} created successfully.')
+                    
+                    # Try to set global local_infile
+                    try:
+                        cursor.execute("SET GLOBAL local_infile = 1")
+                        print('Global local_infile set to 1.')
+                    except mysql.connector.Error as e:
+                        print(f'Warning: Could not set global local_infile: {e}')
+                    
+                    cursor.close()
+                    cnx.close()
+                    
+                    # Retry connection
+                    self.connection = mysql.connector.connect(
+                        host=self.host,
+                        user=self.user,
+                        password=self.password,
+                        database=self.database,
+                        charset="utf8mb4",
+                        use_unicode=True,
+                        allow_local_infile=True
+                    )
+                    self.cursor = self.connection.cursor()
+                    print('Connected to the database after creation.')
+                    
+                except mysql.connector.Error as create_err:
+                    print(f'Error creating database: {create_err}')
+                    raise
+            elif err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
                 print('Error: Access denied. Please check your username and password.')
-            elif err.errno == errorcode.ER_BAD_DB_ERROR:
-                print('Error: Database does not exist.')
             else:
                 print(f'Error: {err}')
 
