@@ -30,6 +30,7 @@ missing_columns_log.txt
 # 生成的数据文件
 *.csv
 studySpecific/**
+!studySpecific/**/
 !studySpecific/**/*.py
 
 # 数据库
