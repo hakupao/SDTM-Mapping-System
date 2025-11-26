@@ -29,13 +29,8 @@ missing_columns_log.txt
 
 # 生成的数据文件
 *.csv
-studySpecific/*/02_Cleaning
-studySpecific/*/03_Format
-studySpecific/*/04_SDTM
-studySpecific/*/05_Inputfile/
-studySpecific/*/06_Inputpackage/
-studySpecific/*/08_Validation/
-studySpecific/*/09_COMBINE/
+studySpecific/**
+!studySpecific/**/*.py
 
 # 数据库
 *.sqlite
