@@ -13,6 +13,27 @@ VAPORCONE 项目配置获取模块
 from VC_BC02_baseUtils import *
 
 
+class MappingConfigurationError(Exception):
+    """
+    Raised when the mapping specification workbook contains invalid or inconsistent data.
+
+    Attributes
+    ----------
+    sheet : str
+        Excel sheet where the problem was found.
+    row : int | None
+        Excel row index (1-based) that triggered the error, if known.
+    original_exception : Exception | None
+        Underlying exception for additional context.
+    """
+
+    def __init__(self, message, sheet=None, row=None, original_exception=None):
+        super().__init__(message)
+        self.sheet = sheet
+        self.row = row
+        self.original_exception = original_exception
+
+
 def getSheetSetting(workbook):
     """
     从工作簿中读取工作表设置配置
@@ -302,81 +323,148 @@ def getMapping(workbook, sheetSetting):
     mappingDict = {}
     definition_merge_rule = {}
     cycle_time = 1
-    for row in workbook[MAPPING_SHEET_NAME].iter_rows(min_row=starting_row_num, min_col=1, max_col=mapping_sheetsetting[COL_MAXCOL], values_only=True):
-        starting_row_num += 1
+    active_definition_row = None
+    current_row_num = starting_row_num
+    current_definition_file = None
+
+    for row in workbook[MAPPING_SHEET_NAME].iter_rows(
+        min_row=starting_row_num,
+        min_col=1,
+        max_col=mapping_sheetsetting[COL_MAXCOL],
+        values_only=True
+    ):
         if not any(row):
             break
 
-        definition = get_cell_value(row, colnum_definition)
-        domain = get_cell_value(row, colnum_domain)
-        variable = get_cell_value(row, colnum_variable)
-        nd_keys = get_cell_value(row, colnum_nd_keys)
-        file_name = get_cell_value(row, colnum_file_name)
-        
-        # 🔑 每行重置cycle_time为默认值1，避免使用前一个Definition的值
-        cycle_time = 1
-        
-        if MARK_LINEBREAK in file_name:
-            cycle_string, file_name = file_name.split(MARK_LINEBREAK, 1)
-            match = re.search(PATTERN_CYCLE_NUM, cycle_string)
-            cycle_time = int(match.group(1)) if match else 1
+        try:
+            definition = get_cell_value(row, colnum_definition)
+            domain = get_cell_value(row, colnum_domain)
+            variable = get_cell_value(row, colnum_variable)
+            nd_keys = get_cell_value(row, colnum_nd_keys)
+            file_name = get_cell_value(row, colnum_file_name)
 
-        field_name = get_cell_value(row, colnum_field_name)
-        if MARK_LINEBREAK in field_name:
-            field_name = field_name.replace(MARK_LINEBREAK, MARK_DOLLAR)
-        elif MARK_COMMA in field_name:
-            field_name = field_name.replace(MARK_COMMA, MARK_DOLLAR)
+            if not domain:
+                raise MappingConfigurationError(
+                    f"第{current_row_num}行的Domain列为空。",
+                    sheet=MAPPING_SHEET_NAME,
+                    row=current_row_num
+                )
 
-        oper_type = get_cell_value(row, colnum_oper_type)
-        parameter = get_cell_value(row, colnum_parameter)
-        if MARK_LINEBREAK in parameter:
-            parameter = parameter.replace(MARK_LINEBREAK, MARK_DOLLAR)
-        elif MARK_COMMA in parameter and not parameter.endswith(MARK_COMMA) :
-            parameter = parameter.replace(MARK_COMMA, MARK_DOLLAR)
+            # 🔑 每行重置cycle_time为默认值1，避免使用前一个Definition的值
+            cycle_time = 1
 
-        if not variable:
-            print(f'Study:[{STUDY_ID}] Domain:[{domain}] field is undefined')
-            sys.exit()
+            if MARK_LINEBREAK in file_name:
+                cycle_string, file_name = file_name.split(MARK_LINEBREAK, 1)
+                match = re.search(PATTERN_CYCLE_NUM, cycle_string)
+                cycle_time = int(match.group(1)) if match else 1
 
-        if nd_keys and nd_keys not in MARK_CIRCLE:
-            print(f'deletion_key:{nd_keys} is wrong')
-            sys.exit()
+            field_name = get_cell_value(row, colnum_field_name)
+            if MARK_LINEBREAK in field_name:
+                field_name = field_name.replace(MARK_LINEBREAK, MARK_DOLLAR)
+            elif MARK_COMMA in field_name:
+                field_name = field_name.replace(MARK_COMMA, MARK_DOLLAR)
 
-        if definition:
-            definition_row_num = starting_row_num
-            if definition_row_num not in definition_merge_rule:
-                definition_merge_rule[definition_row_num] = {}
-            definition_merge_rule[definition_row_num][COL_MERGERULE] = file_name
-            definition_merge_rule[definition_row_num][COL_DEFINITION] = cycle_time
+            oper_type = get_cell_value(row, colnum_oper_type)
+            parameter = get_cell_value(row, colnum_parameter)
+            if MARK_LINEBREAK in parameter:
+                parameter = parameter.replace(MARK_LINEBREAK, MARK_DOLLAR)
+            elif MARK_COMMA in parameter and not parameter.endswith(MARK_COMMA):
+                parameter = parameter.replace(MARK_COMMA, MARK_DOLLAR)
 
-        if domain_key != domain and PREFIX_SUPP + domain_key != domain:
-            domain_key = domain
+            if not variable:
+                raise MappingConfigurationError(
+                    f"第{current_row_num}行的Variable列为空，Domain '{domain}' 的字段配置不完整。",
+                    sheet=MAPPING_SHEET_NAME,
+                    row=current_row_num
+                )
 
-        # 将追加的SUPP字段加入标准字段集中 
-        supp_time_flg = False
-        outputFields = STANDARD_FIELDS[domain_key]
-        if variable not in outputFields:
-            if variable.endswith('DTC'):
-                supp_time_flg = True
-            STANDARD_FIELDS[domain_key].append(variable)
+            if nd_keys and nd_keys not in MARK_CIRCLE:
+                raise MappingConfigurationError(
+                    f"第{current_row_num}行的删除键设置无效: {nd_keys}",
+                    sheet=MAPPING_SHEET_NAME,
+                    row=current_row_num
+                )
 
-        if domain_key not in mappingDict:
-            mappingDict[domain_key] = {}
-        
-        if not oper_type:
-            continue
+            if definition:
+                if not file_name:
+                    raise MappingConfigurationError(
+                        f"第{current_row_num}行的FileName列为空。",
+                        sheet=MAPPING_SHEET_NAME,
+                        row=current_row_num
+                    )
+                active_definition_row = current_row_num
+                current_definition_file = file_name
+                if active_definition_row not in definition_merge_rule:
+                    definition_merge_rule[active_definition_row] = {}
+                definition_merge_rule[active_definition_row][COL_MERGERULE] = file_name
+                definition_merge_rule[active_definition_row][COL_DEFINITION] = cycle_time
+            elif active_definition_row is None:
+                raise MappingConfigurationError(
+                    f"第{current_row_num}行缺少Definition值，无法确定映射组。",
+                    sheet=MAPPING_SHEET_NAME,
+                    row=current_row_num
+                )
+            else:
+                # 沿用当前Definition的文件名，允许Excel中省略重复值
+                if file_name:
+                    current_definition_file = file_name
+                else:
+                    if current_definition_file is None:
+                        raise MappingConfigurationError(
+                            f"第{current_row_num}行缺少FileName，且未找到可沿用的Definition文件名。",
+                            sheet=MAPPING_SHEET_NAME,
+                            row=current_row_num
+                        )
+                    file_name = current_definition_file
 
-        if definition_row_num not in mappingDict[domain_key]:
-            mappingDict[domain_key][definition_row_num] = {}
-        if variable not in mappingDict[domain_key][definition_row_num]:
-            mappingDict[domain_key][definition_row_num][variable] = {}
+            if domain_key != domain and PREFIX_SUPP + domain_key != domain:
+                domain_key = domain
 
-        mappingDict[domain_key][definition_row_num][variable][COL_NDKEY] = True if nd_keys in MARK_CIRCLE else False
-        mappingDict[domain_key][definition_row_num][variable][COL_FIELDNAME] = field_name
-        mappingDict[domain_key][definition_row_num][variable][COL_OPERTYPE] = oper_type
-        mappingDict[domain_key][definition_row_num][variable][COL_PARAMETER] = parameter
-        mappingDict[domain_key][definition_row_num][variable]['SUPPTIMEFLG'] = supp_time_flg
-    
+            if domain_key not in STANDARD_FIELDS:
+                raise MappingConfigurationError(
+                    f"第{current_row_num}行的Domain '{domain}' 未在STANDARD_FIELDS中定义。",
+                    sheet=MAPPING_SHEET_NAME,
+                    row=current_row_num
+                )
+
+            # 将追加的SUPP字段加入标准字段集中 
+            supp_time_flg = False
+            outputFields = STANDARD_FIELDS[domain_key]
+            if variable not in outputFields:
+                if variable.endswith('DTC'):
+                    supp_time_flg = True
+                STANDARD_FIELDS[domain_key].append(variable)
+
+            if domain_key not in mappingDict:
+                mappingDict[domain_key] = {}
+
+            if not oper_type:
+                current_row_num += 1
+                continue
+
+            if active_definition_row not in mappingDict[domain_key]:
+                mappingDict[domain_key][active_definition_row] = {}
+            if variable not in mappingDict[domain_key][active_definition_row]:
+                mappingDict[domain_key][active_definition_row][variable] = {}
+
+            mappingDict[domain_key][active_definition_row][variable][COL_NDKEY] = True if nd_keys in MARK_CIRCLE else False
+            mappingDict[domain_key][active_definition_row][variable][COL_FIELDNAME] = field_name
+            mappingDict[domain_key][active_definition_row][variable][COL_OPERTYPE] = oper_type
+            mappingDict[domain_key][active_definition_row][variable][COL_PARAMETER] = parameter
+            mappingDict[domain_key][active_definition_row][variable]['SUPPTIMEFLG'] = supp_time_flg
+
+        except MappingConfigurationError:
+            raise
+        except Exception as exc:
+            raise MappingConfigurationError(
+                f"读取Mapping工作表第{current_row_num}行时发生未处理的错误: {exc}",
+                sheet=MAPPING_SHEET_NAME,
+                row=current_row_num,
+                original_exception=exc
+            ) from exc
+
+        current_row_num += 1
+
     return mappingDict, definition_merge_rule
 
 # 仕様書からシートDomainsSetting読込

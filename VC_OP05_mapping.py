@@ -15,7 +15,9 @@ VAPORCONE 项目映射模块 - 超级优化版本 (重构版)
 5. 内存优化 - 数据类型和内存使用优化
 """
 
+import sys
 import time
+import traceback
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from collections import defaultdict
@@ -284,13 +286,30 @@ def main():
     actual_format_path = find_latest_timestamped_path(FORMAT_PATH, 'format_dataset')
     print(f'使用格式化数据路径: {actual_format_path}')
 
-    workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
-    sheetSetting = getSheetSetting(workbook)
+    try:
+        workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
+        sheetSetting = getSheetSetting(workbook)
 
-    caseDict = getCaseDict(workbook, sheetSetting)
-    codeDict, _ = getCodeListInfo(workbook, sheetSetting)
-    mappingDict, definition_merge_rule = getMapping(workbook, sheetSetting)
-    domainsSettingDict = getDomainsSetting(workbook, sheetSetting)
+        caseDict = getCaseDict(workbook, sheetSetting)
+        codeDict, _ = getCodeListInfo(workbook, sheetSetting)
+        mappingDict, definition_merge_rule = getMapping(workbook, sheetSetting)
+        domainsSettingDict = getDomainsSetting(workbook, sheetSetting)
+    except MappingConfigurationError as config_error:
+        print("\n映射配置读取失败:")
+        print(f"- 原因: {config_error}")
+        if getattr(config_error, 'sheet', None):
+            print(f"- 工作表: {config_error.sheet}")
+        if getattr(config_error, 'row', None) is not None:
+            print(f"- Excel行号: {config_error.row}")
+        if getattr(config_error, 'original_exception', None):
+            original = config_error.original_exception
+            print(f"- 原始异常: {type(original).__name__}: {original}")
+        return False
+    except Exception as exc:
+        print("\n执行初始化配置时发生未捕获的错误:")
+        print(f"- 原因: {exc}")
+        traceback.print_exc()
+        return False
 
     sequenceDict = {}
     for usubjid in caseDict.values():
@@ -409,8 +428,14 @@ def main():
     else:
         print("错误/失败数量: 0")
 
+    return True
+
 
 if __name__ == "__main__":
     print(f'Study:{STUDY_ID} Processing has begun.' )
-    main()
-    print(f'Study:{STUDY_ID} Processing is over.' )
+    success = main()
+    if success:
+        print(f'Study:{STUDY_ID} Processing is over.' )
+    else:
+        print(f'Study:{STUDY_ID} Processing terminated due to errors.' )
+        sys.exit(1)
