@@ -42,6 +42,7 @@ studySpecific/*/09_COMBINE/
 *.db
 
 # 环境配置文件
+project.local.json
 .env
 venv/
 ENV/

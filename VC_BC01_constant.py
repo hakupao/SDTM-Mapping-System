@@ -29,14 +29,52 @@ from dateutil import parser
 from datetime import datetime
 from functools import reduce
 
-STUDY_ID = 'CIRCULATE'
-CODELIST_TABLE_NAME = 'VC05_CIRCULATE_CODELIST'
-METADATA_TABLE_NAME = 'VC05_CIRCULATE_METADATA'
-TRANSDATA_VIEW_NAME = 'VC05_CIRCULATE_TRANSDATA'
-M5_PROJECT_NAME = '[UAT]CIRCULATE'
-RAW_DATA_ROOT_PATH = r'C:\Local\iTMS\SDTM\studySpecific\CIRCULATE\20251114_CSV'
+DEFAULT_PROJECT_CONFIG = {
+    'STUDY_ID': '',
+    'CODELIST_TABLE_NAME': '',
+    'METADATA_TABLE_NAME': '',
+    'TRANSDATA_VIEW_NAME': '',
+    'M5_PROJECT_NAME': '',
+    'ROOT_PATH': '',
+    'RAW_DATA_ROOT_PATH': '',
+}
 
-ROOT_PATH = r'C:\Local\iTMS\SDTM'
+PROJECT_CONFIG_ENV = 'PROJECT_CONFIG_PATH'
+PROJECT_CONFIG_FILENAME = 'project.local.json'
+
+
+def _load_project_config():
+    """Load project-specific overrides from a local JSON file if present."""
+    config = DEFAULT_PROJECT_CONFIG.copy()
+    config_path = os.getenv(PROJECT_CONFIG_ENV) or os.path.join(
+        os.path.dirname(__file__), PROJECT_CONFIG_FILENAME
+    )
+
+    if os.path.isfile(config_path):
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                overrides = json.load(f)
+            if not isinstance(overrides, dict):
+                raise ValueError('config content must be a JSON object')
+            # only accept keys we know; ignore others silently
+            for key in DEFAULT_PROJECT_CONFIG:
+                if key in overrides:
+                    config[key] = overrides[key]
+        except Exception as exc:
+            print(f'[VC_BC01_constant] Failed to load {config_path}: {exc}. Using defaults.')
+
+    return config
+
+
+_PROJECT_CONFIG = _load_project_config()
+
+STUDY_ID = _PROJECT_CONFIG['STUDY_ID']
+CODELIST_TABLE_NAME = _PROJECT_CONFIG['CODELIST_TABLE_NAME']
+METADATA_TABLE_NAME = _PROJECT_CONFIG['METADATA_TABLE_NAME']
+TRANSDATA_VIEW_NAME = _PROJECT_CONFIG['TRANSDATA_VIEW_NAME']
+M5_PROJECT_NAME = _PROJECT_CONFIG['M5_PROJECT_NAME']
+ROOT_PATH = _PROJECT_CONFIG['ROOT_PATH']
+RAW_DATA_ROOT_PATH = _PROJECT_CONFIG['RAW_DATA_ROOT_PATH']
 
 DB_HOST = '127.0.0.1'
 DB_USER = 'root'
@@ -243,5 +281,3 @@ TIME_VARIABLE = ['AGSTDTC','AGENDTC','CMSTDTC','CMENDTC','ECSTDTC','ECENDTC','EC
                  ,'SRRFTDTC','CODTC','RFSTDTC','RFENDTC','RFXSTDTC','RFXENDTC','RFCSTDTC'
                  ,'RFCENDTC','RFICDTC','RFPENDTC','DTHDTC','BRTHDTC','DMDTC','SESTDTC'
                  ,'SEENDTC','SMSTDTC','SMENDTC','SVSTDTC','SVENDTC']
-
-
