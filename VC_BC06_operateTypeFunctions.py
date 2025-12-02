@@ -13,7 +13,6 @@ VAPORCONE 项目操作类型函数模块
 - CDL: 代码列表映射
 - PRF: 前缀添加
 - SEL: 选择性映射
-- CAL: 数学运算计算（加减乘除）
 """
 
 import numpy as np
@@ -255,86 +254,6 @@ def opertype_SEL(result_df, be_converted_df, standard_field, fieldname_cycle, pa
     return result_df, continue_flags
 
 
-def opertype_CAL(result_df, be_converted_df, standard_field, fieldname_cycle, parameter_cycle, **kwargs):
-    """
-    CAL操作: 数学运算计算（加减乘除）
-
-    支持的参数格式:
-    - +500  : 字段值加上500
-    - -20   : 字段值减去20
-    - *1000 : 字段值乘以1000
-    - /600  : 字段值除以600
-
-    参数:
-    - result_df (DataFrame): 结果数据框
-    - be_converted_df (DataFrame): 源数据框
-    - standard_field (str): 标准字段名
-    - fieldname_cycle (list): 字段名列表（通常只有一个字段）
-    - parameter_cycle (str): 参数（格式: +数值 / -数值 / *数值 / /数值）
-
-    返回:
-    - tuple: (更新后的结果数据框, 继续标志数组)
-    """
-    continue_flags = np.zeros(len(result_df), dtype=bool)
-
-    if not fieldname_cycle or not parameter_cycle:
-        return result_df, continue_flags
-
-    # 获取源字段
-    if fieldname_cycle[0] not in be_converted_df.columns:
-        return result_df, continue_flags
-
-    try:
-        # 将源字段转换为数值类型
-        source_values = pd.to_numeric(be_converted_df[fieldname_cycle[0]], errors='coerce')
-
-        # 解析运算符和数值
-        operator = parameter_cycle[0]
-        operand_str = parameter_cycle[1:].strip()
-
-        # 确保operand是有效数值
-        if not operand_str:
-            print(f"CAL运算参数错误: 缺少数值，参数为 '{parameter_cycle}'")
-            result_df[standard_field] = [MARK_BLANK] * len(be_converted_df)
-            return result_df, continue_flags
-
-        operand = float(operand_str)
-        result_values = None
-
-        # 根据运算符执行计算
-        if operator == '+':
-            result_values = source_values + operand
-        elif operator == '-':
-            result_values = source_values - operand
-        elif operator == '*':
-            result_values = source_values * operand
-        elif operator == '/':
-            if operand != 0:
-                result_values = source_values / operand
-            else:
-                print(f"CAL运算错误: 除数不能为0")
-                result_values = source_values * 0  # 返回0
-        else:
-            print(f"CAL运算错误: 未知的运算符 '{operator}'，支持的运算符: +, -, *, /")
-            result_df[standard_field] = [MARK_BLANK] * len(be_converted_df)
-            return result_df, continue_flags
-
-        # 将结果转换为字符串，处理NaN和空值
-        if result_values is not None:
-            result_values = result_values.fillna('').astype(str)
-            result_values = result_values.replace('nan', '')
-            result_df[standard_field] = result_values.values
-
-    except ValueError as e:
-        print(f"CAL运算参数转换失败: {str(e)}")
-        print(f"参数: {parameter_cycle}")
-        result_df[standard_field] = [MARK_BLANK] * len(be_converted_df)
-    except Exception as e:
-        print(f"CAL运算处理失败: {str(e)}")
-        print(f"字段: {fieldname_cycle}, 参数: {parameter_cycle}")
-        result_df[standard_field] = [MARK_BLANK] * len(be_converted_df)
-
-    return result_df, continue_flags
 
 
 # 操作类型函数映射字典
@@ -347,7 +266,6 @@ OPERTYPE_FUNCTION_MAP = {
     OPERTYPE_CDL: opertype_CDL,
     OPERTYPE_PRF: opertype_PRF,
     OPERTYPE_SEL: opertype_SEL,
-    OPERTYPE_CAL: opertype_CAL,
 }
 
 
