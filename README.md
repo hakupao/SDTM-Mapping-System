@@ -138,6 +138,20 @@ graph TD
     H --> I[CSV转JSON VC_PS02]
     I --> J[M5数据包]
 ```
+
+## 安装和配置
+
+### 系统要求
+
+- **Python版本**: 3.11.0 或更高版本
+- **数据库**: MySQL 5.7+ 或 MySQL 8.0+
+- **操作系统**: Windows 10/11, Linux, macOS
+
+### 1. 环境设置
+
+#### 1.1 创建虚拟环境
+
+```bash
 # 创建虚拟环境
 python -m venv venv
 
@@ -146,9 +160,30 @@ venv\Scripts\activate
 
 # 激活虚拟环境 (Linux/Mac)
 source venv/bin/activate
+```
 
-# 安装依赖
+#### 1.2 安装依赖
+
+```bash
+# 安装项目依赖
 pip install -r requirements.txt
+```
+
+**依赖包列表**:
+- `mysql-connector-python==9.4.0` - MySQL数据库连接
+- `pandas==2.3.1` - 数据处理
+- `numpy==2.2.6` - 数值计算
+- `openpyxl==3.1.5` - Excel文件处理
+- `python-dateutil==2.9.0` - 日期时间处理
+
+#### 1.3 验证安装
+
+```bash
+# 验证Python版本
+python --version  # 应显示 Python 3.11.0 或更高
+
+# 验证依赖安装
+python -c "import pandas, numpy, mysql.connector, openpyxl; print('所有依赖已安装')"
 ```
 
 ### 2. 项目配置 (推荐)
@@ -168,6 +203,14 @@ pip install -r requirements.txt
 *注意：路径中的反斜杠 `\` 需要转义为 `\\`。*
 
 ### 3. 数据库配置
+
+#### 3.1 数据库设置
+确保MySQL服务已启动，并创建数据库（如果不存在，系统会自动创建）：
+```sql
+CREATE DATABASE IF NOT EXISTS `VC-DataMigration_2.0` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+```
+
+#### 3.2 连接参数配置
 在 `VC_BC01_constant.py` 中配置数据库连接参数（如果未在环境变量中设置）：
 ```python
 DB_HOST = '127.0.0.1'
@@ -175,6 +218,37 @@ DB_USER = 'root'
 DB_PASSWORD = 'root'
 DB_DATABASE = 'VC-DataMigration_2.0'
 ```
+
+**注意**: 生产环境中建议使用环境变量或配置文件管理敏感信息，不要将密码硬编码在代码中。
+
+### 4. 开发环境设置
+
+#### 4.1 IDE配置
+推荐使用支持Python的IDE，如：
+- **PyCharm**: 推荐使用专业版
+- **VS Code**: 安装Python扩展
+- **Jupyter Notebook**: 用于数据探索和调试
+
+#### 4.2 代码格式化工具
+项目遵循PEP 8编码规范，建议安装以下工具：
+```bash
+# 安装代码格式化工具
+pip install black flake8 isort
+
+# 格式化代码
+black *.py
+
+# 检查代码风格
+flake8 *.py
+
+# 排序导入
+isort *.py
+```
+
+#### 4.3 调试配置
+- 启用日志记录：日志文件位于 `studySpecific/[STUDY_ID]/log_file.log`
+- 性能监控：在 `VC_OP04_format.py` 中设置 `ENABLE_PERFORMANCE_MONITORING = True`
+- 数据库查询分析：使用 `DatabaseManager.analyze_query_performance()` 分析查询性能
 
 ## 使用方法
 
@@ -244,34 +318,174 @@ studySpecific/[STUDY_ID]/
 └── 08_Validation/             # 验证数据
 ```
 
+## 模块依赖关系
+
+### 依赖层次结构
+
+```
+VC_BC01_constant.py (基础常量)
+    ↓
+VC_BC02_baseUtils.py (工具函数)
+    ↓
+VC_BC03_fetchConfig.py (配置读取)
+    ↓
+VC_BC04_operateType.py (操作调度)
+    ├── VC_BC05_studyFunctions.py (研究特定函数)
+    └── VC_BC06_operateTypeFunctions.py (操作实现)
+        ↓
+VC_OP01_cleaning.py (数据清洗)
+    ↓
+VC_OP02_insertCodeList.py (代码列表)
+    ↓
+VC_OP03_insertMetadata.py (元数据)
+    ↓
+VC_OP04_format.py (格式化)
+    ↓
+VC_OP05_mapping.py (映射)
+    ↓
+VC_PS01_makeInputCSV.py (生成CSV)
+    ↓
+VC_PS02_csv2json.py (生成JSON)
+```
+
+### 模块调用说明
+
+- **基础模块 (BC)**: 提供底层功能，被所有其他模块依赖
+- **操作模块 (OP)**: 按顺序执行，每个模块依赖前一个模块的输出
+- **后处理模块 (PS)**: 依赖操作模块的最终输出
+- **研究特定函数**: 通过 `sys.path.append()` 动态导入，在 `VC_BC04_operateType.py` 中使用
+
 ## 研究特定配置
 
 当前支持的研究:
 - **CIRCULATE**: 循环系统研究
+  - 配置文件: `studySpecific/CIRCULATE/CIRCULATE_OperationConf.xlsx`
+  - 研究特定函数: `studySpecific/CIRCULATE/VC_BC05_studyFunctions.py`
 - **COSMOS_GC**: COSMOS GC研究
-  - 配置文件: `COSMOS_GC_OperationConf.xlsx`
+  - 配置文件: `studySpecific/COSMOS_GC/COSMOS_GC_OperationConf.xlsx`
+  - 研究特定函数: `studySpecific/COSMOS_GC/VC_BC05_studyFunctions.py`
 
 ## 故障排除
 
 ### 常见问题
 
-1. **数据库连接失败**
-   - 检查数据库服务是否启动
-   - 验证连接参数配置
-   - 确认网络连接
+#### 1. 数据库连接失败
 
-2. **路径错误**
-   - 检查 `project.local.json` 中的路径配置
-   - 确认路径分隔符是否正确转义
+**错误信息**: `Error: Access denied` 或 `Database does not exist`
 
-3. **配置文件格式错误**
-   - 检查Excel文件格式
-   - 验证工作表名称
-   - 确认必需字段存在
+**解决方案**:
+- 检查MySQL服务是否启动
+  ```bash
+  # Windows
+  net start MySQL
+  
+  # Linux/Mac
+  sudo systemctl start mysql
+  ```
+- 验证连接参数配置（`VC_BC01_constant.py`）
+- 确认数据库用户权限
+- 检查防火墙设置
+- 如果数据库不存在，系统会自动创建（需要相应权限）
+
+#### 2. 路径错误
+
+**错误信息**: `FileNotFoundError` 或路径相关错误
+
+**解决方案**:
+- 检查 `project.local.json` 中的路径配置
+- 确认路径分隔符是否正确转义（Windows使用 `\\`）
+- 验证路径是否存在且有读写权限
+- 检查 `RAW_DATA_ROOT_PATH` 是否指向正确的原始数据目录
+
+#### 3. 配置文件格式错误
+
+**错误信息**: `MappingConfigurationError` 或工作表读取错误
+
+**解决方案**:
+- 检查Excel文件格式（.xlsx格式）
+- 验证工作表名称是否完全匹配（区分大小写）
+  - SheetSetting, Patients, Files, Process, CodeList, Mapping, DomainsSetting, Sites
+- 确认必需字段存在且不为空
+- 检查Mapping工作表中的Definition和Domain列
+- 验证字段名和操作类型是否正确
+
+#### 4. 内存不足
+
+**错误信息**: `MemoryError` 或系统变慢
+
+**解决方案**:
+- 启用性能优化选项（`VC_OP04_format.py`）
+  - `USE_TEMP_TABLES = True`
+  - `ENABLE_WORK_TABLE_PERSISTENCE = True`
+- 分批处理大文件
+- 增加系统内存或使用更强大的服务器
+- 清理旧的输出文件夹
+
+#### 5. 编码错误
+
+**错误信息**: `UnicodeDecodeError` 或乱码
+
+**解决方案**:
+- 确保所有CSV文件使用UTF-8编码（带BOM时使用utf-8-sig）
+- 检查Excel文件编码
+- 验证数据库字符集为utf8mb4
+
+#### 6. 操作类型错误
+
+**错误信息**: `KeyError` 或 `NameError: name 'opertype_XXX' is not defined`
+
+**解决方案**:
+- 检查操作类型名称是否正确（DEF, FIX, FLG, IIF, COB, CDL, PRF, SEL, CAL）
+- 验证 `VC_BC06_operateTypeFunctions.py` 中是否实现了对应的操作类型函数
+- 检查Excel配置中的操作类型拼写
+
+#### 7. 序号生成错误
+
+**错误信息**: 序号不连续或重复
+
+**解决方案**:
+- 检查排序键配置（DomainsSetting工作表）
+- 验证USUBJID字段是否正确
+- 检查 `sequenceDict` 的初始化
+
+### 错误代码参考
+
+| 错误类型 | 可能原因 | 检查位置 |
+|---------|---------|---------|
+| `MappingConfigurationError` | Excel配置错误 | Mapping工作表 |
+| `mysql.connector.Error` | 数据库连接问题 | `VC_BC01_constant.py` |
+| `FileNotFoundError` | 文件路径错误 | `project.local.json` |
+| `KeyError` | 字段名错误 | Process/Mapping工作表 |
+| `ValueError` | 数据类型错误 | 数据文件或配置 |
+| `MemoryError` | 内存不足 | 系统资源 |
 
 ### 日志文件
-- 系统日志: `studySpecific/[STUDY_ID]/log_file.log`
-- 错误日志: 各模块会在相应目录生成日志文件
+
+- **系统日志**: `studySpecific/[STUDY_ID]/log_file.log`
+  - 记录所有模块的执行日志
+  - 包含错误和警告信息
+- **性能日志**: 在 `VC_OP04_format.py` 中启用性能监控后输出
+- **数据库日志**: MySQL错误日志（取决于MySQL配置）
+
+### 调试技巧
+
+1. **启用详细日志**:
+   ```python
+   logger = create_logger(log_file, log_level=logging.DEBUG)
+   ```
+
+2. **检查中间输出**:
+   - 清洗数据: `02_Cleaning/cleaning_dataset-[timestamp]/`
+   - 格式化数据: `03_Format/format_dataset-[timestamp]/`
+   - SDTM数据: `04_SDTM/sdtm_dataset-[timestamp]/`
+
+3. **使用性能分析**:
+   - 在 `VC_OP04_format.py` 中设置 `ENABLE_EXPLAIN_ANALYSIS = True`
+   - 查看数据库查询执行计划
+
+4. **验证配置**:
+   - 使用Python交互式环境测试配置读取
+   - 检查数据库表结构是否正确创建
 
 ## 开发规范
 
@@ -287,9 +501,23 @@ studySpecific/[STUDY_ID]/
 ## 版本信息
 
 - **当前版本**: 2.1
-- **Python版本**: 3.11.0
+- **Python版本**: 3.11.0（必需）
 - **最后更新**: 2025年
+
+## 相关文档
+
+- **Agent知识库**: 查看 `AGENT_KNOWLEDGE.md` 获取详细的模块说明、快速索引和开发指南
+- **项目配置文件**: `project.local.json` - 本地项目配置
+- **依赖文件**: `requirements.txt` - Python依赖包列表
 
 ## 许可证
 
 本项目为内部使用项目，请遵守公司相关规定。
+
+## 技术支持
+
+如遇到问题，请：
+1. 查看本文档的"故障排除"部分
+2. 检查日志文件获取详细错误信息
+3. 参考 `AGENT_KNOWLEDGE.md` 获取技术细节
+4. 联系项目开发团队
