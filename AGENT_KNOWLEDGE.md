@@ -106,7 +106,6 @@ VC_PS01-02 (后处理模块)
   - `opertype_CDL`: 代码列表映射
   - `opertype_PRF`: 前缀添加
   - `opertype_SEL`: 选择性映射
-  - `opertype_CAL`: 数学运算计算
 - **关键函数**: `get_opertype_function()`: 获取操作类型函数
 
 ### 2.3 操作模块 (OP - Operations)
@@ -510,7 +509,6 @@ python VC_PS02_csv2json.py
 | CDL | 代码列表映射 | 代码列表ID |
 | PRF | 前缀添加 | 前缀值 |
 | SEL | 选择性映射 | 条件:字段 |
-| CAL | 数学运算 | 运算表达式 |
 
 ---
 

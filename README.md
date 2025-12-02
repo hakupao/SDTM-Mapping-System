@@ -69,7 +69,7 @@ VAPORCONE/
 #### VC_BC06_operateTypeFunctions.py
 - **功能**: 操作类型具体实现
 - **主要功能**:
-  - 实现各种映射逻辑 (DEF, FIX, FLG, IIF, COB, CDL, PRF, SEL, CAL 等)
+  - 实现各种映射逻辑 (DEF, FIX, FLG, IIF, COB, CDL, PRF, SEL 等)
   - 模块化处理不同类型的字段转换
 
 ### 2. 操作模块 (OP - Operations)
@@ -435,7 +435,7 @@ VC_PS02_csv2json.py (生成JSON)
 **错误信息**: `KeyError` 或 `NameError: name 'opertype_XXX' is not defined`
 
 **解决方案**:
-- 检查操作类型名称是否正确（DEF, FIX, FLG, IIF, COB, CDL, PRF, SEL, CAL）
+- 检查操作类型名称是否正确（DEF, FIX, FLG, IIF, COB, CDL, PRF, SEL）
 - 验证 `VC_BC06_operateTypeFunctions.py` 中是否实现了对应的操作类型函数
 - 检查Excel配置中的操作类型拼写
 
