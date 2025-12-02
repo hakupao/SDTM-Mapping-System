@@ -442,16 +442,41 @@ def main():
             if should_enable_explain(exec_ms):
                 print(f"  ⚠ 慢查询检测")
                 db.analyze_query_performance(query)
-            rows_cnt = len(results)
-            cols_cnt = len(db.cursor.description)
+            header = [i[0] for i in db.cursor.description]
+
+            # 仅保留除SUBJID外至少有一个非空值的记录
+            filtered_results = []
+            dropped_only_subjid = 0
+            try:
+                subjid_idx = header.index('SUBJID')
+            except ValueError:
+                subjid_idx = None
+            for row in results:
+                if subjid_idx is not None:
+                    # 判断是否只有SUBJID有值
+                    has_other_value = any(
+                        (idx != subjid_idx) and (val not in (None, '')) and str(val).strip() != ''
+                        for idx, val in enumerate(row)
+                    )
+                    if not has_other_value:
+                        dropped_only_subjid += 1
+                        continue
+                filtered_results.append(row)
+
+            rows_cnt = len(filtered_results)
+            cols_cnt = len(header)
 
             write_start = time.perf_counter()
             with open(os.path.join(actual_format_path, f'{PREFIX_F}{fileName}{EXTENSION}'), 'w', newline=MARK_BLANK, encoding='utf-8-sig') as file:
                 writer = csv.writer(file)
-                writer.writerow([i[0] for i in db.cursor.description])
-                writer.writerows(results)
+                writer.writerow(header)
+                writer.writerows(filtered_results)
             write_ms = (time.perf_counter() - write_start) * 1000
-            print(f'  [MAIN] {rows_cnt} rows')
+            print(f'  [MAIN] {rows_cnt} rows', end='')
+            if dropped_only_subjid:
+                print(f' | dropped only-SUBJID rows: {dropped_only_subjid}')
+            else:
+                print()
 
         file_ms = (time.perf_counter() - file_start) * 1000
         print(f'{fileName} 完成')
