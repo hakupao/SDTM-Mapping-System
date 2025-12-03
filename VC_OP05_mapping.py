@@ -1,5 +1,5 @@
 """
-VAPORCONE 项目映射模块 - 超级优化版本 (重构版)
+VAPORCONE 项目映射模块
 
 该模块负责将格式化的数据映射为SDTM标准格式，包括：
 - 读取映射配置
@@ -271,9 +271,9 @@ def process_single_domain(args):
 
 def main():
     """
-    主函数 - 超级优化版本 (重构版)
+    主函数
     """
-    print(f"开始SDTM映射处理 - 超级优化版本 (重构版)")
+    print(f"开始SDTM映射处理")
     start_time = time.time()
 
     logger = create_logger(
