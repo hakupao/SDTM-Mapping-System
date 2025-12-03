@@ -1,5 +1,5 @@
 """
-VAPORCONE 项目操作类型处理模块 - 优化版本
+VAPORCONE 项目操作类型处理模块
 优化前参考：
 VC_BC04_operateType20250827.py
 
