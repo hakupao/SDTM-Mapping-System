@@ -413,31 +413,29 @@ class DatabaseManager:
         print(f'Table {table_name} created.')
 
     def create_transdata_view(self, view_name, metadata_table_name, codelist_table_name):
-        if self.table_exists(view_name):
-            print(f"View {view_name} already exists.")
-        else:
-            query = f'''
-            CREATE ALGORITHM = UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW {view_name} AS 
-            SELECT 
-                `m`.`No` AS `No`,
-                `m`.`FILENAME` AS `FILENAME`,
-                `m`.`ROWNUM` AS `ROWNUM`,
-                `m`.`USUBJID` AS `USUBJID`,
-                `m`.`SUBJID` AS `SUBJID`,
-                `m`.`FIELDLBL` AS `FIELDLBL`,
-                `m`.`FIELDID` AS `FIELDID`,
-                `m`.`METAVAL` AS `METAVAL`,
-                `m`.`FORMVAL` AS `FORMVAL`,
-                IF(ISNULL(`c`.`VALUE_EN`), `m`.`FORMVAL`, `c`.`VALUE_EN`) AS `TRANSVAL`,
-                IF(ISNULL(`c`.`VALUE_SDTM`),'',`c`.`VALUE_SDTM`) AS `SDTMVAL`,
-                `m`.`CHKFIELDID` AS `CHKFIELDID`
-            FROM 
-                {metadata_table_name} `m` 
-            LEFT JOIN 
-                {codelist_table_name} `c` ON ((`m`.`CODELISTID` = `c`.`CODELISTID`) AND (`m`.`FORMVAL` = `c`.`CODE`));
-            '''
-            self.execute_query(query)
-            print(f'View {view_name} created.')
+        # 使用 CREATE OR REPLACE VIEW 强制更新视图，防止因底层表结构变更导致的 Error 1356
+        query = f'''
+        CREATE OR REPLACE ALGORITHM = UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW {view_name} AS 
+        SELECT 
+            `m`.`No` AS `No`,
+            `m`.`FILENAME` AS `FILENAME`,
+            `m`.`ROWNUM` AS `ROWNUM`,
+            `m`.`USUBJID` AS `USUBJID`,
+            `m`.`SUBJID` AS `SUBJID`,
+            `m`.`FIELDLBL` AS `FIELDLBL`,
+            `m`.`FIELDID` AS `FIELDID`,
+            `m`.`METAVAL` AS `METAVAL`,
+            `m`.`FORMVAL` AS `FORMVAL`,
+            IF(ISNULL(`c`.`VALUE_EN`), `m`.`FORMVAL`, `c`.`VALUE_EN`) AS `TRANSVAL`,
+            IF(ISNULL(`c`.`VALUE_SDTM`),'',`c`.`VALUE_SDTM`) AS `SDTMVAL`,
+            `m`.`CHKFIELDID` AS `CHKFIELDID`
+        FROM 
+            {metadata_table_name} `m` 
+        LEFT JOIN 
+            {codelist_table_name} `c` ON ((`m`.`CODELISTID` = `c`.`CODELISTID`) AND (`m`.`FORMVAL` = `c`.`CODE`));
+        '''
+        self.execute_query(query)
+        print(f'View {view_name} updated (recreated).')
 
     def index_exists(self, table_name, index_name):
         """检查索引是否存在"""
