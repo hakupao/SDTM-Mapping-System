@@ -105,3 +105,6 @@ coverage/
 
 # experiment 的csv输出目录
 experiment/combine_test/TEST_COMBINE/
+
+# 临时生成脚本
+studySpecific/ENSEMBLE/export_to_excel.py

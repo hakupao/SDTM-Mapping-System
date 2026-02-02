@@ -67,9 +67,9 @@ def DM():
     生成 DM (Demographics) 数据集。
 
     数据来源：
-    - RGST: 注册表（主表）
-    - LSVDAT: 最后就诊日期
-    - OC: 结局数据（死亡日期）
+    - RGST: 症例登録
+    - LSVDAT: 最終生存確認日
+    - OC: 転帰
 
     生成字段：
     - RFENDAT: 研究结束日期（优先使用 DTHDAT，其次使用 LSVDAT）
