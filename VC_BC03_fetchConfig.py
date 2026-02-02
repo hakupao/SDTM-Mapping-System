@@ -182,18 +182,34 @@ def getProcess(workbook, sheetSetting):
     process_sheet = workbook[PROCESS_SHEET_NAME]
     chk_file_names = []
     colnum_data_extraction = 0
+    
+    # 找到 Process 工作表第1行中 DATAEXTRACTION 的位置
     for cell in process_sheet[1]:
         if cell.value and cell.value.strip() == COL_DATAEXTRACTION:
             colnum_data_extraction = cell.column
             break
 
-    for cell in process_sheet[2]:
-        if cell.column >= colnum_data_extraction and cell.value:
-            chk_file_names.append(cell.value.strip())
+    # 从 SheetSetting 中识别 DataExtraction 文件名
+    # 只有在 SheetSetting 中配置的列名才会被处理，空白列（如備考）会被忽略
+    if colnum_data_extraction > 0:
+        # 获取 Process 工作表第2行的列名 -> 列位置映射
+        process_row2_columns = {cell.value.strip(): cell.column 
+                                for cell in process_sheet[2] if cell.value}
+        
+        # 从 SheetSetting 配置中找出落在 DataExtraction 区域的列名
+        for key in sheetSetting[PROCESS_SHEET_NAME]:
+            if key in [COL_STARTINGROW, COL_MAXCOL]:
+                continue
+            if key in process_row2_columns and process_row2_columns[key] >= colnum_data_extraction:
+                chk_file_names.append(key)
 
-    for row in process_sheet.iter_rows(min_row=sheetSetting[PROCESS_SHEET_NAME][COL_STARTINGROW], min_col=1, max_col=sheetSetting[PROCESS_SHEET_NAME][COL_MAXCOL], values_only=True):
+    starting_row = sheetSetting[PROCESS_SHEET_NAME][COL_STARTINGROW]
+    max_col = sheetSetting[PROCESS_SHEET_NAME][COL_MAXCOL]
+
+    for row in process_sheet.iter_rows(min_row=starting_row, min_col=1, max_col=max_col, values_only=True):
         if not any(row):
             break
+        
         file_name = get_cell_value(row, colnum_file_name)
         field_id = get_cell_value(row, colnum_field_name)
         label = get_cell_value(row, colnum_label)
@@ -227,7 +243,6 @@ def getProcess(workbook, sheetSetting):
         else:
             fieldDict[dfile_name].append(field_id)
             continue
-            # print(f'Study:[{STUDY_ID}] File:[{file_name}] Field:[{field_id}] CleaningStep is wrong') 
 
         if file_name not in transFieldDict:
             transFieldDict[file_name] = {}
@@ -241,11 +256,10 @@ def getProcess(workbook, sheetSetting):
 
         if file_name not in ex_fieldsDict:
             ex_fieldsDict[file_name] = []
-        # if other_details_field:
-        #     ex_fieldsDict[file_name].append(other_details_field)
 
         for i, chkfileName in enumerate(chk_file_names):
-            fileFieldflg = get_cell_value(row, colnum_data_extraction + i - 1)
+            target_col_idx = colnum_data_extraction + i - 1
+            fileFieldflg = get_cell_value(row, target_col_idx)
             if fileFieldflg:
                 if file_name not in chkFileDict:
                     chkFileDict[file_name] = {}

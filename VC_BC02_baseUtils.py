@@ -40,13 +40,14 @@ def create_logger(file_name, log_level=logging.DEBUG):
         
     return logger
 
-def get_cell_value(row, idx):
+def get_cell_value(row, idx, context=None):
     """
     获取单元格值并进行格式化处理
     
     参数:
     - row: 行数据
     - idx (int): 列索引
+    - context (dict, optional): 上下文信息（保留兼容性，但不再使用）
     
     返回:
     - str: 格式化后的单元格值
