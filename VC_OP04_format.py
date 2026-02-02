@@ -341,12 +341,16 @@ def main():
                 other_fields_sql = MARK_BLANK
                 for _chkFieldID, flg in chkfilefieldIDs.items():
                     if _chkFieldID == 'OTHERDETAILS':
-                        other_fields = flg
+                        raw_other_fields = flg
+                        other_fields = {}
                             
-                        if other_fields:
-                            for _, other_details_field in other_fields.items():
+                        if raw_other_fields:
+                            for other_field_key, other_details_field in raw_other_fields.items():
+                                if other_details_field not in file_param:
+                                    # 跳过不存在的字段（如未标记为迁移的字段）
+                                    continue
+                                other_fields[other_field_key] = other_details_field
                                 fieldID_otherVal[other_details_field] = file_param[other_details_field][COL_OTHERVAL]
-                        # OTHERDETAILS 的 SQL 构建将由优化函数处理，这里不再添加到 select_fieldIDs
                         continue
 
                     if _chkFieldID in exceptFields:
@@ -371,6 +375,10 @@ def main():
 
                 outputFileName = f'{PREFIX_F}{fileName}[{chkfileName}]{EXTENSION}'
                 outputfilePath = os.path.join(actual_format_path, outputFileName)
+
+                # 检查是否有有效的查询字段
+                if not chk_fieldIDs and not max_fieldIDs:
+                    continue
 
                 # 使用优化的CHK查询构建函数
                 query = build_optimized_chk_query(
