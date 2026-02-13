@@ -64,7 +64,7 @@ def filter_df_by_field(source, **filters):
 
 def DM():
     """
-    生成 DM (Demographics) 数据集。
+    生成 DM (DM) 数据集。
 
     数据来源：
     - RGST: 症例登録
