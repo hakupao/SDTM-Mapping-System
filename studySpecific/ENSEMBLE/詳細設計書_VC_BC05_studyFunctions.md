@@ -37,8 +37,8 @@ def filter_df_by_field(source, **filters) -> pd.DataFrame
 
 | パラメータ名 | 型 | 必須 | 説明 |
 |------------|---|-----|------|
-| source | str | pd.DataFrame | ○ | テーブル名文字列またはDataFrame |
-| **filters | dict | ○ | 筛選条件（1つのみ指定可能） |
+| source | str, pd.DataFrame | ○ | テーブル名文字列またはDataFrame |
+| **filters | dict | ○ | フィルタリング条件（1つのみ指定可能） |
 
 #### filters の例
 ```python
@@ -50,7 +50,7 @@ filter_df_by_field(tme_df, EventId='AT REGISTRATION')
 
 | 戻り値 | 型 | 説明 |
 |-------|---|------|
-| filtered_df | pd.DataFrame | 筛選済み、全列が文字列型 |
+| filtered_df | pd.DataFrame | フィルタリング済み、全列が文字列型 |
 
 ### 1.5 処理フロー
 
@@ -86,7 +86,7 @@ flowchart TD
 
 ### 2.1 機能概要
 
-臨床試験の被験者統計情報（DM）データセットを生成する。複数のデータソースを結合し、研究終了日と死亡フラグを導出する。
+臨床試験の症例統計情報（DM）データセットを生成する。複数のデータソースを結合し、研究終了日と死亡フラグを導出する。
 
 ### 2.2 関数シグネチャ
 
@@ -100,7 +100,7 @@ def DM() -> pd.DataFrame
 
 | フィールドID | 日本語名 | データ型 | 例 |
 |-------------|---------|---------|-----|
-| SUBJID | 被験者ID | 文字列 | NE-EN-0001 |
+| SUBJID | 症例ID | 文字列 | NE-EN-0001 |
 | SEXCD | 性別コード | 文字列 | M / F |
 | AGE | 同意取得時年齢 | 数値 | 34 |
 
@@ -108,21 +108,21 @@ def DM() -> pd.DataFrame
 
 | フィールドID | 日本語名 | データ型 | 例 |
 |-------------|---------|---------|-----|
-| SUBJID | 被験者ID | 文字列 | NE-EN-0001 |
+| SUBJID | 症例ID | 文字列 | NE-EN-0001 |
 | LSVDAT | 最終生存確認日 | 日付 | 2025/11/10 |
 
 #### OC（転帰）
 
 | フィールドID | 日本語名 | データ型 | 例 |
 |-------------|---------|---------|-----|
-| SUBJID | 被験者ID | 文字列 | NE-EN-0001 |
+| SUBJID | 症例ID | 文字列 | NE-EN-0001 |
 | DTHDAT | 死亡日 | 日付 | 2025/10/31 |
 
 ### 2.4 出力フィールド仕様
 
 | No. | フィールドID | 日本語名 | データ型 | 導出ロジック |
 |-----|-------------|---------|---------|-------------|
-| 1 | SUBJID | 被験者ID | 文字列 | RGSTから継承 |
+| 1 | SUBJID | 症例ID | 文字列 | RGSTから継承 |
 | 2 | SEXCD | 性別コード | 文字列 | RGSTから継承 |
 | 3 | AGE | 同意取得時年齢 | 文字列 | RGSTから継承 |
 | 4 | LSVDAT | 最終生存確認日 | 文字列 | LSVDATから結合 |
@@ -182,8 +182,8 @@ DTHFLG = 'Y' if DTHDAT != '' else ''
 
 | No. | チェック内容 | 警告メッセージ例 |
 |-----|------------|-----------------|
-| 1 | LSVDATとDTHDATが両方存在 | `[DM] 警告: X 名受試者同時存在 LSVDAT 和 DTHDAT` |
-| 2 | LSVDATとDTHDATが両方空 | `[DM] 警告: X 名受試者 LSVDAT 和 DTHDAT 均为空` |
+| 1 | LSVDATとDTHDATが両方存在 | `[DM] 警告: X 名の症例に LSVDAT と DTHDAT が同時に存在します` |
+| 2 | LSVDATとDTHDATが両方空 | `[DM] 警告: X 名の症例の LSVDAT と DTHDAT が共に空です` |
 
 ### 2.8 結合仕様
 
@@ -232,8 +232,8 @@ DTHFLG = 'Y' if DTHDAT != '' else ''
 
 | No. | テストケース | 期待結果 |
 |-----|------------|---------|
-| 1 | LSVDATのみ存在する被験者 | RFENDAT = LSVDAT, DTHFLG = 空 |
-| 2 | DTHDATのみ存在する被験者 | RFENDAT = DTHDAT, DTHFLG = Y |
+| 1 | LSVDATのみ存在する症例 | RFENDAT = LSVDAT, DTHFLG = 空 |
+| 2 | DTHDATのみ存在する症例 | RFENDAT = DTHDAT, DTHFLG = Y |
 | 3 | LSVDAT と DTHDAT 両方存在 | RFENDAT = DTHDAT, DTHFLG = Y, 警告出力 |
 | 4 | LSVDAT と DTHDAT 両方空 | RFENDAT = 空, DTHFLG = 空, 警告出力 |
 | 5 | 存在しないフィールドで filter | KeyError 発生 |
@@ -245,3 +245,4 @@ DTHFLG = 'Y' if DTHDAT != '' else ''
 | 版数 | 日付 | 変更内容 | 担当者 |
 |-----|------|---------|--------|
 | 1.0 | 2026/02/02 | 初版作成 | |
+| 1.1 | 2026/02/13 | 基本設計書からの詳細ロジック移行、実装方針の追記 | |
