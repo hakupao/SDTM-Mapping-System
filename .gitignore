@@ -30,11 +30,11 @@ missing_columns_log.txt
 # 生成的数据文件
 *.csv
 studySpecific/**
-studySpecific/**/*.xlsx
-studySpecific/**/*.xls
 !studySpecific/**/
 !studySpecific/**/*.py
 !studySpecific/**/*.md
+!studySpecific/**/*.xlsx
+!studySpecific/**/*.xls
 
 # 数据库
 *.sqlite
@@ -62,11 +62,10 @@ Thumbs.db
 desktop.ini
 
 # Excel文件
-~$*.xlsx
-~$*.xls
 *.xlk
 *.~*
-*.xlsx
+ENSEMBLE_Myriad_DATA_251216.xlsx
+~$*.xlsx
 
 # 其他文件
 .svn/
@@ -108,6 +107,3 @@ coverage/
 
 # experiment 的csv输出目录
 experiment/combine_test/TEST_COMBINE/
-
-# 临时生成脚本
-studySpecific/ENSEMBLE/export_to_excel.py
