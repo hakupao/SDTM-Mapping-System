@@ -1,0 +1,38 @@
+更新履歴（Change Log）
+
+版数：v1.2
+日付：2026-03-05
+対象：ENSEMBLE SDTM Mapping 仕様書
+影響範囲：Format-CodeList ステップ／Mapping ステップ
+内容：シナリオテスト結果および定義書レビュー結果の反映
+
+[DS（Disposition）]
+- 修正：SUPPDS.DSYNFLG の定義（Label/表記）を「IMPLEMENTATION」から「RE-EVALUATION PERFORMED」に変更
+
+[PR（Procedures）]
+- 修正：直腸診（Digital Rectal Examination）の Mapping 表記統一
+  - PRDECOD を「EXAMINATION」から「DIGITAL RECTAL EXAMINATION」に変更（PRTRT と整合）
+
+[CM（Concomitant Medications）]
+- 修正：CMONGO の値表記を「Y」から「CONTINUING CHEMOTHERAPY」に変更
+
+[DM（Demographics）]
+- 追加：SITEID を「マッピング用ダミー施設（分析対象外）」追加（EDC 取込要件により、SITEID が必須のため）
+
+[CodeList]
+- 修正：CL_RETRT_CT1／CL_RETRT_CT2 を VAPORCONE辞書-20260122.xlsx の VC_3005／VC_3006（抗がん剤／分子標的薬）に準拠して更新
+  - 反映内容（略称→英語表記）：
+    VALUERAW    VALUEEN
+    CAPE        CAPECITABINE
+    S-1         TEGAFUR/GIMERACIL/OTERACIL
+    FTD/TPI     TRIFLURIDINE/TIPIRACIL HYDROCHLORIDE
+    BEV         BEVACIZUMAB
+    RAM         RAMUCIRUMAB
+    AFL         AFLIBERCEPT
+    CET         CETUXIMAB
+    PANI        PANITUMUMAB
+    REG         REGORAFENIB
+    PEMBRO      PEMBROLIZUMAB
+    NIVO        NIVOLUMAB
+    ENCO        ENCORAFENIB
+    BINI        BINIMETINIB

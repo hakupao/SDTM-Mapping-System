@@ -65,6 +65,8 @@ def create_directory(*paths):
     - cleaning_dataset: 清洗步骤输出
     - format_dataset: 格式化步骤输出  
     - sdtm_dataset: 映射步骤输出
+    - inputfile_dataset: 输入CSV步骤输出
+    - inputpackage_dataset: 输入包步骤输出
     
     参数:
     - *paths: 可变长度的路径参数
@@ -79,7 +81,9 @@ def create_directory(*paths):
     timestamp_folders = [
         'cleaning_dataset',  # 清洗步骤
         'format_dataset',    # 格式化步骤
-        'sdtm_dataset'       # 映射步骤（原有）
+        'sdtm_dataset',      # 映射步骤
+        'inputfile_dataset',  # 输入CSV步骤
+        'inputpackage_dataset'  # 输入包步骤
     ]
     
     return_path = ''
@@ -87,8 +91,13 @@ def create_directory(*paths):
     for path in paths:
         # 检查路径是否包含任何需要时间戳的文件夹
         for timestamp_folder in timestamp_folders:
-            if timestamp_folder in path:
-                path = path.replace(timestamp_folder, f'{timestamp_folder}-{current_time_str}')
+            normalized_parts = os.path.normpath(path).split(os.sep)
+            if timestamp_folder in normalized_parts:
+                normalized_parts = [
+                    f'{timestamp_folder}-{current_time_str}' if part == timestamp_folder else part
+                    for part in normalized_parts
+                ]
+                path = os.sep.join(normalized_parts)
                 return_path = path
                 break
         

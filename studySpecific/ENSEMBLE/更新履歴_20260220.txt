@@ -1,0 +1,32 @@
+更新履歴（Change Log）
+
+版数：v1.0
+日付：2026-02-20
+対象：ENSEMBLE SDTM Mapping 仕様書
+影響範囲：Format-CodeList ステップ／Mapping ステップ
+内容：レビュー結果の反映
+
+[DS（Disposition）]
+- 再評価結果－再評価
+  - 修正：DSCAT を「OTHER EVENT」に変更
+  - 追加：DSSCAT に「SURGERY DECISION」を追加
+  - 追加：SUPPDS.DSYNFLG = REV_YNCD（再評価実施の有無）を追加
+
+[PR（Procedures）]
+- 手術区分（PRTPT：3区分）の定義を明確化
+  - 手術実施：AFTER PROTOCOL TREATMENT COMPLETION
+  - TME実施：NON-OPERATIVE MANAGEMENT TREATMENT
+  - プロトコル治療中止後のTME実施：AFTER PROTOCOL TREATMENT DISCONTINUATION
+
+[RS（Response）]
+- cCR/nCR/iCR の Mapping 方針を追加・整理
+  - RSCAT：PROTOCOL DEFINED RESPONSE CRITERIA
+  - RSSCAT：CURABILITY
+  - SUPPRS.RSCAT1：Memorial Sloan Kettering Regression Schema
+- 初回再発/増悪確認 の Mapping 方針を追加・整理（2パターン）
+  - パターンA：RSCAT = UNSPECIFIED、RSSCAT = （空白）
+  - パターンB：RSCAT = PROTOCOL DEFINED RESPONSE CRITERIA、RSSCAT = （空白）
+
+[CodeList]
+- 修正：CL_HCLASS を VAPORCONE辞書-20260122.xlsx の VC_0603（主たる組織型）に修正
+

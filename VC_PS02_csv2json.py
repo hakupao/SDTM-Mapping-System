@@ -15,16 +15,37 @@ def main():
     """
     主函数，执行CSV转JSON流程
     """
-    create_directory(INPUTPACKAGE_PATH)
-    makePackage()
+    actual_inputpackage_path = create_directory(INPUTPACKAGE_PATH, INPUTPACKAGE_DATASET_PATH)
+    print(f'使用Input package输出路径: {actual_inputpackage_path}')
+    makePackage(actual_inputpackage_path)
 
 
-def makePackage():
+def resolve_inputfile_path():
+    """
+    获取最新的输入CSV目录，并兼容历史的根目录直写结构
+    """
+    actual_inputfile_path = find_latest_timestamped_path(INPUTFILE_PATH, 'inputfile_dataset')
+    if os.path.exists(actual_inputfile_path):
+        return actual_inputfile_path
+
+    legacy_files = [
+        item for item in os.listdir(INPUTFILE_PATH)
+        if os.path.isfile(os.path.join(INPUTFILE_PATH, item))
+    ] if os.path.exists(INPUTFILE_PATH) else []
+
+    if legacy_files:
+        print(f'未找到时间戳Input CSV目录，回退到原始目录: {INPUTFILE_PATH}')
+        return INPUTFILE_PATH
+
+    return actual_inputfile_path
+
+
+def makePackage(packagePath):
     """
     创建数据包，将CSV文件转换为JSON格式并打包
     """
-    inputFilePath = INPUTFILE_PATH
-    packagePath = INPUTPACKAGE_PATH
+    inputFilePath = resolve_inputfile_path()
+    print(f'使用Input CSV路径: {inputFilePath}')
     projectName = M5_PROJECT_NAME
 
     # 定义输出目录结构
