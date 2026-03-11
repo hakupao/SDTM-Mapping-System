@@ -126,6 +126,8 @@ python experiment/combine_test/VC_OP06_combine.py
 ### 5.7 Paths and outputs
 - Never hardcode study-specific paths; derive from constants/config.
 - Respect timestamped output folders (`create_directory`, `find_latest_timestamped_path`).
+- `VC_PS01_makeInputCSV.py` writes to `05_Inputfile/inputfile_dataset-[timestamp]/` and consumes the latest `04_SDTM/sdtm_dataset-[timestamp]/`.
+- `VC_PS02_csv2json.py` reads the latest `05_Inputfile/inputfile_dataset-[timestamp]/` and writes to `06_Inputpackage/inputpackage_dataset-[timestamp]/`.
 - Keep CSV encoding consistent (`utf-8-sig` where currently used).
 - Preserve output prefix contracts: `C-`, `DC-`, `DR-`, `F-`, `SUPP`.
 

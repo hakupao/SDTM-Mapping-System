@@ -114,15 +114,18 @@ VAPORCONE/
 #### VC_PS01_makeInputCSV.py
 - **功能**: 生成输入CSV文件
 - **处理流程**:
-  1. 分离标准字段和补充字段
-  2. 生成主数据文件和补充数据文件(SUPP)
+  1. 读取 `04_SDTM` 下最新的 `sdtm_dataset-[timestamp]`
+  2. 按输入SDTM文件原始表头顺序生成主数据文件
+  3. 分离补充字段并生成补充数据文件(SUPP)
+  4. 输出到 `05_Inputfile/inputfile_dataset-[timestamp]/`
 
 #### VC_PS02_csv2json.py
 - **功能**: CSV转JSON数据包
 - **处理流程**:
-  1. 读取输入CSV文件
+  1. 读取 `05_Inputfile` 下最新的 `inputfile_dataset-[timestamp]`
   2. 构建JSON数据结构
-  3. 生成M5格式的数据包 (ZIP压缩)
+  3. 输出到 `06_Inputpackage/inputpackage_dataset-[timestamp]/`
+  4. 生成M5格式的数据包 (ZIP压缩)
 
 ## 数据处理流程
 
@@ -305,18 +308,26 @@ python VC_PS02_csv2json.py
 ```
 studySpecific/[STUDY_ID]/
 ├── 02_Cleaning/                # 清洗数据
-│   ├── cleaning_dataset_[timestamp]/
+│   ├── cleaning_dataset-[timestamp]/
 │   ├── deletedCols/            # 删除的列
 │   └── deletedRows/            # 删除的行
 ├── 03_Format/                  # 格式化数据
-│   └── format_dataset_[timestamp]/
+│   └── format_dataset-[timestamp]/
 ├── 04_SDTM/                   # SDTM数据集
-│   └── sdtm_dataset_[timestamp]/
+│   └── sdtm_dataset-[timestamp]/
 ├── 05_Inputfile/              # 输入CSV文件
+│   └── inputfile_dataset-[timestamp]/
 ├── 06_Inputpackage/           # JSON数据包
-│   └── m5.zip                 # M5格式压缩包
+│   └── inputpackage_dataset-[timestamp]/
+│       ├── m5/
+│       └── m5.zip
 └── 08_Validation/             # 验证数据
 ```
+
+### PS阶段补充说明
+
+- `VC_PS01_makeInputCSV.py` 的主CSV字段顺序与输入SDTM文件保持一致；仅额外追加 `PAGEID`、`RECORDID`。
+- `SUPP*.csv` 会为每个非标准字段逐行输出记录，`QVAL=''` 的空字符串也会保留，不再跳过。
 
 ## 模块依赖关系
 
@@ -478,6 +489,8 @@ VC_PS02_csv2json.py (生成JSON)
    - 清洗数据: `02_Cleaning/cleaning_dataset-[timestamp]/`
    - 格式化数据: `03_Format/format_dataset-[timestamp]/`
    - SDTM数据: `04_SDTM/sdtm_dataset-[timestamp]/`
+   - 输入CSV: `05_Inputfile/inputfile_dataset-[timestamp]/`
+   - 输入包: `06_Inputpackage/inputpackage_dataset-[timestamp]/`
 
 3. **使用性能分析**:
    - 在 `VC_OP04_format.py` 中设置 `ENABLE_EXPLAIN_ANALYSIS = True`

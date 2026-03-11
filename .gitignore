@@ -35,6 +35,10 @@ studySpecific/**
 !studySpecific/**/*.md
 !studySpecific/**/*.xlsx
 !studySpecific/**/*.xls
+!studySpecific/**/*.txt
+ai_summary.md
+batch_ai_summary.md
+
 
 # 数据库
 *.sqlite

@@ -15,7 +15,8 @@ def main():
     """
     主函数，执行输入CSV文件创建流程
     """
-    create_directory(INPUTFILE_PATH)
+    actual_inputfile_path = create_directory(INPUTFILE_PATH, INPUTFILE_DATASET_PATH)
+    print(f'使用Input CSV输出路径: {actual_inputfile_path}')
     workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
     sheetSetting = getSheetSetting(workbook)
     siteDict = getSites(workbook, sheetSetting)
@@ -42,8 +43,8 @@ def main():
                 data_list.append(row)
         
         # 区分标准字段和补充字段
-        common_fields = list(set(standard_fields) & set(fieldnames))
-        supp_fields = list(set(fieldnames) - set(standard_fields))
+        common_fields = [field for field in fieldnames if field in standard_fields]
+        supp_fields = [field for field in fieldnames if field not in standard_fields]
         supp_data_list = []
         
         # 为非排除域添加PAGEID和RECORDID字段
@@ -53,7 +54,7 @@ def main():
                 common_fields.append("RECORDID")
                 break
 
-        csv_file_path = os.path.join(INPUTFILE_PATH, full_name)
+        csv_file_path = os.path.join(actual_inputfile_path, full_name)
         with open(csv_file_path, 'w', newline='', encoding='utf-8-sig') as csvfile_out:
             writer = csv.DictWriter(csvfile_out, fieldnames=common_fields)
             writer.writeheader()
@@ -81,22 +82,24 @@ def main():
 
                 if supp_fields:
                     for field in supp_fields:
-                        field_val = row[field]
-                        if field_val:
-                            supp_output_row = {}
-                            supp_output_row["STUDYID"] = row["STUDYID"]
-                            supp_output_row["RDOMAIN"] = domain
-                            supp_output_row["USUBJID"] = rUSUBJID
-                            supp_output_row["IDVAR"] = "" if domain in EXCLUSION_DOMAIN else "PAGEID"
-                            supp_output_row["IDVARVAL"] = "" if domain in EXCLUSION_DOMAIN else row["SEQ"] if domain == "SREF" else row[domain + "SEQ"]
-                            supp_output_row["QNAM"] = field
-                            supp_output_row["QLABEL"] = ""
-                            supp_output_row["QVAL"] = field_val
-                            supp_output_row["QORIG"] = "CRF"
-                            supp_data_list.append(supp_output_row)
+                        field_val = row.get(field, '')
+                        if field_val is None:
+                            field_val = ''
+
+                        supp_output_row = {}
+                        supp_output_row["STUDYID"] = row["STUDYID"]
+                        supp_output_row["RDOMAIN"] = domain
+                        supp_output_row["USUBJID"] = rUSUBJID
+                        supp_output_row["IDVAR"] = "" if domain in EXCLUSION_DOMAIN else "PAGEID"
+                        supp_output_row["IDVARVAL"] = "" if domain in EXCLUSION_DOMAIN else row["SEQ"] if domain == "SREF" else row[domain + "SEQ"]
+                        supp_output_row["QNAM"] = field
+                        supp_output_row["QLABEL"] = ""
+                        supp_output_row["QVAL"] = field_val
+                        supp_output_row["QORIG"] = "CRF"
+                        supp_data_list.append(supp_output_row)
 
         if supp_data_list:
-            supp_csv_file_path = os.path.join(INPUTFILE_PATH, "SUPP" + full_name)
+            supp_csv_file_path = os.path.join(actual_inputfile_path, "SUPP" + full_name)
             with open(supp_csv_file_path, 'w', newline='', encoding='utf-8-sig') as suppcsvfile_out:
                 writer = csv.DictWriter(suppcsvfile_out, ["STUDYID", "RDOMAIN", "USUBJID", "IDVAR", "IDVARVAL", "QNAM", "QLABEL", "QVAL", "QORIG"])
                 writer.writeheader()

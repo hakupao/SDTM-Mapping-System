@@ -39,8 +39,8 @@ VC_BC01 (Constants) → VC_BC02 (Utils) + VC_BC03 (Config)
 - `VC_OP03_insertMetadata.py`: Config → `METADATA_TABLE_NAME`.
 - `VC_OP04_format.py`: Views + type/format handling → `F_*` in `03_Format/format_dataset-[ts]/`.
 - `VC_OP05_mapping.py`: Formatted → SDTM domains (`04_SDTM/sdtm_dataset-[ts]/`); uses op types and sequence generation.
-- `VC_PS01_makeInputCSV.py`: SDTM → `[Domain].csv`, `SUPP*.csv` in `05_Inputfile/`.
-- `VC_PS02_csv2json.py`: CSV → `06_Inputpackage/m5.zip`.
+- `VC_PS01_makeInputCSV.py`: Latest SDTM timestamp folder → `[Domain].csv`, `SUPP*.csv` in `05_Inputfile/inputfile_dataset-[ts]/`. Main CSV column order follows the source SDTM header; `SUPP*.csv` preserves empty-string `QVAL`.
+- `VC_PS02_csv2json.py`: Latest inputfile timestamp folder → `06_Inputpackage/inputpackage_dataset-[ts]/m5.zip`.
 - Full run (PowerShell):  
 `python VC_OP01_cleaning.py`  
 `python VC_OP02_insertCodeList.py`  
@@ -92,9 +92,9 @@ VC_BC01 (Constants) → VC_BC02 (Utils) + VC_BC03 (Config)
 - Mapping errors: check field names/op types in Excel.
 
 ## 11) Quick References
-- Paths/vars: `ROOT_PATH`, `SPECIFIC_PATH`, `CLEANINGSTEP_PATH`, `FORMAT_PATH`, `SDTMDATASET_PATH`, `INPUTFILE_PATH`, `INPUTPACKAGE_PATH`.
+- Paths/vars: `ROOT_PATH`, `SPECIFIC_PATH`, `CLEANINGSTEP_PATH`, `FORMAT_PATH`, `SDTMDATASET_PATH`, `INPUTFILE_PATH`, `INPUTFILE_DATASET_PATH`, `INPUTPACKAGE_PATH`, `INPUTPACKAGE_DATASET_PATH`.
 - Key classes/functions: `DatabaseManager`, `create_logger()`, `getSheetSetting()/getProcess()/getMapping()/getCodeListInfo()`, `vectorized_field_mapping()`, `ultra_fast_sequence_generation()`, `get_opertype_function()`.
-- Outputs: `05_Inputfile/*.csv`, `06_Inputpackage/m5.zip`.
+- Outputs: `05_Inputfile/inputfile_dataset-[ts]/*.csv`, `06_Inputpackage/inputpackage_dataset-[ts]/m5.zip`.
 - Logs: `studySpecific/[STUDY]/log_file.log`.
 
 ## 12) How to Work Safely as an AI Agent

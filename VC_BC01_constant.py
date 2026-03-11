@@ -103,7 +103,9 @@ VALIDATION_ITEM_PATH = os.path.join(VALIDATION_PATH, 'csv')
 VALIDATION_FILE_PATH = os.path.join(VALIDATION_PATH, 'validationset')
 
 INPUTFILE_PATH = os.path.join(SPECIFIC_PATH, "05_Inputfile")
+INPUTFILE_DATASET_PATH = os.path.join(INPUTFILE_PATH, 'inputfile_dataset')
 INPUTPACKAGE_PATH = os.path.join(SPECIFIC_PATH, '06_Inputpackage')
+INPUTPACKAGE_DATASET_PATH = os.path.join(INPUTPACKAGE_PATH, 'inputpackage_dataset')
 
 CONFIG_NAME = STUDY_ID + '_OperationConf.xlsx'
 SHEETSETTING_SHEET_NAME = 'SheetSetting'
