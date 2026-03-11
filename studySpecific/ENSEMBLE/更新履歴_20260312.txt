@@ -1,0 +1,34 @@
+更新履歴（Change Log）
+
+版数：v1.3
+日付：2026-03-12
+対象：ENSEMBLE SDTM Mapping 仕様書
+影響範囲：Mapping ステップ
+内容：UAT 結果に基づく集計用データ（図表表示）の補完対応
+
+[背景／根拠]
+- UAT にて、以下 2 つの図表が空表示となる事象を確認
+  - Cancer Type Distribution（がん種分布）
+  - Cancer Stage Distribution（病期分布）
+- 原因整理
+  - Cancer Type Distribution：Raw Data 側に該当データが存在せず、図表用の入力が生成されない
+  - Cancer Stage Distribution：図表側の参照フィールド（設定）が旧仕様のままで、現行 Mapping と不整合
+
+[TU（Tumor Identification）]
+- 追加：プロトコール記載に基づき、がん種同定（Tumor Identification）情報を TU ドメインとして補完
+  - 全被験者共通の固定値として出力
+    - TUTEST / TUTESTCD：Tumor Identification / TUMIDENT
+    - TUORRES／TUSTRESC：COLORECTAL CANCER
+    - TULOC：RECTUM
+
+[RS（Response）]
+- 追加：Cancer Stage Distribution（病期分布）図表表示専用のレコードを RS に追加
+  - RSTEST／RSTESTCD：Diagnostic Stage／DIAGSTG
+  - RSCAT：CLINICAL CLASSIFICATION
+  - その他項目：既存の「病期分類（自動）(登録時)」レコードと同一ロジック／同一値を踏襲
+
+[影響]
+- UAT で空表示となっていた 2 図表について、表示に必要な入力データを生成可能となる
+  - Cancer Type Distribution：TU 追加により入力を補完
+  - Cancer Stage Distribution：RS（DIAGSTG）追加により旧設定への整合を確保
+- 変更範囲は Mapping ステップに限定
