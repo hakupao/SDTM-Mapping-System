@@ -4,9 +4,9 @@
 | 項目 | 内容 |
 |-----|------|
 | 文書番号 | DD-ENSEMBLE-001 |
-| 版数 | 1.3 |
+| 版数 | 1.4 |
 | 作成日 | 2026年02月02日 |
-| 最終更新日 | 2026年02月20日 |
+| 最終更新日 | 2026年03月13日 |
 | 作成者 | 張　泊江（Group A） |
 | レビュー者 | QA |
 | 承認者 | PM |
@@ -242,16 +242,16 @@ DTHFLG = 'Y' if DTHDAT != '' else ''
 
 | TC-ID | 対応要件ID | テストケース | 入力条件 | 期待結果 | 証跡ID | 実施結果 |
 |------|-----------|------------|---------|---------|-------|---------|
-| TC-01 | FR-05, FR-06 | LSVDATのみ存在する症例 | DTHDAT空, LSVDAT有り | RFENDAT = LSVDAT, DTHFLG = 空 | EV-TC-001 | 未実施 |
-| TC-02 | FR-05, FR-06 | DTHDATのみ存在する症例 | DTHDAT有り, LSVDAT空 | RFENDAT = DTHDAT, DTHFLG = Y | EV-TC-002 | 未実施 |
-| TC-03 | FR-05, FR-06, FR-07 | LSVDAT と DTHDAT 両方存在 | DTHDAT有り, LSVDAT有り | RFENDAT = DTHDAT, DTHFLG = Y, 警告出力 | EV-TC-003 | 未実施 |
-| TC-04 | FR-05, FR-06, FR-07 | LSVDAT と DTHDAT 両方空 | DTHDAT空, LSVDAT空 | RFENDAT = 空, DTHFLG = 空, 警告出力 | EV-TC-004 | 未実施 |
-| TC-05 | FR-01, FR-02, FR-03 | filter 正常系 | 既存フィールドで1条件抽出 | 条件一致行のみ、全空列削除、全列文字列型 | EV-TC-005 | 未実施 |
-| TC-06 | FR-01 | filter 異常系 | 存在しないフィールド指定 | KeyError 発生 | EV-TC-006 | 未実施 |
-| TC-07 | FR-08 | 上位工程連携確認 | `VC_BC04_operateType.py` から研究固有関数呼出 | 関数呼び出しが成功し結果が返る | EV-TC-007 | 未実施 |
-| TC-08 | FR-09 | トレーサビリティ確認 | RD/BD/DD/Code/Test を照合 | 対応漏れ0件 | EV-TC-008 | 未実施 |
-| TC-09 | NFR-01 | 性能検証 | 擬似データ(1万件)処理 | 3秒以内に完了 | EV-PERF-001 | 未実施 |
-| TC-10 | NFR-04, NFR-05 | セキュリティ・監査性確認 | ログおよび出力結果確認 | 個人情報非表示、版数記録有 | EV-SEC-001, EV-AUD-001 | 未実施 |
+| TC-01 | FR-05, FR-06 | LSVDATのみ存在する症例 | DTHDAT空, LSVDAT有り | RFENDAT = LSVDAT, DTHFLG = 空 | EV-TC-001 | Pass |
+| TC-02 | FR-05, FR-06 | DTHDATのみ存在する症例 | DTHDAT有り, LSVDAT空 | RFENDAT = DTHDAT, DTHFLG = Y | EV-TC-002 | Pass |
+| TC-03 | FR-05, FR-06, FR-07 | LSVDAT と DTHDAT 両方存在 | DTHDAT有り, LSVDAT有り | RFENDAT = DTHDAT, DTHFLG = Y, 警告出力 | EV-TC-003 | Pass |
+| TC-04 | FR-05, FR-06, FR-07 | LSVDAT と DTHDAT 両方空 | DTHDAT空, LSVDAT空 | RFENDAT = 空, DTHFLG = 空, 警告出力 | EV-TC-004 | Pass |
+| TC-05 | FR-01, FR-02, FR-03 | filter 正常系 | 既存フィールドで1条件抽出 | 条件一致行のみ、全空列削除、全列文字列型 | EV-TC-005 | Pass |
+| TC-06 | FR-01 | filter 異常系 | 存在しないフィールド指定 | KeyError 発生 | EV-TC-006 | Pass |
+| TC-07 | FR-08 | 上位工程連携確認 | `VC_BC04_operateType.py` から研究固有関数呼出 | 関数呼び出しが成功し結果が返る | EV-TC-007 | Pass |
+| TC-08 | FR-09 | トレーサビリティ確認 | RD/BD/DD/Code/Test を照合 | 対応漏れ0件 | EV-TC-008 | Pass |
+| TC-09 | NFR-01 | 性能検証 | 擬似データ(1万件)処理 | 3秒以内に完了 | EV-PERF-001 | Pass |
+| TC-10 | NFR-04, NFR-05 | セキュリティ・監査性確認 | ログおよび出力結果確認 | 個人情報非表示、版数記録有 | EV-SEC-001, EV-AUD-001 | Pass |
 
 ---
 
@@ -283,3 +283,4 @@ DTHFLG = 'Y' if DTHDAT != '' else ''
 | 1.1 | 2026/02/13 | VC_BC05 モジュール連動に合わせ文書更新 | 張　泊江（Group A） | `01d23e6` |
 | 1.2 | 2026/02/13 | 設計文書リファクタリング | 張　泊江（Group A） | `e449ccc` |
 | 1.3 | 2026/02/20 | メタ情報/要件対応ID/TC-ID/証跡ID/要件-実装-試験トレーサビリティ整備に加え、RD/BD実装非依存方針に合わせたDD粒度ルール明記とFR-08/TC-07表現統一を反映してWIP変更を統合 | 張　泊江（Group A） | `96985d9` |
+| 1.4 | 2026/03/13 | CombineProcess の試験実施および証跡保存を反映 | 張　泊江（Group A） | - |

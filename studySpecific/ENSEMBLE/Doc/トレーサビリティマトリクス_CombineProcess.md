@@ -1,0 +1,61 @@
+# トレーサビリティマトリクス
+## VC_BC05_studyFunctions
+
+| 項目 | 内容 |
+|-----|------|
+| 文書番号 | TM-ENSEMBLE-001 |
+| 版数 | 1.1 |
+| 作成日 | 2026年02月18日 |
+| 最終更新日 | 2026年03月13日 |
+| 作成者 | 張　泊江 |
+| レビュー者 | QA |
+| 承認者 | PM |
+| 対象 | RD-ENSEMBLE-001 / BD-ENSEMBLE-001 / DD-ENSEMBLE-001 / 実装 / 試験 |
+
+---
+
+## 1. 目的
+本マトリクスは、要件定義 -> 基本設計 -> 詳細設計 -> 実装 -> 試験証跡の対応を一元管理し、
+上位工程連携を含む研究固有ロジックについて追跡切れを防止することを目的とする。
+
+## 2. 対応表
+
+| Trace ID | 要件ID | 要件概要 | 基本設計対応 | 詳細設計対応 | 実装対応 | テストID | 証跡ID | 状態 |
+|---------|-------|---------|-------------|-------------|---------|---------|-------|------|
+| TR-001 | FR-01 | 条件指定抽出 | F-01 | 1.1-1.6 | `VC_BC05_studyFunctions.py` `filter_df_by_field` | TC-05, TC-06 | EV-TC-005, EV-TC-006 | In Progress |
+| TR-002 | FR-02 | 全空列除外 | F-01 | 1.5 | `VC_BC05_studyFunctions.py` 全空列削除処理 | TC-05 | EV-TC-005 | In Progress |
+| TR-003 | FR-03 | 文字列型統一 | F-01 | 1.4, 1.5 | `VC_BC05_studyFunctions.py` 返却前 `astype(str)` | TC-05 | EV-TC-005 | In Progress |
+| TR-004 | FR-04 | RGST/LSVDAT/OC統合 | F-02 | 2.3, 2.8 | `VC_BC05_studyFunctions.py` `DM` 結合処理 | TC-01, TC-02 | EV-TC-001, EV-TC-002 | In Progress |
+| TR-005 | FR-05 | RFENDAT判定 | F-02, R-01 | 2.6 | `VC_BC05_studyFunctions.py` RFENDAT導出 | TC-01, TC-02, TC-03, TC-04 | EV-TC-001..004 | In Progress |
+| TR-006 | FR-06 | DTHFLG判定 | F-02, R-02 | 2.6 | `VC_BC05_studyFunctions.py` DTHFLG導出 | TC-01, TC-02, TC-03, TC-04 | EV-TC-001..004 | In Progress |
+| TR-007 | FR-07 | 不整合通知 | F-02, R-03 | 2.7 | `VC_BC05_studyFunctions.py` 警告出力処理 | TC-03, TC-04 | EV-TC-003, EV-TC-004 | In Progress |
+| TR-008 | FR-08 | 上位工程連携 | F-03, R-04 | 0章, 2章 | `VC_BC04_operateType.py` 研究固有関数呼出連携 | TC-07 | EV-TC-007 | In Progress |
+| TR-009 | FR-09 | 文書追跡可能性 | F-03, R-04 | 4章, 5章 | 本マトリクス + テスト実施記録 | TC-08 | EV-TC-008 | In Progress |
+| TR-010 | NFR-01 | 性能要件 | 1章概要, 7章レビュー観点 | 0章実装方針 | pandas処理実装 | TC-09 | EV-PERF-001 | In Progress |
+| TR-011 | NFR-02 | 品質要件 | R-01, R-02 | 2.6 | RFENDAT/DTHFLG実装 | TC-01..TC-04 | EV-TC-001..004 | In Progress |
+| TR-012 | NFR-03 | 堅牢性 | R-03 | 2.7 | 欠損・不整合時通知 | TC-03, TC-04 | EV-TC-003, EV-TC-004 | In Progress |
+| TR-013 | NFR-04 | セキュリティ | 4章入出力 | 2.3, 2.4 | 必要列のみ利用、個人情報抑制運用 | TC-10 | EV-SEC-001 | In Progress |
+| TR-014 | NFR-05 | 監査性 | 6章要件トレーサビリティ | 4章, 5章 | 本マトリクス/変更履歴/テスト記録 | TC-10 | EV-AUD-001 | In Progress |
+
+## 3. 運用ルール
+
+1. 実装変更時は、同日に TR 行の状態と証跡IDを更新する。
+2. `Open` のままリリースしない。最低 `Verified` を必須とする。
+3. テスト実施記録の証跡IDと本マトリクスの証跡IDを一致させる。
+4. A/Bグループ相互レビューで `Trace ID` 欠番・重複がないことを確認する。
+
+## 4. ステータス定義
+
+| ステータス | 意味 |
+|-----------|------|
+| Open | 定義済みだが証跡未登録 |
+| In Progress | 試験またはレビュー実施中 |
+| Verified | 試験証跡とレビューが完了 |
+| Closed | 承認済みでベースライン固定 |
+
+## 5. 変更履歴
+
+| 版数 | 日付 | 変更内容 | 担当者 | Git Commit |
+|-----|------|---------|--------|------------|
+| 1.0 | 2026/02/20 | 新規作成（FR/NFR全追跡行定義）、Git履歴参照による版管理補完、FR-08表現統一とRD/BD実装非依存化後の追跡整合反映を統合 | 張　泊江（Group A） | `96985d9` |
+| 1.1 | 2026/03/13 | CombineProcess の試験実施および証跡保存を反映 | 張　泊江（Group A） | - |
