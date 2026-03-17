@@ -1,0 +1,15 @@
+更新履歴（Change Log）
+
+版数：v1.4
+日付：2026-03-16
+対象：ENSEMBLE SDTM Mapping 仕様書
+影響範囲：Mapping ステップ（DomainsSetting シート）
+内容：DomainsSetting（ソート規則）の全面改定（VAPORCONE SDTM定義書 V1.11-20260115 準拠）
+
+[変更内容]
+- DomainsSetting ワークブックのソート規則（SEQFIELD / SORTKEYS）を全面的に再定義
+- 全ドメインの並び順ルールを VAPORCONE SDTM定義書 V1.11-20260115 の規定に準拠する形で統一
+
+[影響]
+- データ内容（値・件数・生成ロジック）に変更なし
+- 出力ファイルのレコード順（ソート順）のみ変更あり（差分比較やテスト結果の表示順に影響する可能性あり）
