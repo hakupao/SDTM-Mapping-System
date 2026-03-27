@@ -1,0 +1,81 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111F"/>
+      <stop offset="0.55" stop-color="#0E223B"/>
+      <stop offset="1" stop-color="#0A4B57"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#0F1E33" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#0C3445" stop-opacity="0.96"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#34D399"/>
+    </linearGradient>
+    <filter id="shadow" x="-40" y="-40" width="1360" height="720" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#020617" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="640" rx="32" fill="url(#bg)"/>
+  <circle cx="1110" cy="96" r="170" fill="#38BDF8" fill-opacity="0.08"/>
+  <circle cx="990" cy="520" r="210" fill="#34D399" fill-opacity="0.08"/>
+  <circle cx="160" cy="112" r="120" fill="#60A5FA" fill-opacity="0.06"/>
+
+  <g filter="url(#shadow)">
+    <rect x="48" y="44" width="1184" height="552" rx="28" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.08"/>
+  </g>
+
+  <text x="88" y="118" fill="#93C5FD" font-family="Segoe UI, Arial, sans-serif" font-size="20" letter-spacing="3">CLINICAL DATA STANDARDIZATION ENGINE</text>
+  <text x="88" y="188" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="54" font-weight="700">SDTM Mapping System</text>
+  <text x="88" y="236" fill="#D6E4FF" font-family="Segoe UI, Arial, sans-serif" font-size="24">Config-driven ETL for turning raw study exports into SDTM datasets and M5 packages.</text>
+
+  <g opacity="0.95">
+    <rect x="88" y="276" width="450" height="166" rx="22" fill="#0B1526" stroke="#1E3A5F"/>
+    <text x="114" y="316" fill="#F8FAFC" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="600">What this repository demonstrates</text>
+    <text x="114" y="352" fill="#C6D4EF" font-family="Segoe UI, Arial, sans-serif" font-size="18">. Workbook-driven study onboarding</text>
+    <text x="114" y="384" fill="#C6D4EF" font-family="Segoe UI, Arial, sans-serif" font-size="18">. String-safe clinical data transformations</text>
+    <text x="114" y="416" fill="#C6D4EF" font-family="Segoe UI, Arial, sans-serif" font-size="18">. Stage-by-stage auditable outputs</text>
+  </g>
+
+  <g>
+    <rect x="88" y="470" width="160" height="86" rx="18" fill="#0B1526" stroke="#1E3A5F"/>
+    <text x="112" y="505" fill="#7DD3FC" font-family="Segoe UI, Arial, sans-serif" font-size="16">STUDIES</text>
+    <text x="112" y="540" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">3</text>
+
+    <rect x="268" y="470" width="160" height="86" rx="18" fill="#0B1526" stroke="#1E3A5F"/>
+    <text x="292" y="505" fill="#86EFAC" font-family="Segoe UI, Arial, sans-serif" font-size="16">OP TYPES</text>
+    <text x="292" y="540" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">8</text>
+
+    <rect x="448" y="470" width="220" height="86" rx="18" fill="#0B1526" stroke="#1E3A5F"/>
+    <text x="472" y="505" fill="#C4B5FD" font-family="Segoe UI, Arial, sans-serif" font-size="16">OUTPUT STYLE</text>
+    <text x="472" y="540" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">Timestamped Runs</text>
+  </g>
+
+  <g>
+    <rect x="728" y="116" width="432" height="378" rx="26" fill="#091423" stroke="#1D4ED8"/>
+    <text x="760" y="158" fill="#F8FAFC" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="600">Pipeline at a glance</text>
+
+    <rect x="760" y="188" width="164" height="70" rx="18" fill="#10233D"/>
+    <text x="790" y="218" fill="#7DD3FC" font-family="Segoe UI, Arial, sans-serif" font-size="16">INPUT</text>
+    <text x="790" y="242" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">Raw CSVs</text>
+
+    <rect x="968" y="188" width="160" height="70" rx="18" fill="#10233D"/>
+    <text x="994" y="218" fill="#86EFAC" font-family="Segoe UI, Arial, sans-serif" font-size="16">CONTROL</text>
+    <text x="994" y="242" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">Workbook</text>
+
+    <path d="M842 274 C842 302 842 302 842 328" stroke="url(#accent)" stroke-width="4" stroke-linecap="round"/>
+    <path d="M1048 274 C1048 302 998 302 956 328" stroke="url(#accent)" stroke-width="4" stroke-linecap="round"/>
+
+    <rect x="836" y="330" width="220" height="82" rx="22" fill="#0E2533" stroke="#0EA5E9"/>
+    <text x="866" y="364" fill="#7DD3FC" font-family="Segoe UI, Arial, sans-serif" font-size="16">ENGINE</text>
+    <text x="866" y="390" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">Clean + Format + Map</text>
+
+    <path d="M946 426 C946 448 946 448 946 470" stroke="url(#accent)" stroke-width="4" stroke-linecap="round"/>
+
+    <rect x="780" y="474" width="332" height="86" rx="22" fill="#0D1C2F" stroke="#14B8A6"/>
+    <text x="812" y="508" fill="#86EFAC" font-family="Segoe UI, Arial, sans-serif" font-size="16">DELIVERABLES</text>
+    <text x="812" y="534" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">SDTM CSV + m5.zip</text>
+  </g>
+</svg>
