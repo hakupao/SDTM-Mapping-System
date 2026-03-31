@@ -96,13 +96,13 @@ def DM():
     # 数据质量检查：记录同时存在 LSVDAT 和 DTHDAT 的受试者
     dual_date_subjects = dm_df.query('LSVDAT != "" and DTHDAT != ""')[['SUBJID', 'LSVDAT', 'DTHDAT']]
     if not dual_date_subjects.empty:
-        print(f"[DM] 警告: {len(dual_date_subjects)} 名の被験者で LSVDAT と DTHDAT の両方が入力されています。")
+        print(f"[DM] 警告: {len(dual_date_subjects)} 名の症例で LSVDAT と DTHDAT の両方が入力されています。")
         print(dual_date_subjects.to_string(index=False))
 
     # 数据质量检查：记录 LSVDAT 和 DTHDAT 同时为空的受试者（将导致 RFENDAT 为空）
     no_date_subjects = dm_df.query('LSVDAT == "" and DTHDAT == ""')[['SUBJID']]
     if not no_date_subjects.empty:
-        print(f"[DM] 警告: {len(no_date_subjects)} 名の被験者で LSVDAT と DTHDAT がいずれも未入力です。")
+        print(f"[DM] 警告: {len(no_date_subjects)} 名の症例で LSVDAT と DTHDAT がいずれも未入力です。")
         print(no_date_subjects.to_string(index=False))
 
     # 生成 RFENDAT：优先使用 DTHDAT，其次使用 LSVDAT

@@ -16,7 +16,7 @@
 
 [TU（Tumor Identification）]
 - 追加：プロトコール記載に基づき、がん種同定（Tumor Identification）情報を TU ドメインとして補完
-  - 全被験者共通の固定値として出力
+  - 全症例共通の固定値として出力
     - TUTEST / TUTESTCD：Tumor Identification / TUMIDENT
     - TUORRES／TUSTRESC：COLORECTAL CANCER
     - TULOC：RECTUM
