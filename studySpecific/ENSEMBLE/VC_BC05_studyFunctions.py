@@ -26,25 +26,25 @@ def filter_df_by_field(source, **filters):
     - 删除全空列（空字符串/NaN）。
     """
     if source is None:
-        raise ValueError("参数 source 不能为空。")
+        raise ValueError("引数 source は空にできません。")
 
     if isinstance(source, str):
         format_dataset = getFormatDataset(source)
         if source not in format_dataset:
-            raise KeyError(f"格式化数据集中未找到 '{source}' 表。")
+            raise KeyError(f"整形済みデータセットに '{source}' テーブルが見つかりません。")
         df = format_dataset[source].copy()
     elif isinstance(source, pandas.DataFrame):
         df = source.copy()
     else:
-        raise TypeError("参数 source 仅支持 DataFrame 或表名字符串。")
+        raise TypeError("引数 source には DataFrame またはテーブル名の文字列を指定してください。")
 
     if len(filters) != 1:
-        raise ValueError("filters 必须且只能包含一个筛选条件。")
+        raise ValueError("filters にはフィルタ条件を 1 件だけ指定してください。")
 
     field_name, value = next(iter(filters.items()))
 
     if field_name not in df.columns:
-        raise KeyError(f"数据缺少严格字段名 '{field_name}'，无法进行过滤。")
+        raise KeyError(f"データに厳密一致する列名 '{field_name}' が存在しないため、フィルタリングできません。")
 
     target_value = '' if value is None else str(value)
     series = df[field_name].fillna('').astype(str).str.strip()
@@ -96,13 +96,13 @@ def DM():
     # 数据质量检查：记录同时存在 LSVDAT 和 DTHDAT 的受试者
     dual_date_subjects = dm_df.query('LSVDAT != "" and DTHDAT != ""')[['SUBJID', 'LSVDAT', 'DTHDAT']]
     if not dual_date_subjects.empty:
-        print(f"[DM] 警告: {len(dual_date_subjects)} 名受试者同时存在 LSVDAT 和 DTHDAT:")
+        print(f"[DM] 警告: {len(dual_date_subjects)} 名の被験者で LSVDAT と DTHDAT の両方が入力されています。")
         print(dual_date_subjects.to_string(index=False))
 
     # 数据质量检查：记录 LSVDAT 和 DTHDAT 同时为空的受试者（将导致 RFENDAT 为空）
     no_date_subjects = dm_df.query('LSVDAT == "" and DTHDAT == ""')[['SUBJID']]
     if not no_date_subjects.empty:
-        print(f"[DM] 警告: {len(no_date_subjects)} 名受试者 LSVDAT 和 DTHDAT 均为空:")
+        print(f"[DM] 警告: {len(no_date_subjects)} 名の被験者で LSVDAT と DTHDAT がいずれも未入力です。")
         print(no_date_subjects.to_string(index=False))
 
     # 生成 RFENDAT：优先使用 DTHDAT，其次使用 LSVDAT
