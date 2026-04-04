@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=700&size=30&duration=3000&pause=1000&color=667EEA&center=true&vCenter=true&width=800&height=80&lines=SDTM+Mapping+System;临床试验+ETL+%C2%B7+CDISC+SDTM+%C2%B7+配置驱动" alt="SDTM Mapping System"/>
+<img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=700&size=30&duration=3000&pause=1000&color=667EEA&center=true&vCenter=true&width=800&height=80&lines=SDTM+Mapping+System;%E4%B8%B4%E5%BA%8A%E8%AF%95%E9%AA%8C+ETL+%C2%B7+CDISC+SDTM+%C2%B7+%E9%85%8D%E7%BD%AE%E9%A9%B1%E5%8A%A8" alt="SDTM Mapping System"/>
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python)
 ![pandas](https://img.shields.io/badge/pandas-2.3.1-150458?style=flat-square&logo=pandas)
