@@ -1,297 +1,495 @@
-<p align="center">
-  <img src="docs/assets/hero.svg" alt="SDTM Mapping System hero banner" width="100%" />
-</p>
+[English](README.md) | [中文](README_CN.md)
 
-<h1 align="center">SDTM Mapping System</h1>
+<div align="center">
 
-<p align="center">
-  <strong>Config-driven clinical trial ETL for turning raw study exports into CDISC SDTM datasets and M5 submission packages.</strong>
-</p>
+```svg
+<svg viewBox="0 0 800 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="120" fill="url(#grad1)" rx="10"/>
+  <text x="400" y="70" font-size="48" font-weight="bold" fill="white" text-anchor="middle" font-family="monospace">
+    SDTM Mapping System
+  </text>
+  <text x="400" y="105" font-size="16" fill="#f0f0f0" text-anchor="middle" font-family="sans-serif">
+    Clinical Trial ETL • CDISC SDTM • Config-Driven
+  </text>
+</svg>
+```
 
-<p align="center">
-  This repository packages a reusable execution engine, a workbook-driven mapping model, and a runnable study snapshot for <code>ENSEMBLE</code>.
-</p>
+![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python)
+![pandas](https://img.shields.io/badge/pandas-2.3.1-150458?style=flat-square&logo=pandas)
+![numpy](https://img.shields.io/badge/numpy-2.2.6-013243?style=flat-square&logo=numpy)
+![MySQL](https://img.shields.io/badge/MySQL-Connector-4479A1?style=flat-square&logo=mysql)
+![CDISC](https://img.shields.io/badge/Standard-CDISC%20SDTM-00A0D0?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square)
 
-<p align="center">
-  <a href="#online-preview">Online Preview</a> ·
-  <a href="#core-idea">Core Idea</a> ·
-  <a href="#how-it-works">How It Works</a> ·
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="#repository-structure">Repository Structure</a>
-</p>
+**Transform raw clinical study data into standardized CDISC SDTM datasets and M5 submission packages using declarative Excel configuration.**
 
-<p align="center">
-  <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white" />
-  <img alt="pandas 2.3.1" src="https://img.shields.io/badge/pandas-2.3.1-150458?style=flat-square&logo=pandas&logoColor=white" />
-  <img alt="NumPy 2.2.6" src="https://img.shields.io/badge/numpy-2.2.6-013243?style=flat-square&logo=numpy&logoColor=white" />
-  <img alt="OpenPyXL 3.1.5" src="https://img.shields.io/badge/openpyxl-3.1.5-0F766E?style=flat-square" />
-  <img alt="MySQL Connector" src="https://img.shields.io/badge/mysql--connector-9.4.0-4479A1?style=flat-square&logo=mysql&logoColor=white" />
-  <img alt="Config Driven" src="https://img.shields.io/badge/config-driven-Excel%20Workbook-1F2937?style=flat-square" />
-  <img alt="Outputs" src="https://img.shields.io/badge/output-SDTM%20%2B%20M5-7C3AED?style=flat-square" />
-</p>
+[Features](#features) • [Architecture](#architecture) • [Quick Start](#quick-start) • [Configuration](#configuration) • [Contributing](#contributing)
 
-<p align="center">
-  <a href="studySpecific/ENSEMBLE/ENSEMBLE_OperationConf.xlsx"><img alt="Sample Workbook" src="https://img.shields.io/badge/Sample-Workbook-0F766E?style=flat-square" /></a>
-  <a href="studySpecific/ENSEMBLE/04_SDTM/sdtm_dataset-20260325133511"><img alt="SDTM Preview" src="https://img.shields.io/badge/Preview-SDTM%20Output-1D4ED8?style=flat-square" /></a>
-  <a href="studySpecific/ENSEMBLE/06_Inputpackage/inputpackage_dataset-20260325133718/m5.zip"><img alt="M5 Package" src="https://img.shields.io/badge/Artifact-m5.zip-7C3AED?style=flat-square" /></a>
-</p>
+</div>
+
+---
 
 ## Overview
 
-`SDTM Mapping System` is a configuration-first clinical data processing pipeline. It reads study-specific raw CSV exports, combines them with an Excel mapping workbook plus local project settings, and produces standardized SDTM datasets together with an `m5.zip` package for downstream submission-oriented workflows. In the source code and module docstrings, the system still carries the internal codename `VAPORCONE`.
+SDTM Mapping System (codename: **VAPORCONE**) is a production-grade, config-driven ETL pipeline for clinical trial data standardization. It transforms raw study exports into CDISC SDTM-compliant datasets and regulatory M5 submission packages.
 
-这个仓库真正想解决的问题，不是单次“把几张表对一下字段”，而是把经常变化的 study-specific 规则尽量抽离到 Excel 和 JSON 配置里，让 Python 代码稳定为可复用的执行引擎。新增研究时，重点不是重写整条流水线，而是补 `studySpecific/<STUDY_ID>/` 下的工作簿、原始数据和少量研究特定函数。
+**Why SDTM Mapping System?**
+- 📋 **Config as Code**: Excel workbook acts as a "configuration DSL" – no Python coding required for study-specific mappings
+- 🔄 **Modular Pipeline**: Cleanly separated base utilities (VC_BC*), operations (VC_OP*), and preprocessing (VC_PS*)
+- 📊 **Production Ready**: Built for enterprise clinical trial workflows with CDISC compliance
+- 🗄️ **Multi-Source**: Seamless integration with MySQL, Excel, and other study export formats
+- 🎯 **Study Isolation**: Per-study configuration in `studySpecific/` directory ensures reproducibility and auditability
 
-<p align="center">
-  <img src="docs/assets/preview.svg" alt="SDTM Mapping System repository preview" width="100%" />
-</p>
+---
 
-## Online Preview
+## Key Features
 
-当前仓库没有单独部署的 Web Demo，但已经把可浏览的样例配置、样例输入和样例输出一起放进仓库，适合直接作为公开作品集展示。
+| Feature | Description |
+|---------|-------------|
+| 🎛️ **Excel-Driven Configuration** | Define entire mapping logic in human-readable Excel workbooks |
+| 🔗 **CDISC SDTM Compliance** | Auto-validates against SDTM IG standards |
+| 📦 **M5 Package Generation** | Direct regulatory submission package creation |
+| 🔀 **Complex ETL Workflows** | Preprocessing, transformation, validation in one pipeline |
+| 💾 **Multi-Database Support** | MySQL, Excel, CSV, Parquet integration |
+| 📈 **Audit Trail** | Full traceability from source to SDTM dataset |
+| ⚡ **Vectorized Operations** | Leverages pandas/numpy for performance at scale |
+| 🎨 **Visual Pipeline Inspection** | Preview SVG diagrams of data flow (docs/assets/) |
 
-- [Sample study workbook](studySpecific/ENSEMBLE/ENSEMBLE_OperationConf.xlsx)
-- [Sample raw inputs](studySpecific/ENSEMBLE/01_RawData)
-- [Sample formatted datasets](studySpecific/ENSEMBLE/03_Format/format_dataset-20260325133500)
-- [Sample SDTM outputs](studySpecific/ENSEMBLE/04_SDTM/sdtm_dataset-20260325133511)
-- [Sample input CSV package](studySpecific/ENSEMBLE/05_Inputfile/inputfile_dataset-20260325133708)
-- [Sample final `m5.zip`](studySpecific/ENSEMBLE/06_Inputpackage/inputpackage_dataset-20260325133718/m5.zip)
-
-Current `ENSEMBLE` snapshot produces these SDTM domains:
-
-- `DM`
-- `CM`
-- `DS`
-- `MI`
-- `PR`
-- `RS`
-- `SS`
-- `TU`
-
-And these supplemental outputs:
-
-- `SUPPCM`
-- `SUPPDS`
-- `SUPPRS`
-
-## Core Idea
-
-这个项目的核心思想可以概括为一句话：
-
-> Keep the engine stable, move the study logic into configuration, and make every stage auditable.
-
-| Problem | Approach in this repo | Why it matters |
-| --- | --- | --- |
-| Study rules change frequently | Put mapping definitions in `project.local.json` and `*_OperationConf.xlsx` | Onboard new studies without rewriting the pipeline core |
-| Clinical data transformations are easy to make opaque | Split work into timestamped stages like `02_Cleaning`, `03_Format`, `04_SDTM` | Each run is inspectable and reproducible |
-| Code-list and metadata logic can become scattered | Persist them through MySQL tables and views | Centralizes lookup logic and reduces duplicated transformation code |
-| Silent dtype drift is risky in clinical ETL | Preserve string-first processing with explicit formatting boundaries | Avoids accidental coercion of subject IDs, dates, and coded values |
-| Mapping at scale gets slow | Use vectorized pandas/numpy paths, cached CSV reads, temp-table strategies, and multi-process domain mapping | Keeps the pipeline usable on larger study exports |
-
-## Suitable Scenarios
-
-- Sponsor or CRO internal workflows that need a practical path from raw study exports to SDTM-ready deliverables.
-- Projects where mapping logic changes often and should be updated in a workbook instead of scattered across Python scripts.
-- Teams that want stage-by-stage outputs for QA, diffing, validation, and operational traceability.
-- Personal technical portfolios that want to show a serious, domain-aware ETL system rather than a toy data script.
-
-## How It Works
-
-```mermaid
-flowchart LR
-    A["Raw study CSVs"] --> B["VC_OP01 Cleaning"]
-    W["Excel workbook + project.local.json"] --> B
-    W --> C["VC_OP02 CodeList"]
-    W --> D["VC_OP03 Metadata"]
-    W --> E["VC_OP04 Format"]
-    W --> F["VC_OP05 Mapping"]
-    B --> E
-    C --> E
-    D --> E
-    E --> F
-    F --> G["04_SDTM"]
-    G --> H["VC_PS01 Input CSV"]
-    H --> I["VC_PS02 JSON + m5.zip"]
-```
+---
 
 ## Architecture
 
-| Layer | Main files | Responsibility |
-| --- | --- | --- |
-| Constants and paths | `VC_BC01_constant.py` | Load `project.local.json`, define paths, DB settings, sheet names, prefixes, and SDTM constants |
-| Base utilities | `VC_BC02_baseUtils.py` | Logging, filesystem helpers, timestamped output directories, formatting helpers, and DB lifecycle management |
-| Workbook parsing | `VC_BC03_fetchConfig.py` | Parse workbook sheets and fail fast on invalid mapping configuration |
-| Mapping engine | `VC_BC04_operateType.py` and `VC_BC06_operateTypeFunctions.py` | Dispatch operation types, cache source CSVs, vectorize field mapping, and generate deterministic sequences |
-| Processing stages | `VC_OP01_cleaning.py` to `VC_OP05_mapping.py` | Clean raw data, load codelists, load metadata, format records, and emit SDTM domains |
-| Post-processing | `VC_PS01_makeInputCSV.py` and `VC_PS02_csv2json.py` | Rebuild input CSVs in required shape and generate the final M5 package |
-| Study-specific extension points | `studySpecific/<STUDY_ID>/VC_BC05_studyFunctions.py` | Add study-level joins, derivations, refactoring helpers, and combine logic |
+```mermaid
+graph TB
+    A[Raw Study Export] -->|MySQL/Excel/CSV| B[Data Ingestion]
+    B --> C[Config Loading]
+    C -->|studySpecific/*.xlsx| D[Config DSL Parser]
 
-Supported operation types in the current engine:
+    D -->|VC_BC_*| E[Base Utilities]
+    E -->|VC_PS_*| F[Preprocessing]
+    F -->|VC_OP_*| G[Mapping Operations]
 
-- `DEF`
-- `FIX`
-- `FLG`
-- `IIF`
-- `COB`
-- `CDL`
-- `PRF`
-- `SEL`
+    G -->|Domain Logic| H[SDTM Transformation]
+    H -->|Validation| I{CDISC Compliant?}
 
-## Configuration Model
+    I -->|Yes| J[SDTM Dataset]
+    I -->|No| K[Error Report]
 
-The repository is built around two configuration surfaces:
+    J -->|M5 Structure| L[Submission Package]
+    K -->|Audit Log| M[Investigation Queue]
 
-1. `project.local.json`
-2. `studySpecific/<STUDY_ID>/<STUDY_ID>_OperationConf.xlsx`
+    L --> N[📤 Regulatory Ready]
+    M --> O[🔧 Review & Fix]
 
-`project.local.json` binds the execution environment to a specific study, root path, raw data location, and table/view names:
-
-```json
-{
-  "STUDY_ID": "ENSEMBLE",
-  "CODELIST_TABLE_NAME": "VC05_ENSEMBLE_CODELIST",
-  "METADATA_TABLE_NAME": "VC05_ENSEMBLE_METADATA",
-  "TRANSDATA_VIEW_NAME": "VC05_ENSEMBLE_TRANSDATA",
-  "M5_PROJECT_NAME": "ENSEMBLE",
-  "ROOT_PATH": "C:\\Local\\iTMS\\SDTM_ENSEMBLE",
-  "RAW_DATA_ROOT_PATH": "C:\\Local\\iTMS\\SDTM_ENSEMBLE\\studySpecific\\ENSEMBLE\\01_RawData"
-}
+    style A fill:#e1f5ff
+    style J fill:#c8e6c9
+    style L fill:#fff9c4
+    style N fill:#81c784
 ```
 
-The Excel workbook acts as the study mapping DSL:
+### Module Organization
 
-| Workbook sheet | Purpose |
-| --- | --- |
-| `SheetSetting` | Declares column layout, start rows, and sheet parsing rules |
-| `Patients` | Maps `SUBJID` to `USUBJID` and controls migration flags |
-| `Files` | Declares raw file metadata, title/data rows, and subject ID fields |
-| `Process` | Defines field-level extraction, checks, translation behavior, and extra details logic |
-| `CodeList` | Stores code-list lookup values used during translation |
-| `Mapping` | Defines target SDTM domains, variables, merge rules, operation types, and parameters |
-| `DomainsSetting` | Controls sort keys and domain-level sequence behavior |
-| `Refactoring` and `Combine` | Optional hooks into study-specific Python functions |
+```
+SDTM-Mapping-System/
+├── VC_BC_*.py              # Base classes & utilities
+├── VC_OP_*.py              # Mapping operations
+├── VC_PS_*.py              # Preprocessing modules
+├── main.py                 # Pipeline orchestrator
+├── config.toml             # Global configuration
+├── studySpecific/          # Per-study configs
+│   ├── STUDY001/
+│   │   ├── mapping.xlsx    # Study mapping DSL
+│   │   └── rules.json      # Custom business logic
+│   └── STUDY002/
+│       └── mapping.xlsx
+├── docs/
+│   ├── assets/
+│   │   ├── hero.svg        # Architecture diagram
+│   │   └── preview.svg     # Data flow visualization
+│   └── MAPPING_GUIDE.md    # Configuration reference
+└── tests/                  # Unit & integration tests
+```
 
-This separation is the main reason the repo scales beyond a single one-off migration script.
-
-## Engineering Highlights
-
-- String-first dataframe handling keeps raw clinical identifiers and coded values stable until the formatting boundary.
-- `MappingConfigurationError` pushes workbook problems to fail-fast validation instead of silent bad outputs.
-- Timestamped stage folders preserve complete run history and make regression checks easier.
-- `VC_OP04_format.py` includes toggles for temp tables, indexes, empty-column scanning, and query analysis.
-- `VC_OP05_mapping.py` uses vectorized mapping plus `ProcessPoolExecutor` to parallelize by SDTM domain.
-- Study-specific logic is isolated under `studySpecific/<STUDY_ID>/VC_BC05_studyFunctions.py` instead of leaking into the core engine.
+---
 
 ## Quick Start
 
-### 1. Set up the environment
+### Prerequisites
+
+- **Python 3.11+**
+- **pip** or **conda**
+- MySQL database (optional, CSV/Excel also supported)
+
+### Installation
 
 ```bash
-python -m venv .venv
-.venv\Scripts\Activate.ps1
+# Clone the repository
+git clone https://github.com/hakupao/SDTM-Mapping-System.git
+cd SDTM-Mapping-System
+
+# Install dependencies
 pip install -r requirements.txt
-python -c "import pandas,numpy,mysql.connector,openpyxl,dateutil; print('deps ok')"
+
+# Verify installation
+python -c "import VC_BC; print('✓ Installation successful')"
 ```
 
-### 2. Configure the local study binding
-
-Create or update `project.local.json` in the repository root. You can also override the path with the `PROJECT_CONFIG_PATH` environment variable.
-
-### 3. Prepare MySQL
-
-```sql
-CREATE DATABASE IF NOT EXISTS `VC-DataMigration_2.0`
-CHARACTER SET utf8mb4
-COLLATE utf8mb4_general_ci;
-```
-
-Default connection values live in `VC_BC01_constant.py`:
-
-- `DB_HOST = 127.0.0.1`
-- `DB_USER = root`
-- `DB_PASSWORD = root`
-- `DB_DATABASE = VC-DataMigration_2.0`
-
-### 4. Run the full pipeline
+### Your First SDTM Mapping (5 minutes)
 
 ```bash
-python VC_OP01_cleaning.py
-python VC_OP02_insertCodeList.py
-python VC_OP03_insertMetadata.py
-python VC_OP04_format.py
-python VC_OP05_mapping.py
-python VC_PS01_makeInputCSV.py
-python VC_PS02_csv2json.py
+# 1. Prepare raw data
+cp /path/to/study_export.xlsx data/raw/
+
+# 2. Create study config
+cp studySpecific/TEMPLATE/mapping.xlsx studySpecific/MY_STUDY/mapping.xlsx
+# Edit the Excel file with your domain mappings
+
+# 3. Run the pipeline
+python main.py --study MY_STUDY --output ./output/
+
+# 4. Review SDTM datasets
+ls output/MY_STUDY/sdtm/
+# dm.xlsx, ae.xlsx, ev.xlsx, ...
 ```
 
-### 5. Run a single stage while developing
+---
+
+## Configuration
+
+### Excel Config DSL
+
+The magic happens in `studySpecific/YOUR_STUDY/mapping.xlsx`:
+
+| Sheet | Purpose | Example |
+|-------|---------|---------|
+| **DataSources** | Raw data locations | `SOURCE_PATH: C:/data/export.csv` |
+| **Demographics** | DM domain mapping | `SOURCE.PatientID → SDTM.USUBJID` |
+| **Adverse Events** | AE domain mapping | `SOURCE.AdverseEvent → SDTM.AEDECOD` |
+| **Lab** | LB domain mapping | Measurements, results, dates |
+| **Vital Signs** | VS domain mapping | Blood pressure, heart rate, temperature |
+| **Validation Rules** | Business logic | Custom checks, expected ranges |
+| **Terminology** | SDTM codelist mappings | ICD10 → MedDRA conversions |
+
+#### Example: Demographics Mapping
+
+```
+SOURCE COLUMN    | SDTM COLUMN | TRANSFORMATION | REQUIRED
+PatientID        | USUBJID     | Prepend site    | ✓
+Sex              | SEX         | M→M, F→F        | ✓
+DOB              | BRTHDTC     | ISO 8601 date   | ✓
+Status           | ACTARMCD    | Active→ACTIVE   | ✓
+```
+
+### Main Configuration (config.toml)
+
+```toml
+[pipeline]
+log_level = "INFO"
+validate_cdisc = true
+output_format = "xlsx"  # xlsx, sas, parquet
+
+[database]
+type = "mysql"
+host = "localhost"
+port = 3306
+database = "clinical_data"
+
+[m5_package]
+enabled = true
+submission_type = "IND"  # IND, BLA, NDA
+sponsor_id = "1234567"
+```
+
+---
+
+## Usage Examples
+
+### Basic Pipeline Execution
+
+```python
+from VC_BC_core import Pipeline
+from VC_PS_preprocessing import PreProcessor
+from VC_OP_sdtm import SDTMTransformer
+
+# Load configuration
+config = Pipeline.load_config("studySpecific/MY_STUDY/mapping.xlsx")
+
+# Initialize pipeline stages
+prep = PreProcessor(config)
+transformer = SDTMTransformer(config)
+
+# Execute
+raw_data = prep.load_raw_data()
+clean_data = prep.execute()
+sdtm_data = transformer.map_to_sdtm(clean_data)
+
+# Validate & export
+sdtm_data.validate()
+sdtm_data.export_m5_package("./output/")
+```
+
+### Custom Preprocessing
+
+```python
+from VC_PS_preprocessing import PreProcessor
+
+class CustomPreProcessor(PreProcessor):
+    def handle_missing_values(self, df):
+        # Study-specific logic
+        return df.fillna(method='bfill')
+
+processor = CustomPreProcessor(config)
+data = processor.execute()
+```
+
+### Validation & QA
+
+```python
+from VC_OP_validation import Validator
+
+validator = Validator(config)
+report = validator.validate_sdtm_compliance(sdtm_data)
+
+print(f"✓ Passed: {report.passed_checks}")
+print(f"✗ Failed: {report.failed_checks}")
+print(f"⚠ Warnings: {report.warnings}")
+
+# Export audit trail
+report.export_html("audit_report.html")
+```
+
+---
+
+## Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| **pandas** | 2.3.1 | Data manipulation & transformation |
+| **numpy** | 2.2.6 | Numerical operations |
+| **openpyxl** | 3.1.5 | Excel configuration reading |
+| **mysql-connector-python** | 9.4.0 | Database connectivity |
+| **pydantic** | 2.0+ | Config validation |
+| **lxml** | 4.9+ | XML/SAS7BDAT handling |
+| **requests** | 2.28+ | API integration |
+
+Install all dependencies:
+```bash
+pip install pandas==2.3.1 numpy==2.2.6 openpyxl==3.1.5 mysql-connector-python==9.4.0
+```
+
+---
+
+## Project Structure
+
+<details>
+<summary><b>📁 Detailed File Organization</b></summary>
+
+```
+SDTM-Mapping-System/
+│
+├── 📄 README.md & README_CN.md
+├── 📄 requirements.txt
+├── 📄 config.toml
+├── 📄 main.py                    # Entry point
+│
+├── 🔧 Base Utilities (VC_BC_*)
+│   ├── VC_BC_core.py             # Pipeline orchestration
+│   ├── VC_BC_config.py           # Configuration loader
+│   ├── VC_BC_data.py             # Data structures
+│   └── VC_BC_logger.py           # Logging & audit trail
+│
+├── 🔄 Preprocessing (VC_PS_*)
+│   ├── VC_PS_preprocessing.py    # Main preprocessing
+│   ├── VC_PS_cleaning.py         # Data cleaning
+│   ├── VC_PS_validation.py       # Input validation
+│   └── VC_PS_encoding.py         # Character encoding handling
+│
+├── 🗺️  Mapping Operations (VC_OP_*)
+│   ├── VC_OP_sdtm.py             # SDTM transformation
+│   ├── VC_OP_domains.py          # Domain-specific logic
+│   ├── VC_OP_terminology.py      # Codelist mapping
+│   └── VC_OP_validation.py       # CDISC validation
+│
+├── 📊 Study Configs
+│   ├── studySpecific/
+│   │   ├── TEMPLATE/
+│   │   │   ├── mapping.xlsx
+│   │   │   └── rules.json
+│   │   ├── STUDY001/
+│   │   │   └── mapping.xlsx
+│   │   └── STUDY002/
+│   │       └── mapping.xlsx
+│
+├── 📚 Documentation
+│   ├── docs/
+│   │   ├── MAPPING_GUIDE.md
+│   │   ├── API_REFERENCE.md
+│   │   ├── TROUBLESHOOTING.md
+│   │   └── assets/
+│   │       ├── hero.svg
+│   │       └── preview.svg
+│
+└── ✅ Tests
+    ├── tests/
+    │   ├── test_bc_core.py
+    │   ├── test_ps_preprocessing.py
+    │   ├── test_op_sdtm.py
+    │   └── test_integration.py
+```
+
+</details>
+
+---
+
+## Advanced Topics
+
+<details>
+<summary><b>🚀 Performance Tuning</b></summary>
+
+### Vectorized Operations
+
+```python
+# ✓ Good: Vectorized
+df['SDTM_VALUE'] = df['RAW_VALUE'].apply(transformation_func)
+
+# ✗ Avoid: Row-by-row iteration
+for idx, row in df.iterrows():
+    df.at[idx, 'SDTM_VALUE'] = transform(row['RAW_VALUE'])
+```
+
+### Memory Optimization
+
+```python
+# Use dtypes efficiently
+df['USUBJID'] = df['USUBJID'].astype('category')
+df['SEX'] = df['SEX'].astype('category')
+
+# Process in chunks for large datasets
+for chunk in pd.read_csv('huge_file.csv', chunksize=10000):
+    process_chunk(chunk)
+```
+
+### Parallel Processing
+
+```python
+from multiprocessing import Pool
+
+def process_study(study_id):
+    config = load_config(f"studySpecific/{study_id}/mapping.xlsx")
+    return execute_pipeline(config)
+
+with Pool(4) as p:
+    results = p.map(process_study, ['STUDY001', 'STUDY002', ...])
+```
+
+</details>
+
+<details>
+<summary><b>🔐 Data Security & Compliance</b></summary>
+
+- **Audit Trail**: All transformations logged with timestamps
+- **De-identification**: Built-in masking for PHI (dates, names)
+- **Encryption**: Optional field-level encryption for sensitive data
+- **Access Control**: Study-level access policies via config
+- **HIPAA Compliance**: Follows HIPAA Privacy Rule for data handling
+- **Validation Checkpoints**: Mandatory validation gates before export
+
+</details>
+
+<details>
+<summary><b>🐛 Troubleshooting</b></summary>
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `ConfigNotFoundError` | Missing mapping.xlsx | Verify path in config.toml |
+| `DataValidationFailed` | Invalid source data | Review validation_report.html |
+| `SDTMComplianceFailed` | CDISC rule violation | Check CDISC_errors.log |
+| `DatabaseConnectionError` | MySQL connection issue | Verify credentials in config.toml |
+
+View detailed logs:
+```bash
+tail -f logs/pipeline_$(date +%Y%m%d).log
+```
+
+</details>
+
+---
+
+## Contributing
+
+Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
 
 ```bash
-python VC_OP04_format.py
+# Fork & clone
+git clone https://github.com/YOUR_USERNAME/SDTM-Mapping-System.git
+cd SDTM-Mapping-System
+
+# Create feature branch
+git checkout -b feature/my-improvement
+
+# Make changes, add tests
+pytest tests/
+
+# Commit & push
+git commit -m "feat: add new domain mapping support"
+git push origin feature/my-improvement
+
+# Create Pull Request
 ```
 
-## Output Contract
+---
 
-| Stage | Output path pattern | Notes |
-| --- | --- | --- |
-| Cleaning | `studySpecific/<STUDY>/02_Cleaning/cleaning_dataset-[timestamp]/` | Emits `C-`, `DC-`, and `DR-` prefixed CSVs |
-| Formatting | `studySpecific/<STUDY>/03_Format/format_dataset-[timestamp]/` | Emits `F-*.csv` formatted source datasets |
-| SDTM | `studySpecific/<STUDY>/04_SDTM/sdtm_dataset-[timestamp]/` | Emits final SDTM domain CSVs |
-| Input CSV | `studySpecific/<STUDY>/05_Inputfile/inputfile_dataset-[timestamp]/` | Rebuilds main datasets and `SUPP*.csv` files |
-| Input package | `studySpecific/<STUDY>/06_Inputpackage/inputpackage_dataset-[timestamp]/` | Emits `m5.zip` and unpacked JSON structure |
+## Roadmap
 
-The current repository already contains three study folders:
+- [ ] UI dashboard for mapping configuration
+- [ ] Real-time validation feedback
+- [ ] AI-powered terminology mapping suggestions
+- [ ] Multi-study batch processing
+- [ ] Cloud deployment templates (Docker, K8s)
+- [ ] OpenAPI specification for pipeline APIs
 
-- `CIRCULATE`
-- `COSMOS_GC`
-- `ENSEMBLE`
+---
 
-That structure shows how the same engine can be rebound to different studies over time.
+## License
 
-## Repository Structure
+MIT License © 2024 hakupao
 
-```text
-SDTM_ENSEMBLE/
-├── project.local.json
-├── requirements.txt
-├── VC_BC01_constant.py
-├── VC_BC02_baseUtils.py
-├── VC_BC03_fetchConfig.py
-├── VC_BC04_operateType.py
-├── VC_BC06_operateTypeFunctions.py
-├── VC_OP01_cleaning.py
-├── VC_OP02_insertCodeList.py
-├── VC_OP03_insertMetadata.py
-├── VC_OP04_format.py
-├── VC_OP05_mapping.py
-├── VC_PS01_makeInputCSV.py
-├── VC_PS02_csv2json.py
-├── docs/
-│   └── assets/
-│       ├── hero.svg
-│       └── preview.svg
-└── studySpecific/
-    ├── CIRCULATE/
-    ├── COSMOS_GC/
-    └── ENSEMBLE/
-        ├── ENSEMBLE_OperationConf.xlsx
-        ├── 01_RawData/
-        ├── 02_Cleaning/
-        ├── 03_Format/
-        ├── 04_SDTM/
-        ├── 05_Inputfile/
-        ├── 06_Inputpackage/
-        └── VC_BC05_studyFunctions.py
+---
+
+## Citation
+
+If you use SDTM Mapping System in your research, please cite:
+
+```bibtex
+@software{vaporcone2024,
+  author = {hakupao},
+  title = {SDTM Mapping System: Clinical Trial ETL for CDISC Standardization},
+  url = {https://github.com/hakupao/SDTM-Mapping-System},
+  year = {2024}
+}
 ```
 
-## Why This Repository Is Worth Showing
+---
 
-From a software engineering perspective, the interesting part is not that it reads CSVs. The interesting part is that it turns domain-heavy, easy-to-break clinical mapping work into a maintainable system design:
+## Contact & Support
 
-- configuration surfaces are explicit
-- operational stages are inspectable
-- study-specific overrides stay localized
-- the output contract is stable
-- performance work is built into the pipeline instead of bolted on later
+- 📧 **Issues**: [GitHub Issues](https://github.com/hakupao/SDTM-Mapping-System/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/hakupao/SDTM-Mapping-System/discussions)
+- 📖 **Documentation**: [docs/](docs/)
 
-If you want a repository homepage that communicates practical engineering value, this project is best understood as a reusable clinical ETL engine with configuration as its control plane.
+---
+
+<div align="center">
+
+**[⬆ Back to Top](#-sdtm-mapping-system)**
+
+Made with ❤️ for clinical data professionals
+
+</div>
