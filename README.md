@@ -2,23 +2,7 @@
 
 <div align="center">
 
-```svg
-<svg viewBox="0 0 800 120" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
-    </linearGradient>
-  </defs>
-  <rect width="800" height="120" fill="url(#grad1)" rx="10"/>
-  <text x="400" y="70" font-size="48" font-weight="bold" fill="white" text-anchor="middle" font-family="monospace">
-    SDTM Mapping System
-  </text>
-  <text x="400" y="105" font-size="16" fill="#f0f0f0" text-anchor="middle" font-family="sans-serif">
-    Clinical Trial ETL • CDISC SDTM • Config-Driven
-  </text>
-</svg>
-```
+<img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=700&size=30&duration=3000&pause=1000&color=667EEA&center=true&vCenter=true&width=800&height=80&lines=SDTM+Mapping+System;Clinical+Trial+ETL+%C2%B7+CDISC+SDTM+%C2%B7+Config-Driven" alt="SDTM Mapping System"/>
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python)
 ![pandas](https://img.shields.io/badge/pandas-2.3.1-150458?style=flat-square&logo=pandas)
@@ -68,30 +52,30 @@ SDTM Mapping System (codename: **VAPORCONE**) is a production-grade, config-driv
 
 ```mermaid
 graph TB
-    A[Raw Study Export] -->|MySQL/Excel/CSV| B[Data Ingestion]
-    B --> C[Config Loading]
-    C -->|studySpecific/*.xlsx| D[Config DSL Parser]
+ A[Raw Study Export] -->|MySQL/Excel/CSV| B[Data Ingestion]
+ B --> C[Config Loading]
+ C -->|studySpecific/*.xlsx| D[Config DSL Parser]
 
-    D -->|VC_BC_*| E[Base Utilities]
-    E -->|VC_PS_*| F[Preprocessing]
-    F -->|VC_OP_*| G[Mapping Operations]
+ D -->|VC_BC_*| E[Base Utilities]
+ E -->|VC_PS_*| F[Preprocessing]
+ F -->|VC_OP_*| G[Mapping Operations]
 
-    G -->|Domain Logic| H[SDTM Transformation]
-    H -->|Validation| I{CDISC Compliant?}
+ G -->|Domain Logic| H[SDTM Transformation]
+ H -->|Validation| I{CDISC Compliant?}
 
-    I -->|Yes| J[SDTM Dataset]
-    I -->|No| K[Error Report]
+ I -->|Yes| J[SDTM Dataset]
+ I -->|No| K[Error Report]
 
-    J -->|M5 Structure| L[Submission Package]
-    K -->|Audit Log| M[Investigation Queue]
+ J -->|M5 Structure| L[Submission Package]
+ K -->|Audit Log| M[Investigation Queue]
 
-    L --> N[📤 Regulatory Ready]
-    M --> O[🔧 Review & Fix]
+ L --> N[ Regulatory Ready]
+ M --> O[ Review & Fix]
 
-    style A fill:#e1f5ff
-    style J fill:#c8e6c9
-    style L fill:#fff9c4
-    style N fill:#81c784
+ style A fill:#e1f5ff
+ style J fill:#c8e6c9
+ style L fill:#fff9c4
+ style N fill:#81c784
 ```
 
 ### Module Organization

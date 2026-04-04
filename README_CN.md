@@ -2,23 +2,7 @@
 
 <div align="center">
 
-```svg
-<svg viewBox="0 0 800 120" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
-    </linearGradient>
-  </defs>
-  <rect width="800" height="120" fill="url(#grad1)" rx="10"/>
-  <text x="400" y="70" font-size="48" font-weight="bold" fill="white" text-anchor="middle" font-family="monospace">
-    SDTM Mapping System
-  </text>
-  <text x="400" y="105" font-size="16" fill="#f0f0f0" text-anchor="middle" font-family="sans-serif">
-    临床试验 ETL · CDISC SDTM · 配置驱动
-  </text>
-</svg>
-```
+<img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=700&size=30&duration=3000&pause=1000&color=667EEA&center=true&vCenter=true&width=800&height=80&lines=SDTM+Mapping+System;临床试验+ETL+%C2%B7+CDISC+SDTM+%C2%B7+配置驱动" alt="SDTM Mapping System"/>
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python)
 ![pandas](https://img.shields.io/badge/pandas-2.3.1-150458?style=flat-square&logo=pandas)
@@ -68,30 +52,30 @@ SDTM Mapping System（代码名：**VAPORCONE**）是一套生产级、配置驱
 
 ```mermaid
 graph TB
-    A[原始研究导出] -->|MySQL/Excel/CSV| B[数据摄入]
-    B --> C[配置加载]
-    C -->|studySpecific/*.xlsx| D[配置 DSL 解析器]
+ A[原始研究导出] -->|MySQL/Excel/CSV| B[数据摄入]
+ B --> C[配置加载]
+ C -->|studySpecific/*.xlsx| D[配置 DSL 解析器]
 
-    D -->|VC_BC_*| E[基础工具]
-    E -->|VC_PS_*| F[预处理]
-    F -->|VC_OP_*| G[映射操作]
+ D -->|VC_BC_*| E[基础工具]
+ E -->|VC_PS_*| F[预处理]
+ F -->|VC_OP_*| G[映射操作]
 
-    G -->|域业务逻辑| H[SDTM 转换]
-    H -->|验证| I{CDISC 合规?}
+ G -->|域业务逻辑| H[SDTM 转换]
+ H -->|验证| I{CDISC 合规?}
 
-    I -->|是| J[SDTM 数据集]
-    I -->|否| K[错误报告]
+ I -->|是| J[SDTM 数据集]
+ I -->|否| K[错误报告]
 
-    J -->|M5 结构| L[提交包]
-    K -->|审计日志| M[调查队列]
+ J -->|M5 结构| L[提交包]
+ K -->|审计日志| M[调查队列]
 
-    L --> N[📤 监管就绪]
-    M --> O[🔧 复查修正]
+ L --> N[ 监管就绪]
+ M --> O[ 复查修正]
 
-    style A fill:#e1f5ff
-    style J fill:#c8e6c9
-    style L fill:#fff9c4
-    style N fill:#81c784
+ style A fill:#e1f5ff
+ style J fill:#c8e6c9
+ style L fill:#fff9c4
+ style N fill:#81c784
 ```
 
 ### 模块组织
