@@ -11,8 +11,11 @@ import time
 import json
 from datetime import datetime
 
-# ── 路径 ──────────────────────────────────────────────────────────
+# 将项目根目录加入 sys.path 以便导入 VC_BC 模块
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+from VC_BC02_baseUtils import PipelineProgress
 
 # ── 常量 ──────────────────────────────────────────────────────────
 W = 70
@@ -94,16 +97,27 @@ def run_steps(start, end, continue_on_error=False):
     results = []
     t0 = time.time()
 
-    for seq, module, step_id, name, desc in selected:
-        print()
-        print(f'>>> [{seq}/{end}] {step_id} {desc} ...')
-        print()
+    steps_info = [(s[2], s[4]) for s in selected]  # (step_id, desc_cn)
+    pp = PipelineProgress(len(selected), steps_info)
+
+    for i, (seq, module, step_id, name, desc) in enumerate(selected):
+        pp.begin_step(i)
 
         ts = time.time()
-        proc = subprocess.run(
-            [sys.executable, os.path.join(ROOT_DIR, f'{module}.py')],
+        proc = subprocess.Popen(
+            [sys.executable, '-u', os.path.join(ROOT_DIR, f'{module}.py')],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             cwd=ROOT_DIR,
         )
+
+        for raw_line in proc.stdout:
+            line = raw_line.decode('utf-8', errors='replace').rstrip('\r\n')
+            if pp.parse_and_update(line):
+                continue
+            pp.print_line(line)
+
+        proc.wait()
+        pp.end_step()
         elapsed = time.time() - ts
 
         ok = proc.returncode == 0
@@ -117,6 +131,7 @@ def run_steps(start, end, continue_on_error=False):
                 break
 
     total = time.time() - t0
+    pp.cleanup()
 
     # 摘要
     print()

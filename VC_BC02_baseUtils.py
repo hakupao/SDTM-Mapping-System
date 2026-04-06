@@ -11,6 +11,9 @@ VAPORCONE 项目基础工具模块
 from VC_BC01_constant import *
 import traceback
 import unicodedata
+import time as _time
+import sys as _sys
+import os as _os
 
 # ======================================================================
 # 统一控制台输出规范
@@ -112,6 +115,262 @@ def log_and_print(logger, level, msg):
         logger.warning(msg)
     else:
         logger.info(msg)
+
+
+# ------ 进度条 ------
+
+PROGRESS_MARKER = '@@PG@@'
+
+
+def _enable_ansi():
+    """在 Windows 上启用 ANSI/VT 终端控制序列。"""
+    if _sys.platform == 'win32':
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+            mode = ctypes.c_ulong()
+            kernel32.GetConsoleMode(handle, ctypes.byref(mode))
+            kernel32.SetConsoleMode(handle, mode.value | 0x0004)  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+        except Exception:
+            pass
+
+
+def _bar_str(pct, width=20):
+    filled = int(width * min(pct, 1.0))
+    return '#' * filled + '-' * (width - filled)
+
+
+class ProgressReporter:
+    """
+    步骤内进度报告器。
+
+    - 当 stdout 是终端 (TTY) 时，使用 \\r 内联刷新（单独运行某步骤时）。
+    - 当 stdout 被管道捕获时（由 runner 调用），发送协议标记行
+      供 PipelineProgress 解析。
+
+    用法:
+        progress = ProgressReporter(total=100, desc='Cleaning')
+        for item in items:
+            do_work(item)
+            progress.update()
+        progress.finish()
+    """
+
+    def __init__(self, total, desc='', width=CONSOLE_WIDTH):
+        self.total = max(total, 1)
+        self._desc = desc
+        self._width = width
+        self._desc_width = 14
+        self.current = 0
+        self._start = _time.time()
+        self._last_render = 0
+        self._is_tty = _sys.stdout.isatty()
+        self._render()
+
+    def update(self, n=1):
+        """进度推进 n 步"""
+        self.current = min(self.current + n, self.total)
+        now = _time.time()
+        if self.current >= self.total or (now - self._last_render) >= 0.1:
+            self._render()
+            self._last_render = now
+
+    def finish(self):
+        """强制 100% 并换行"""
+        self.current = self.total
+        self._render()
+        if self._is_tty:
+            _sys.stdout.write('\n')
+        _sys.stdout.flush()
+
+    def _render(self):
+        if not self._is_tty:
+            # 管道模式: 发送协议标记
+            _sys.stdout.write(f'{PROGRESS_MARKER}{self.current}/{self.total}/{self._desc}\n')
+            _sys.stdout.flush()
+            return
+
+        # TTY 模式: \r 内联刷新
+        pct = self.current / self.total
+        elapsed = _time.time() - self._start
+
+        if self.current > 0 and pct < 1.0:
+            eta_s = int(elapsed / pct * (1.0 - pct))
+            eta_str = f'ETA {eta_s // 60}m{eta_s % 60:02d}s' if eta_s >= 60 else f'ETA {eta_s}s'
+        elif pct >= 1.0:
+            eta_str = f'{elapsed:.1f}s'
+        else:
+            eta_str = '...'
+
+        desc_r = cjk_ljust(self._desc, self._desc_width)
+        cnt_str = f'{self.current}/{self.total}'
+        pct_str = f'{pct * 100:5.1f}%'
+
+        fixed = 2 + self._desc_width + 1 + 1 + len(cnt_str) + 1 + len(pct_str) + 1 + len(eta_str)
+        bar_w = max(8, self._width - fixed - 2)
+        filled = int(bar_w * pct)
+        bar = '#' * filled + '-' * (bar_w - filled)
+
+        line = f'  {desc_r} [{bar}] {cnt_str} {pct_str} {eta_str}'
+        _sys.stdout.write(f'\r{line.ljust(self._width)}')
+        _sys.stdout.flush()
+
+
+class PipelineProgress:
+    """
+    使用 ANSI Scroll Region 实现的固定进度条。
+
+    终端底部 3 行被排除在滚动区域外，永远固定不动:
+      ──────────────────────────────────────────────────
+        Pipeline  [####--------]  3/7  42.9%  OP03 元数据插入
+        OP03      [########----]  5/9  55.6%  Build  ETA 8s
+
+    步骤输出在上方自然滚动，与底部进度互不干扰。
+    """
+
+    FOOTER_LINES = 3
+
+    def __init__(self, total_steps, steps_info):
+        """
+        参数:
+            total_steps: 总步骤数
+            steps_info: [(step_id, desc), ...] 每步的 ID 和中文描述
+        """
+        self.total_steps = total_steps
+        self.steps_info = steps_info
+        self.current_step = 0
+        self.step_current = 0
+        self.step_total = 0
+        self.step_desc = ''
+        self._step_start = 0
+
+        _enable_ansi()
+        try:
+            size = _os.get_terminal_size()
+            self._rows = size.lines
+            self._cols = size.columns
+        except OSError:
+            self._rows = 40
+            self._cols = 80
+
+        self._scroll_end = self._rows - self.FOOTER_LINES
+
+        # 清屏并建立滚动区域
+        _sys.stdout.write('\033[2J')                        # 清屏
+        _sys.stdout.write(f'\033[1;{self._scroll_end}r')    # 设置滚动区域
+        _sys.stdout.write('\033[1;1H')                      # 光标移到滚动区域顶部
+        # 渲染初始 footer
+        self._render_footer()
+        # 光标回到滚动区域
+        _sys.stdout.write(f'\033[1;1H')
+        _sys.stdout.flush()
+
+    def begin_step(self, step_index):
+        """开始新步骤 (0-based index)"""
+        self.current_step = step_index + 1
+        self.step_current = 0
+        self.step_total = 0
+        self.step_desc = ''
+        self._step_start = _time.time()
+        self._update_footer()
+
+    def parse_and_update(self, line):
+        """解析进度协议标记。如果是标记行返回 True（不应打印）。"""
+        if line.startswith(PROGRESS_MARKER):
+            parts = line[len(PROGRESS_MARKER):].split('/', 2)
+            try:
+                self.step_current = int(parts[0])
+                self.step_total = int(parts[1])
+                self.step_desc = parts[2] if len(parts) > 2 else ''
+            except (ValueError, IndexError):
+                return True
+            self._update_footer()
+            return True
+        return False
+
+    def print_line(self, line):
+        """在滚动区域内打印一行输出。footer 不受影响。"""
+        _sys.stdout.write(line + '\n')
+        _sys.stdout.flush()
+
+    def end_step(self):
+        """步骤结束（footer 保留，等待下一步更新）。"""
+        pass
+
+    def cleanup(self):
+        """流水线结束，重置滚动区域，光标移到 footer 之后。"""
+        # 重置滚动区域为全屏
+        _sys.stdout.write('\033[r')
+        # 光标移到最后一行之后
+        _sys.stdout.write(f'\033[{self._rows};1H\n')
+        _sys.stdout.flush()
+
+    def _update_footer(self):
+        """在不影响滚动区域光标的情况下刷新 footer。"""
+        _sys.stdout.write('\0337')  # DEC Save Cursor
+        self._render_footer()
+        _sys.stdout.write('\0338')  # DEC Restore Cursor
+        _sys.stdout.flush()
+
+    # 赤橙黄绿青蓝紫 — 每个步骤一种颜色
+    _RAINBOW = [
+        '\033[91m',           # 赤 bright red
+        '\033[38;5;208m',     # 橙 orange (256-color)
+        '\033[93m',           # 黄 bright yellow
+        '\033[92m',           # 绿 bright green
+        '\033[96m',           # 青 bright cyan
+        '\033[94m',           # 蓝 bright blue
+        '\033[95m',           # 紫 bright magenta
+    ]
+    _BRIGHT_YELLOW = '\033[93m'
+    _RESET = '\033[0m'
+
+    def _render_footer(self):
+        """在固定区域 (scroll_end+1 ~ rows) 绘制 3 行 footer。"""
+        base = self._scroll_end + 1
+        W = min(self._cols, CONSOLE_WIDTH)
+
+        sid, sdesc = ('', '')
+        if self.current_step > 0:
+            sid, sdesc = self.steps_info[self.current_step - 1]
+
+        # Line 1: 分隔线
+        _sys.stdout.write(f'\033[{base};1H\033[2K')
+        _sys.stdout.write('\u2500' * W)
+
+        # Line 2: Pipeline 总进度 (亮黄色)
+        _sys.stdout.write(f'\033[{base + 1};1H\033[2K')
+        if self.current_step > 0:
+            p_pct = self.current_step / self.total_steps
+            p_bar = _bar_str(p_pct)
+            _sys.stdout.write(
+                f'{self._BRIGHT_YELLOW}'
+                f'  Pipeline  [{p_bar}] {self.current_step}/{self.total_steps}'
+                f'  {p_pct * 100:5.1f}%  {sid} {sdesc}'
+                f'{self._RESET}'
+            )
+
+        # Line 3: 步骤内进度 (彩虹色，按步骤序号轮转)
+        step_color = self._RAINBOW[(self.current_step - 1) % len(self._RAINBOW)] if self.current_step > 0 else ''
+        _sys.stdout.write(f'\033[{base + 2};1H\033[2K')
+        if self.step_total > 0:
+            s_pct = self.step_current / self.step_total
+            s_bar = _bar_str(s_pct)
+            elapsed = _time.time() - self._step_start
+            if self.step_current > 0 and s_pct < 1.0:
+                eta_s = int(elapsed / s_pct * (1.0 - s_pct))
+                eta = f'ETA {eta_s}s' if eta_s < 60 else f'ETA {eta_s // 60}m{eta_s % 60:02d}s'
+            else:
+                eta = f'{elapsed:.1f}s'
+            _sys.stdout.write(
+                f'{step_color}'
+                f'  {cjk_ljust(sid, 10)}[{s_bar}] {self.step_current}/{self.step_total}'
+                f'  {s_pct * 100:5.1f}%  {self.step_desc}  {eta}'
+                f'{self._RESET}'
+            )
+        elif self.current_step > 0:
+            _sys.stdout.write(f'{step_color}  {cjk_ljust(sid, 10)}...{self._RESET}')
 
 
 def create_logger(file_name, log_level=logging.DEBUG):

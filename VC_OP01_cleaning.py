@@ -57,6 +57,7 @@ def main():
 
     # 处理摘要收集
     summary = []
+    progress = ProgressReporter(total=len(fileList), desc='Cleaning')
 
     for shorten_name in fileList:
         # 优先查找完全匹配的文件名
@@ -199,6 +200,9 @@ def main():
             f'File:[{shorten_name}] 总行数={count_total}, 迁移={count_migrated}, '
             f'排除(患者)={count_excluded_patient}, 排除(逻辑)={count_excluded_logic}, 空行={count_blank}'
         )
+        progress.update()
+
+    progress.finish()
 
     # 处理摘要
     W = [14, 8, 8, 10, 10, 8, 8]  # 各列显示宽度
