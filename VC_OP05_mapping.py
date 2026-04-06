@@ -319,6 +319,7 @@ def main():
 
     domain_dataset = {}
     all_errors = []
+    domain_summary = []  # 按 Domain 统计
 
     use_parallel = len(domain_args) >= 3
 
@@ -336,11 +337,16 @@ def main():
                     domain_key, result_data, record_count, domain_errors = future.result()
                     domain_dataset[domain_key] = result_data
                     all_errors.extend(domain_errors)
+                    domain_summary.append({
+                        'domain': domain_key, 'records': record_count,
+                        'errors': len(domain_errors),
+                    })
                     print(f'{domain_key} conversion completed (并行) - {record_count} 条记录')
                 except Exception as e:
                     message = f'Domain {domain_key} 处理失败: {e}'
                     print(message)
                     domain_dataset[domain_key] = []
+                    domain_summary.append({'domain': domain_key, 'records': 0, 'errors': 1})
                     all_errors.append({
                         'domain': domain_key,
                         'definition_row': None,
@@ -356,12 +362,17 @@ def main():
                 domain_key, result_data, record_count, domain_errors = process_single_domain(args)
                 domain_dataset[domain_key] = result_data
                 all_errors.extend(domain_errors)
+                domain_summary.append({
+                    'domain': domain_key, 'records': record_count,
+                    'errors': len(domain_errors),
+                })
                 print(f'{domain_key} conversion completed (串行) - {record_count} 条记录')
             except Exception as e:
                 domain_key = args[0]
                 message = f'Domain {domain_key} 处理失败: {e}'
                 print(message)
                 domain_dataset[domain_key] = []
+                domain_summary.append({'domain': domain_key, 'records': 0, 'errors': 1})
                 all_errors.append({
                     'domain': domain_key,
                     'definition_row': None,
@@ -394,12 +405,20 @@ def main():
 
     total_records = sum(len(data) for data in domain_dataset.values())
 
+    TW = [10, 10, 8]
+    tcols = ['Domain', '记录数', '错误数']
     print_summary_header(f'处理摘要 - {STEP_NAME}')
-    print_summary_kv('总处理时间', f'{total_time:.2f}s')
-    print_summary_kv('文件输出时间', f'{output_time:.2f}s')
-    print_summary_kv('数据处理时间', f'{total_time - output_time:.2f}s')
+    print(
+        cjk_ljust(tcols[0], TW[0]) + ' '
+        + ' '.join(cjk_rjust(c, w) for c, w in zip(tcols[1:], TW[1:]))
+    )
+    print_summary_sep()
+    for s in sorted(domain_summary, key=lambda x: x['domain']):
+        print(f'{s["domain"]:<{TW[0]}} {s["records"]:>{TW[1]}} {s["errors"]:>{TW[2]}}')
+    print_summary_sep()
     print_summary_kv('处理Domain数量', len(domain_dataset))
     print_summary_kv('生成总记录数', total_records)
+    print_summary_kv('总处理时间', f'{total_time:.2f}s')
     if total_time > 0:
         print_summary_kv('处理速度', f'{total_records/total_time:.0f} rec/s')
 

@@ -86,6 +86,7 @@ def main():
         # 统计与计时变量
         total_files_processed = 0
         total_records_to_insert = 0
+        file_summary = []  # 按文件统计
         build_start = time.perf_counter()
         
         # 🆕 动态获取最新的清洗数据文件夹路径
@@ -121,6 +122,7 @@ def main():
 
             subjectId_fieldID = fileDict[fileName][COL_SUBJIDFIELDID]
             file_param = transFieldDict[fileName]
+            file_record_count = 0
             with open(os.path.join(actual_cleaning_path, full_name), 'r', newline=MARK_BLANK, encoding='utf-8-sig') as read_file:
                 dict_result = csv.DictReader(read_file)
                 tROWNUM = 0
@@ -135,18 +137,23 @@ def main():
                             continue
 
                         tMETAVAL = row[tFIELDID].strip()
-                        
+
                         if not tMETAVAL:
                             continue
 
                         tFIELDLBL = field_param[COL_LABEL]
                         tCODELISTID = field_param[COL_CODELISTNAME]
                         tCHKFIELDID = field_param[COL_CHKTYPE]
-                        tDATETYPE = dateTypeDict[tFIELDID] if tFIELDID in dateTypeDict else False 
+                        tDATETYPE = dateTypeDict[tFIELDID] if tFIELDID in dateTypeDict else False
 
                         tFORMVAL = make_format_value(tMETAVAL, tDATETYPE)
                         data.append((fileName, tROWNUM, tUSUBJID, tSUBJID, tFIELDLBL, tFIELDID, tMETAVAL, tFORMVAL, tDATETYPE, tCODELISTID, tCHKFIELDID))
+                        file_record_count += 1
 
+            file_summary.append({
+                'file': fileName, 'rows': tROWNUM,
+                'fields': len(file_param), 'records': file_record_count,
+            })
             total_files_processed += 1
 
         build_elapsed = time.perf_counter() - build_start
@@ -269,7 +276,20 @@ def main():
         t_total_elapsed = time.perf_counter() - t_total_start
         overall_rps = (total_records_to_insert / t_total_elapsed) if t_total_elapsed > 0 else 0.0
 
+        TW = [14, 8, 8, 10]
+        tcols = ['文件', '数据行', '字段数', '元数据条数']
         print_summary_header(f'处理摘要 - {STEP_NAME}')
+        print(
+            cjk_ljust(tcols[0], TW[0]) + ' '
+            + ' '.join(cjk_rjust(c, w) for c, w in zip(tcols[1:], TW[1:]))
+        )
+        print_summary_sep()
+        for s in file_summary:
+            print(
+                f'{s["file"]:<{TW[0]}} {s["rows"]:>{TW[1]}} {s["fields"]:>{TW[2]}} '
+                f'{s["records"]:>{TW[3]}}'
+            )
+        print_summary_sep()
         print_summary_kv('处理文件数', total_files_processed)
         print_summary_kv('准备插入记录数', total_records_to_insert)
         print_summary_kv('实际插入记录数', final_count)

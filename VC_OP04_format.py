@@ -274,10 +274,17 @@ def _run_format(db, total_start):
     
     # 应用性能优化配置
     
+    format_summary = []  # 按文件统计
+
     for fileName in transFieldDict.keys():
         if fileName not in fileDict:
             continue
         print(f'{fileName} is outputting')
+        file_chk_count = 0
+        file_chk_rows = 0
+        file_main_rows = 0
+        file_dropped_rows = 0
+        file_start = time.perf_counter()
         exceptFields = ex_fieldsDict.get(fileName, [])
         file_param = transFieldDict[fileName]
 
@@ -380,6 +387,8 @@ def _run_format(db, total_start):
                         writer = csv.writer(file)
                         writer.writerow([i[0] for i in db.cursor.description])
                         writer.writerows(results)
+                    file_chk_count += 1
+                    file_chk_rows += rows_cnt
                     print(f'  [CHK:{chkfileName}] {rows_cnt} rows')
                 
         fields = ['max(if((FIELDID = \'' + fieldID + '\'),TRANSVAL,NULL)) AS `' + fieldID  + '`' 
@@ -422,18 +431,43 @@ def _run_format(db, total_start):
                 writer = csv.writer(file)
                 writer.writerow(header)
                 writer.writerows(filtered_results)
+            file_main_rows = rows_cnt
+            file_dropped_rows = dropped_only_subjid
             print(f'  [MAIN] {rows_cnt} rows', end='')
             if dropped_only_subjid:
                 print(f' | dropped only-SUBJID rows: {dropped_only_subjid}')
             else:
                 print()
 
+        file_elapsed = time.perf_counter() - file_start
+        format_summary.append({
+            'file': fileName, 'chk_count': file_chk_count,
+            'chk_rows': file_chk_rows, 'main_rows': file_main_rows,
+            'dropped': file_dropped_rows, 'time': file_elapsed,
+        })
         print(f'{fileName} 完成')
 
     process_combine_files(workbook, sheetSetting, actual_format_path)
 
+    total_elapsed = time.perf_counter() - total_start
+
+    TW = [14, 6, 10, 10, 8, 8]
+    tcols = ['文件', 'CHK数', 'CHK行数', 'MAIN行数', '丢弃行', '耗时']
     print_summary_header(f'处理摘要 - {STEP_NAME}')
-    print_summary_kv('处理完成', 'OK')
+    print(
+        cjk_ljust(tcols[0], TW[0]) + ' '
+        + ' '.join(cjk_rjust(c, w) for c, w in zip(tcols[1:], TW[1:]))
+    )
+    print_summary_sep()
+    for s in format_summary:
+        print(
+            f'{s["file"]:<{TW[0]}} {s["chk_count"]:>{TW[1]}} {s["chk_rows"]:>{TW[2]}} '
+            f'{s["main_rows"]:>{TW[3]}} {s["dropped"]:>{TW[4]}} '
+            f'{s["time"]:>{TW[5]-1}.1f}s'
+        )
+    print_summary_sep()
+    print_summary_kv('处理文件数', len(format_summary))
+    print_summary_kv('总耗时', f'{total_elapsed:.1f}s')
 
 if __name__ == "__main__":
     print_step_header(STEP_ID, STEP_NAME)
