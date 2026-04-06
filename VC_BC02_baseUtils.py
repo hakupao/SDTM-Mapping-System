@@ -194,25 +194,8 @@ class ProgressReporter:
             self._render()
             self._last_render = now
 
-    def finish(self):
-        """强制 100% 并换行"""
-        self.current = self.total
-        self._render()
-        if self._is_tty:
-            _sys.stdout.write('\n')
-            _sys.stdout.flush()
-
-    def _render(self):
-        if self._is_pipeline:
-            # 管道协议模式: 仅 pipeline runner 消费
-            _sys.stdout.write(f'{PROGRESS_MARKER}{self.current}/{self.total}/{self._desc}\n')
-            _sys.stdout.flush()
-            return
-        if not self._is_tty:
-            # 非 TTY 且非 pipeline (如 Code Runner): 静默，不输出噪音
-            return
-
-        # TTY 模式: \r 内联刷新
+    def _format_bar(self):
+        """生成进度条文本行（TTY 和完成摘要共用）。"""
         pct = self.current / self.total
         elapsed = _time.time() - self._start
 
@@ -233,7 +216,32 @@ class ProgressReporter:
         filled = int(bar_w * pct)
         bar = '#' * filled + '-' * (bar_w - filled)
 
-        line = f'  {desc_r} [{bar}] {cnt_str} {pct_str} {eta_str}'
+        return f'  {desc_r} [{bar}] {cnt_str} {pct_str} {eta_str}'
+
+    def finish(self):
+        """强制 100% 并换行"""
+        self.current = self.total
+        self._render()
+        if self._is_tty:
+            _sys.stdout.write('\n')
+            _sys.stdout.flush()
+        else:
+            # 管道/静默模式: 输出一行完成摘要到滚动区，
+            # 让父进程通过 print_line 显示，而非只更新 footer
+            print(self._format_bar())
+
+    def _render(self):
+        if self._is_pipeline:
+            # 管道协议模式: 仅 pipeline runner 消费
+            _sys.stdout.write(f'{PROGRESS_MARKER}{self.current}/{self.total}/{self._desc}\n')
+            _sys.stdout.flush()
+            return
+        if not self._is_tty:
+            # 非 TTY 且非 pipeline (如 Code Runner): 静默，不输出噪音
+            return
+
+        # TTY 模式: \r 内联刷新
+        line = self._format_bar()
         _sys.stdout.write(f'\r{line.ljust(self._width)}')
         _sys.stdout.flush()
 
