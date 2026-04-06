@@ -1,115 +1,178 @@
-[English](README.md) | [中文](README_CN.md)
-
 <div align="center">
 
-<img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=700&size=30&duration=3000&pause=1000&color=667EEA&center=true&vCenter=true&width=800&height=80&lines=SDTM+Mapping+System;%E4%B8%B4%E5%BA%8A%E8%AF%95%E9%AA%8C+ETL+%C2%B7+CDISC+SDTM+%C2%B7+%E9%85%8D%E7%BD%AE%E9%A9%B1%E5%8A%A8" alt="SDTM Mapping System"/>
+[English](README.md) | [中文](README_CN.md)
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python)
-![pandas](https://img.shields.io/badge/pandas-2.3.1-150458?style=flat-square&logo=pandas)
-![numpy](https://img.shields.io/badge/numpy-2.2.6-013243?style=flat-square&logo=numpy)
-![MySQL](https://img.shields.io/badge/MySQL-Connector-4479A1?style=flat-square&logo=mysql)
-![CDISC](https://img.shields.io/badge/Standard-CDISC%20SDTM-00A0D0?style=flat-square)
-![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
-![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square)
+<!-- Typing SVG -->
+<a href="https://git.io/typing-svg">
+  <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=700&size=36&duration=3000&pause=1000&color=38BDF8&center=true&vCenter=true&random=false&width=700&height=80&lines=SDTM+Mapping+System;%E9%85%8D%E7%BD%AE%E9%A9%B1%E5%8A%A8%E7%9A%84%E4%B8%B4%E5%BA%8A%E8%AF%95%E9%AA%8C+ETL;CDISC+SDTM+%C2%B7+M5+%E6%8F%90%E4%BA%A4%E6%89%93%E5%8C%85" alt="SDTM Mapping System" />
+</a>
 
-**将原始临床研究数据转换为标准化的 CDISC SDTM 数据集和 M5 提交包，使用声明式 Excel 配置。**
+<p><strong>通过 Excel 配置驱动的 7 步自动化流水线，<br/>将原始临床研究数据转换为 CDISC SDTM 数据集和 M5 监管提交包。</strong></p>
 
-[功能特性](#功能特性) • [架构设计](#架构设计) • [快速开始](#快速开始) • [配置说明](#配置说明) • [贡献指南](#贡献指南)
+<!-- Badge wall -->
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![pandas](https://img.shields.io/badge/pandas-2.3.1-150458?style=for-the-badge&logo=pandas&logoColor=white)](https://pandas.pydata.org)
+[![NumPy](https://img.shields.io/badge/NumPy-2.2.6-013243?style=for-the-badge&logo=numpy&logoColor=white)](https://numpy.org)
+[![MySQL](https://img.shields.io/badge/MySQL-Connector-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://dev.mysql.com/doc/connector-python/en/)
+[![CDISC](https://img.shields.io/badge/CDISC-SDTM-00A0D0?style=for-the-badge)](https://www.cdisc.org/standards/foundational/sdtm)
+[![License](https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Active-34D399?style=for-the-badge)]()
+
+<br/>
+
+<!-- Hero banner -->
+<img src="docs/assets/hero.svg" alt="SDTM Mapping System Hero" width="800"/>
+
+<br/>
+
+[功能特性](#-功能特性) · [架构设计](#-架构设计) · [快速开始](#-快速开始) · [流水线步骤](#-流水线步骤) · [配置说明](#-配置说明) · [CLI 参考](#-cli-参考)
 
 </div>
 
 ---
 
-## 项目概述
+## 关于
 
-SDTM Mapping System（代码名：**VAPORCONE**）是一套生产级、配置驱动的临床试验数据标准化 ETL 管道。它将原始研究导出数据转换为符合 CDISC SDTM 标准的数据集和监管 M5 提交包。
-
-**为什么选择 SDTM Mapping System？**
-- 📋 **配置即代码**：Excel 工作簿作为"配置 DSL"——无需编写 Python 代码即可定义研究特定的映射
-- 🔄 **模块化管道**：清晰分离的基础工具（VC_BC*）、操作模块（VC_OP*）和预处理模块（VC_PS*）
-- 📊 **生产级质量**：专为企业临床试验工作流和 CDISC 合规性构建
-- 🗄️ **多源集成**：与 MySQL、Excel 和其他研究导出格式无缝集成
-- 🎯 **研究隔离**：`studySpecific/` 目录中的逐研究配置确保可重复性和可审计性
+**SDTM Mapping System**（代码名 **VAPORCONE**）是一套生产级 ETL 管道，专为临床试验数据标准化而构建。在 Excel 工作簿中定义映射规则，将流水线指向原始研究导出数据，即可获得符合 CDISC SDTM 标准的数据集以及可直接提交的 M5 监管包——无需编写任何 Python 代码。
 
 ---
 
-## 关键功能
+## ✨ 功能特性
 
-| 功能 | 说明 |
-|------|------|
-| 🎛️ **Excel 驱动配置** | 在易读的 Excel 工作簿中定义整个映射逻辑 |
-| 🔗 **CDISC SDTM 合规** | 自动验证 SDTM IG 标准 |
-| 📦 **M5 包生成** | 直接生成监管提交包 |
-| 🔀 **复杂 ETL 工作流** | 预处理、转换、验证在一个管道中完成 |
-| 💾 **多数据库支持** | MySQL、Excel、CSV、Parquet 集成 |
-| 📈 **审计追踪** | 从源数据到 SDTM 数据集的完整可追踪性 |
-| ⚡ **向量化操作** | 利用 pandas/numpy 在规模化应用中实现高性能 |
-| 🎨 **可视化管道检查** | 数据流预览 SVG 图表（docs/assets/） |
+| | 功能 | 说明 |
+|---|------|------|
+| 📋 | **Excel 驱动配置** | 在 `OperationConf.xlsx` 中定义全部映射逻辑——工作簿即声明式 DSL |
+| 🔗 | **7 步自动化流水线** | OP01~OP05（数据转换）+ PS01~PS02（输出生成），每步可独立运行 |
+| 💻 | **交互式 CLI 控制台** | 内置 `sdtm` 命令，支持 run / status / list 及执行摘要 |
+| ⚡ | **批量运行器** | `run_pipeline.py` 非交互执行，支持 `--continue` 和 `--dry-run` |
+| 🗄️ | **MySQL 转换中枢** | 暂存表、自动创建索引和优化视图，实现高效数据处理 |
+| 📦 | **M5 提交打包** | 直接生成监管提交包（JSON + M5 目录结构） |
+| 🕐 | **时间戳版本管理** | 每次运行生成带时间戳的输出文件夹，完整可追溯、可审计 |
+| 🌐 | **CJK 文字对齐** | 控制台输出正确处理中日文字符全角宽度 |
+| 🚀 | **性能优化** | 向量化 pandas/numpy、多进程、预计算缓存、批量数据库插入 |
 
 ---
 
-## 架构设计
+## 🏗️ 架构设计
+
+<details open>
+<summary><b>流水线流程图（Mermaid）</b></summary>
+<br/>
 
 ```mermaid
-graph TB
- A[原始研究导出] -->|MySQL/Excel/CSV| B[数据摄入]
- B --> C[配置加载]
- C -->|studySpecific/*.xlsx| D[配置 DSL 解析器]
+graph LR
+    subgraph INPUT["输入"]
+        A[("📄 原始 CSV<br/>01_RawData")]
+        J[("📊 OperationConf.xlsx<br/>配置 DSL")]
+    end
 
- D -->|VC_BC_*| E[基础工具]
- E -->|VC_PS_*| F[预处理]
- F -->|VC_OP_*| G[映射操作]
+    subgraph TRANSFORM["数据转换（OP01 → OP05）"]
+        B["OP01<br/>数据清洗"]
+        C["OP02<br/>代码表插入"]
+        D["OP03<br/>元数据插入"]
+        E["OP04<br/>格式化与视图"]
+        F["OP05<br/>SDTM映射"]
+    end
 
- G -->|域业务逻辑| H[SDTM 转换]
- H -->|验证| I{CDISC 合规?}
+    subgraph OUTPUT["输出生成（PS01 → PS02）"]
+        G["PS01<br/>输入CSV"]
+        H["PS02<br/>M5打包"]
+    end
 
- I -->|是| J[SDTM 数据集]
- I -->|否| K[错误报告]
+    subgraph DELIVER["交付物"]
+        I[("📦 M5 提交包<br/>06_Inputpackage")]
+    end
 
- J -->|M5 结构| L[提交包]
- K -->|审计日志| M[调查队列]
+    K[("🗄️ MySQL 数据库")]
 
- L --> N[ 监管就绪]
- M --> O[ 复查修正]
+    A --> B --> C --> D --> E --> F --> G --> H --> I
+    J -.->|配置| B
+    J -.->|配置| C
+    J -.->|配置| E
+    J -.->|配置| F
+    K <-->|暂存| D
+    K <-->|视图| E
+    K <-->|查询| F
 
- style A fill:#e1f5ff
- style J fill:#c8e6c9
- style L fill:#fff9c4
- style N fill:#81c784
+    style A fill:#e1f5ff,stroke:#38BDF8,color:#0c4a6e
+    style I fill:#d1fae5,stroke:#34D399,color:#064e3b
+    style J fill:#fef9c3,stroke:#FACC15,color:#713f12
+    style K fill:#fff7ed,stroke:#FB923C,color:#7c2d12
 ```
+
+</details>
+
+<br/>
+
+<details>
+<summary><b>仓库结构预览</b></summary>
+<br/>
+
+<div align="center">
+<img src="docs/assets/preview.svg" alt="Repository Preview" width="800"/>
+</div>
+
+</details>
+
+<br/>
 
 ### 模块组织
 
 ```
 SDTM-Mapping-System/
-├── VC_BC_*.py              # 基类和工具函数
-├── VC_OP_*.py              # 映射操作
-├── VC_PS_*.py              # 预处理模块
-├── main.py                 # 管道编排器
-├── config.toml             # 全局配置
-├── studySpecific/          # 逐研究配置
-│   ├── STUDY001/
-│   │   ├── mapping.xlsx    # 研究映射 DSL
-│   │   └── rules.json      # 自定义业务逻辑
-│   └── STUDY002/
-│       └── mapping.xlsx
-├── docs/
-│   ├── assets/
-│   │   ├── hero.svg        # 架构图
-│   │   └── preview.svg     # 数据流可视化
-│   └── MAPPING_GUIDE.md    # 配置参考
-└── tests/                  # 单元测试和集成测试
+│
+├── 🔧 基类与工具 (VC_BC_*)
+│   ├── VC_BC01_constant.py              # 项目配置、数据库凭据、路径
+│   ├── VC_BC02_baseUtils.py             # 日志、控制台格式化、DatabaseManager
+│   ├── VC_BC03_fetchConfig.py           # Excel 配置解析与验证
+│   ├── VC_BC04_operateType.py           # 数据操作、表连接、CSV 缓存
+│   └── VC_BC06_operateTypeFunctions.py  # 操作辅助函数
+│
+├── ⚙️ 转换流水线 (VC_OP_*)
+│   ├── VC_OP01_cleaning.py              # 步骤 1 — 原始数据过滤与清洗
+│   ├── VC_OP02_insertCodeList.py        # 步骤 2 — 代码表数据库插入
+│   ├── VC_OP03_insertMetadata.py        # 步骤 3 — 元数据数据库插入
+│   ├── VC_OP04_format.py                # 步骤 4 — 数据格式化与视图创建
+│   └── VC_OP05_mapping.py               # 步骤 5 — SDTM 域映射
+│
+├── 📦 输出生成 (VC_PS_*)
+│   ├── VC_PS01_makeInputCSV.py          # 步骤 6 — 输入 CSV 生成
+│   └── VC_PS02_csv2json.py              # 步骤 7 — M5 包创建
+│
+├── 🚀 流水线运行器
+│   ├── sdtm.py                          # 交互式 CLI 控制台
+│   ├── sdtm.bat                         # Windows 启动器
+│   └── run_pipeline.py                  # 批量流水线执行器
+│
+├── 📝 配置文件
+│   ├── project.local.json               # 研究ID、数据库表名、路径
+│   └── requirements.txt                 # Python 依赖
+│
+└── 📂 studySpecific/                    # 逐研究配置与数据
+    ├── ENSEMBLE/
+    │   ├── ENSEMBLE_OperationConf.xlsx   # 主配置工作簿（DSL）
+    │   ├── VC_BC05_studyFunctions.py     # 研究特定自定义逻辑
+    │   ├── 01_RawData/                   # 原始 CSV 输入文件
+    │   ├── 02_Cleaning/                  # 步骤 1 输出（带时间戳）
+    │   ├── 03_Format/                    # 步骤 4 输出（带时间戳）
+    │   ├── 04_SDTM/                      # 步骤 5 输出（带时间戳）
+    │   ├── 05_Inputfile/                 # 步骤 6 输出（带时间戳）
+    │   └── 06_Inputpackage/              # 步骤 7 输出（M5 包）
+    ├── CIRCULATE/
+    └── COSMOS_GC/
 ```
+
+<p align="right">(<a href="#关于">回到顶部</a>)</p>
 
 ---
 
-## 快速开始
+## 🚀 快速开始
 
 ### 前置条件
 
 - **Python 3.11+**
-- **pip** 或 **conda**
-- MySQL 数据库（可选，也支持 CSV/Excel）
+- **MySQL** 数据库服务器（本地或远程）
+- **pip**
 
 ### 安装
 
@@ -120,360 +183,226 @@ cd SDTM-Mapping-System
 
 # 安装依赖
 pip install -r requirements.txt
-
-# 验证安装
-python -c "import VC_BC; print('✓ 安装成功')"
 ```
 
-### 你的第一个 SDTM 映射（5 分钟）
-
-```bash
-# 1. 准备原始数据
-cp /path/to/study_export.xlsx data/raw/
-
-# 2. 创建研究配置
-cp studySpecific/TEMPLATE/mapping.xlsx studySpecific/MY_STUDY/mapping.xlsx
-# 编辑 Excel 文件，定义你的域映射
-
-# 3. 运行管道
-python main.py --study MY_STUDY --output ./output/
-
-# 4. 查看 SDTM 数据集
-ls output/MY_STUDY/sdtm/
-# dm.xlsx, ae.xlsx, ev.xlsx, ...
-```
-
----
-
-## 配置说明
-
-### Excel 配置 DSL
-
-魔力在 `studySpecific/YOUR_STUDY/mapping.xlsx` 中实现：
-
-| 工作表 | 用途 | 示例 |
-|-------|------|------|
-| **DataSources** | 原始数据位置 | `SOURCE_PATH: C:/data/export.csv` |
-| **Demographics** | DM 域映射 | `SOURCE.PatientID → SDTM.USUBJID` |
-| **Adverse Events** | AE 域映射 | `SOURCE.AdverseEvent → SDTM.AEDECOD` |
-| **Lab** | LB 域映射 | 测量值、结果、日期 |
-| **Vital Signs** | VS 域映射 | 血压、心率、体温 |
-| **Validation Rules** | 业务逻辑 | 自定义检查、预期范围 |
-| **Terminology** | SDTM 代码表映射 | ICD10 → MedDRA 转换 |
-
-#### 示例：人口统计学映射
-
-```
-源列名           | SDTM 列名   | 转换规则        | 必需
-PatientID        | USUBJID     | 前缀添加地点    | ✓
-Sex              | SEX         | M→M, F→F        | ✓
-DOB              | BRTHDTC     | ISO 8601 日期   | ✓
-Status           | ACTARMCD    | Active→ACTIVE   | ✓
-```
-
-### 主配置文件 (config.toml)
-
-```toml
-[pipeline]
-log_level = "INFO"
-validate_cdisc = true
-output_format = "xlsx"  # xlsx, sas, parquet
-
-[database]
-type = "mysql"
-host = "localhost"
-port = 3306
-database = "clinical_data"
-
-[m5_package]
-enabled = true
-submission_type = "IND"  # IND, BLA, NDA
-sponsor_id = "1234567"
-```
-
----
-
-## 使用示例
-
-### 基础管道执行
-
-```python
-from VC_BC_core import Pipeline
-from VC_PS_preprocessing import PreProcessor
-from VC_OP_sdtm import SDTMTransformer
-
-# 加载配置
-config = Pipeline.load_config("studySpecific/MY_STUDY/mapping.xlsx")
-
-# 初始化管道阶段
-prep = PreProcessor(config)
-transformer = SDTMTransformer(config)
-
-# 执行
-raw_data = prep.load_raw_data()
-clean_data = prep.execute()
-sdtm_data = transformer.map_to_sdtm(clean_data)
-
-# 验证和导出
-sdtm_data.validate()
-sdtm_data.export_m5_package("./output/")
-```
-
-### 自定义预处理
-
-```python
-from VC_PS_preprocessing import PreProcessor
-
-class CustomPreProcessor(PreProcessor):
-    def handle_missing_values(self, df):
-        # 研究特定的逻辑
-        return df.fillna(method='bfill')
-
-processor = CustomPreProcessor(config)
-data = processor.execute()
-```
-
-### 验证和质量保证
-
-```python
-from VC_OP_validation import Validator
-
-validator = Validator(config)
-report = validator.validate_sdtm_compliance(sdtm_data)
-
-print(f"✓ 通过: {report.passed_checks}")
-print(f"✗ 失败: {report.failed_checks}")
-print(f"⚠ 警告: {report.warnings}")
-
-# 导出审计追踪
-report.export_html("audit_report.html")
-```
-
----
-
-## 依赖包
-
-| 包名 | 版本 | 用途 |
-|-----|------|------|
-| **pandas** | 2.3.1 | 数据操作和转换 |
-| **numpy** | 2.2.6 | 数值运算 |
-| **openpyxl** | 3.1.5 | Excel 配置读取 |
-| **mysql-connector-python** | 9.4.0 | 数据库连接 |
-| **pydantic** | 2.0+ | 配置验证 |
-| **lxml** | 4.9+ | XML/SAS7BDAT 处理 |
-| **requests** | 2.28+ | API 集成 |
-
-安装所有依赖：
-```bash
-pip install pandas==2.3.1 numpy==2.2.6 openpyxl==3.1.5 mysql-connector-python==9.4.0
-```
-
----
-
-## 项目结构
-
-<details>
-<summary><b>📁 详细文件组织</b></summary>
-
-```
-SDTM-Mapping-System/
-│
-├── 📄 README.md & README_CN.md
-├── 📄 requirements.txt
-├── 📄 config.toml
-├── 📄 main.py                    # 入口点
-│
-├── 🔧 基础工具 (VC_BC_*)
-│   ├── VC_BC_core.py             # 管道编排
-│   ├── VC_BC_config.py           # 配置加载器
-│   ├── VC_BC_data.py             # 数据结构
-│   └── VC_BC_logger.py           # 日志和审计追踪
-│
-├── 🔄 预处理 (VC_PS_*)
-│   ├── VC_PS_preprocessing.py    # 主预处理
-│   ├── VC_PS_cleaning.py         # 数据清洗
-│   ├── VC_PS_validation.py       # 输入验证
-│   └── VC_PS_encoding.py         # 字符编码处理
-│
-├── 🗺️  映射操作 (VC_OP_*)
-│   ├── VC_OP_sdtm.py             # SDTM 转换
-│   ├── VC_OP_domains.py          # 域特定逻辑
-│   ├── VC_OP_terminology.py      # 代码表映射
-│   └── VC_OP_validation.py       # CDISC 验证
-│
-├── 📊 研究配置
-│   ├── studySpecific/
-│   │   ├── TEMPLATE/
-│   │   │   ├── mapping.xlsx
-│   │   │   └── rules.json
-│   │   ├── STUDY001/
-│   │   │   └── mapping.xlsx
-│   │   └── STUDY002/
-│   │       └── mapping.xlsx
-│
-├── 📚 文档
-│   ├── docs/
-│   │   ├── MAPPING_GUIDE.md
-│   │   ├── API_REFERENCE.md
-│   │   ├── TROUBLESHOOTING.md
-│   │   └── assets/
-│   │       ├── hero.svg
-│   │       └── preview.svg
-│
-└── ✅ 测试
-    ├── tests/
-    │   ├── test_bc_core.py
-    │   ├── test_ps_preprocessing.py
-    │   ├── test_op_sdtm.py
-    │   └── test_integration.py
-```
-
-</details>
-
----
-
-## 高级话题
-
-<details>
-<summary><b>🚀 性能调优</b></summary>
-
-### 向量化操作
-
-```python
-# ✓ 好：向量化
-df['SDTM_VALUE'] = df['RAW_VALUE'].apply(transformation_func)
-
-# ✗ 避免：逐行迭代
-for idx, row in df.iterrows():
-    df.at[idx, 'SDTM_VALUE'] = transform(row['RAW_VALUE'])
-```
-
-### 内存优化
-
-```python
-# 高效使用数据类型
-df['USUBJID'] = df['USUBJID'].astype('category')
-df['SEX'] = df['SEX'].astype('category')
-
-# 分块处理大型数据集
-for chunk in pd.read_csv('huge_file.csv', chunksize=10000):
-    process_chunk(chunk)
-```
-
-### 并行处理
-
-```python
-from multiprocessing import Pool
-
-def process_study(study_id):
-    config = load_config(f"studySpecific/{study_id}/mapping.xlsx")
-    return execute_pipeline(config)
-
-with Pool(4) as p:
-    results = p.map(process_study, ['STUDY001', 'STUDY002', ...])
-```
-
-</details>
-
-<details>
-<summary><b>🔐 数据安全和合规</b></summary>
-
-- **审计追踪**：所有转换都记录时间戳
-- **去识别化**：内置的 PHI 掩码（日期、姓名）
-- **加密**：可选的字段级敏感数据加密
-- **访问控制**：通过配置的研究级访问策略
-- **HIPAA 合规**：遵循 HIPAA 隐私规则进行数据处理
-- **验证检查点**：导出前的强制验证门控
-
-</details>
-
-<details>
-<summary><b>🐛 故障排除</b></summary>
-
-| 错误 | 原因 | 解决方案 |
-|-----|------|--------|
-| `ConfigNotFoundError` | 缺少 mapping.xlsx | 验证 config.toml 中的路径 |
-| `DataValidationFailed` | 源数据无效 | 查看 validation_report.html |
-| `SDTMComplianceFailed` | CDISC 规则违反 | 检查 CDISC_errors.log |
-| `DatabaseConnectionError` | MySQL 连接问题 | 验证 config.toml 中的凭证 |
-
-查看详细日志：
-```bash
-tail -f logs/pipeline_$(date +%Y%m%d).log
-```
-
-</details>
-
----
-
-## 贡献指南
-
-欢迎贡献！请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
-
-```bash
-# Fork 并克隆
-git clone https://github.com/YOUR_USERNAME/SDTM-Mapping-System.git
-cd SDTM-Mapping-System
-
-# 创建功能分支
-git checkout -b feature/my-improvement
-
-# 进行更改，添加测试
-pytest tests/
-
-# 提交和推送
-git commit -m "feat: add new domain mapping support"
-git push origin feature/my-improvement
-
-# 创建 Pull Request
-```
-
----
-
-## 路线图
-
-- [ ] 映射配置 UI 仪表盘
-- [ ] 实时验证反馈
-- [ ] AI 驱动的术语映射建议
-- [ ] 多研究批量处理
-- [ ] 云部署模板（Docker、K8s）
-- [ ] OpenAPI 管道 API 规范
-
----
-
-## 许可证
-
-MIT License © 2024 hakupao
-
----
-
-## 引用
-
-如果在你的研究中使用了 SDTM Mapping System，请引用：
-
-```bibtex
-@software{vaporcone2024,
-  author = {hakupao},
-  title = {SDTM Mapping System: Clinical Trial ETL for CDISC Standardization},
-  url = {https://github.com/hakupao/SDTM-Mapping-System},
-  year = {2024}
+### 配置
+
+在项目根目录创建或编辑 `project.local.json`：
+
+```json
+{
+  "STUDY_ID": "ENSEMBLE",
+  "CODELIST_TABLE_NAME": "VC05_ENSEMBLE_CODELIST",
+  "METADATA_TABLE_NAME": "VC05_ENSEMBLE_METADATA",
+  "TRANSDATA_VIEW_NAME": "VC05_ENSEMBLE_TRANSDATA",
+  "M5_PROJECT_NAME": "ENSEMBLE",
+  "ROOT_PATH": "C:\\Local\\iTMS\\SDTM_ENSEMBLE",
+  "RAW_DATA_ROOT_PATH": "C:\\...\\studySpecific\\ENSEMBLE\\01_RawData"
 }
 ```
 
+### 运行
+
+```bash
+# 启动交互式控制台
+python sdtm.py
+
+# 或直接运行完整流水线
+python run_pipeline.py
+```
+
+<p align="right">(<a href="#关于">回到顶部</a>)</p>
+
 ---
 
-## 联系和支持
+## 🔄 流水线步骤
 
-- 📧 **问题**：[GitHub Issues](https://github.com/hakupao/SDTM-Mapping-System/issues)
-- 💬 **讨论**：[GitHub Discussions](https://github.com/hakupao/SDTM-Mapping-System/discussions)
-- 📖 **文档**：[docs/](docs/)
+| # | 模块 | 步骤ID | 名称 | 功能说明 |
+|:-:|------|:------:|------|---------|
+| 1 | `VC_OP01_cleaning` | OP01 | **数据清洗** | 按病例字典过滤原始 CSV，移除未映射的列和无效行 |
+| 2 | `VC_OP02_insertCodeList` | OP02 | **代码表插入** | 将代码/术语映射插入 MySQL |
+| 3 | `VC_OP03_insertMetadata` | OP03 | **元数据插入** | 解析清洗后数据，格式化值，将字段元数据插入 MySQL |
+| 4 | `VC_OP04_format` | OP04 | **数据格式化** | 创建带索引的优化数据库视图，导出格式化 CSV |
+| 5 | `VC_OP05_mapping` | OP05 | **SDTM映射** | 通过多进程应用 SDTM 域转换（DM、AE、LB、VS 等） |
+| 6 | `VC_PS01_makeInputCSV` | PS01 | **输入CSV生成** | 将 SDTM 数据拆分为主域 CSV + SUPP* 伴随文件 |
+| 7 | `VC_PS02_csv2json` | PS02 | **M5打包** | 生成 M5 提交包（JSON + 目录结构） |
+
+<details>
+<summary><b>数据流转图</b></summary>
+
+```
+01_RawData/  （原始 CSV 文件）
+    │  [OP01] 按病例字典过滤，清洗列
+    ▼
+02_Cleaning/cleaning_dataset-{YYYYMMDDHHMMSS}/
+    │  [OP02] 代码表  ──▶  MySQL CODELIST 表
+    │  [OP03] 元数据  ──▶  MySQL METADATA 表
+    ▼
+MySQL: CODELIST + METADATA 表（含自动创建的索引）
+    │  [OP04] 创建 TRANSDATA 视图，导出格式化 CSV
+    ▼
+03_Format/format_dataset-{YYYYMMDDHHMMSS}/
+    │  [OP05] 应用 SDTM 域映射（并行处理）
+    ▼
+04_SDTM/sdtm_dataset-{YYYYMMDDHHMMSS}/
+    │  [PS01] 拆分为主域 + SUPP* 文件
+    ▼
+05_Inputfile/inputfile_dataset-{YYYYMMDDHHMMSS}/
+    │  [PS02] 构建 M5 JSON 包结构
+    ▼
+06_Inputpackage/inputpackage_dataset-{YYYYMMDDHHMMSS}/
+    └── m5/m5/datasets/{STUDY}/tabulations/sdtm/
+```
+
+</details>
+
+<p align="right">(<a href="#关于">回到顶部</a>)</p>
+
+---
+
+## 💻 CLI 参考
+
+<div align="center">
+<img src="docs/assets/cli-screenshot.png" alt="SDTM Pipeline Console" width="750"/>
+</div>
+
+<br/>
+
+### 交互式控制台（`sdtm.py`）
+
+```bash
+python sdtm.py          # 进入交互模式
+sdtm                    # Windows 快捷方式（通过 sdtm.bat）
+python sdtm.py run all  # 一次性运行后退出
+```
+
+| 命令 | 说明 |
+|------|------|
+| `run all` | 运行全部 7 步（OP01 ~ PS02） |
+| `run <n>` | 从第 n 步开始运行到最后 |
+| `run <n> <m>` | 运行第 n 到 m 步 |
+| `run op03 ps01` | 按步骤ID运行（不区分大小写） |
+| `run ... --continue` | 失败后继续执行后续步骤 |
+| `status` | 显示各阶段最新输出时间和历史版本数 |
+| `list` | 列出所有流水线步骤 |
+| `help` | 显示可用命令 |
+| `exit` | 退出控制台 |
+
+### 批量运行器（`run_pipeline.py`）
+
+```bash
+python run_pipeline.py              # 运行全部 7 步
+python run_pipeline.py 3            # 从第 3 步开始
+python run_pipeline.py 3 5          # 只运行第 3 ~ 5 步
+python run_pipeline.py --continue   # 失败后继续
+python run_pipeline.py --dry-run    # 仅预览执行计划，不实际运行
+```
+
+### 单独运行
+
+每个步骤模块都可以独立运行：
+
+```bash
+python VC_OP01_cleaning.py
+python VC_OP05_mapping.py
+python VC_PS02_csv2json.py
+```
+
+<p align="right">(<a href="#关于">回到顶部</a>)</p>
+
+---
+
+## 📋 配置说明
+
+### Excel 配置 DSL — `OperationConf.xlsx`
+
+主配置工作簿驱动整个流水线，每张工作表控制一个特定方面：
+
+| 工作表 | 用途 |
+|-------|------|
+| **SheetSetting** | 各工作表的列配置与起始行定义 |
+| **CaseList** | 患者ID映射（SUBJID &#8594; USUBJID）及迁移标志 |
+| **FileDict** | 原始数据文件定义（文件名、编码、分隔符） |
+| **FieldDict** | 字段规格、数据类型与转换规则 |
+| **CodeList** | 代码/术语值映射 |
+| **Mapping** | SDTM 域转换规则（DM、AE、LB、VS、EV 等） |
+| **Combine** | 自定义表连接/合并定义 |
+
+### 研究特定函数 — `VC_BC05_studyFunctions.py`
+
+对于无法在 Excel DSL 中表达的域逻辑，每个研究可定义自定义 Python 函数：
+
+```python
+def DM():
+    """自定义 DM 域生成。
+
+    数据源：RGST（登录）、LSVDAT（最终生存）、OC（转归）
+    计算项：RFENDAT（结束日期）、DTHFLG（死亡标志）
+    """
+    ...
+```
+
+### 项目配置 — `project.local.json`
+
+| 键 | 说明 |
+|----|------|
+| `STUDY_ID` | 当前活动的研究标识 |
+| `CODELIST_TABLE_NAME` | MySQL 代码表表名 |
+| `METADATA_TABLE_NAME` | MySQL 元数据表名 |
+| `TRANSDATA_VIEW_NAME` | MySQL 格式化数据视图名 |
+| `M5_PROJECT_NAME` | M5 包输出中的项目名称 |
+| `ROOT_PATH` | 项目根目录绝对路径 |
+| `RAW_DATA_ROOT_PATH` | 原始数据目录绝对路径 |
+
+<p align="right">(<a href="#关于">回到顶部</a>)</p>
+
+---
+
+## 🛠️ 技术栈
+
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![pandas](https://img.shields.io/badge/pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
+![NumPy](https://img.shields.io/badge/NumPy-013243?style=for-the-badge&logo=numpy&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
+![Excel](https://img.shields.io/badge/Excel-217346?style=for-the-badge&logo=microsoftexcel&logoColor=white)
+
+| 包名 | 版本 | 用途 |
+|-----|:----:|------|
+| **mysql-connector-python** | 9.4.0 | MySQL 数据库连接 |
+| **pandas** | 2.3.1 | 数据操作与转换 |
+| **numpy** | 2.2.6 | 数值运算 |
+| **openpyxl** | 3.1.5 | Excel 工作簿读取 |
+| **python-dateutil** | 2.9.0 | 日期解析与格式化 |
+
+```bash
+pip install -r requirements.txt
+```
+
+<p align="right">(<a href="#关于">回到顶部</a>)</p>
+
+---
+
+## 📄 许可证
+
+基于 MIT 许可证分发。详见 [LICENSE](LICENSE)。
+
+---
+
+## 📬 联系与支持
+
+- **问题反馈** — [GitHub Issues](https://github.com/hakupao/SDTM-Mapping-System/issues)
+- **交流讨论** — [GitHub Discussions](https://github.com/hakupao/SDTM-Mapping-System/discussions)
 
 ---
 
 <div align="center">
 
-**[⬆ 返回顶部](#-sdtm-mapping-system)**
+**[⬆ 回到顶部](#关于)**
 
 为临床数据专业人士用心打造
+
+<a href="https://github.com/hakupao/SDTM-Mapping-System/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=hakupao/SDTM-Mapping-System" />
+</a>
 
 </div>
