@@ -47,6 +47,12 @@ def main():
         if empty_value_count > 5:
             print(f'  ... 还有 {empty_value_count - 5} 条类似警告')
 
+    # 按代���表统计编码数
+    codelist_stats = {}
+    for row in codeList:
+        cl_name = row[0]
+        codelist_stats[cl_name] = codelist_stats.get(cl_name, 0) + 1
+
     db = DatabaseManager()
     db.connect()
     try:
@@ -75,7 +81,17 @@ def main():
         db.connection.commit()
 
         # 处理摘要
+        TW = [28, 8]
+        tcols = ['代码表', '编码数']
         print_summary_header(f'处理摘要 - {STEP_NAME}')
+        print(
+            cjk_ljust(tcols[0], TW[0]) + ' '
+            + ' '.join(cjk_rjust(c, w) for c, w in zip(tcols[1:], TW[1:]))
+        )
+        print_summary_sep()
+        for cl_name, cl_count in sorted(codelist_stats.items()):
+            print(f'{cl_name:<{TW[0]}} {cl_count:>{TW[1]}}')
+        print_summary_sep()
         print_summary_kv('配置总记录数', len(codeList))
         print_summary_kv('成功插入', count_inserted)
         print_summary_kv('重复跳过', count_duplicate)
