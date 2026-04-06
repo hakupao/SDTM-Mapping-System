@@ -11,8 +11,15 @@ VAPORCONE 全流程一键运行脚本
 
 import subprocess
 import sys
+import os
 import time
 import argparse
+
+# 将项目根目录加入 sys.path 以便导入 VC_BC 模块
+_ROOT = os.path.dirname(os.path.abspath(__file__))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+from VC_BC02_baseUtils import PipelineProgress
 
 # 有序的步骤定义: (序号, 模块名, 步骤ID, 描述)
 STEPS = [
@@ -58,16 +65,33 @@ def run_pipeline(start=1, end=7, continue_on_error=False, dry_run=False):
     results = []
     pipeline_start = time.time()
 
-    for seq, module, step_id, desc in selected:
-        print()
-        print(f'>>> [{seq}/{end}] 启动 {step_id} ...')
-        print()
+    # 从 desc 中提取简短中文描述 (格式: "Cleaning          - 数据清洗")
+    steps_info = []
+    for s in selected:
+        parts = s[3].split('-', 1)
+        cn_desc = parts[1].strip() if len(parts) > 1 else s[3].strip()
+        steps_info.append((s[2], cn_desc))
+
+    pp = PipelineProgress(len(selected), steps_info)
+
+    for i, (seq, module, step_id, desc) in enumerate(selected):
+        pp.begin_step(i)
 
         step_start = time.time()
-        proc = subprocess.run(
-            [sys.executable, f'{module}.py'],
-            cwd=sys.path[0] or '.',
+        proc = subprocess.Popen(
+            [sys.executable, '-u', f'{module}.py'],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            cwd=_ROOT,
         )
+
+        for raw_line in proc.stdout:
+            line = raw_line.decode('utf-8', errors='replace').rstrip('\r\n')
+            if pp.parse_and_update(line):
+                continue
+            pp.print_line(line)
+
+        proc.wait()
+        pp.end_step()
         elapsed = time.time() - step_start
 
         success = proc.returncode == 0
@@ -82,6 +106,7 @@ def run_pipeline(start=1, end=7, continue_on_error=False, dry_run=False):
                 break
 
     # 汇总
+    pp.cleanup()
     pipeline_elapsed = time.time() - pipeline_start
     print()
     print('=' * W)

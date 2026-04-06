@@ -320,12 +320,12 @@ def main():
     domain_dataset = {}
     all_errors = []
     domain_summary = []  # 按 Domain 统计
+    progress = ProgressReporter(total=len(domain_args), desc='Mapping')
 
     use_parallel = len(domain_args) >= 3
 
     if use_parallel:
         max_workers = min(mp.cpu_count() - 1, len(domain_args), 4)
-        print(f"使用 {max_workers} 个进程并行处理 {len(domain_args)} 个Domain")
 
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             future_to_domain = {executor.submit(process_single_domain, args): args[0]
@@ -341,10 +341,8 @@ def main():
                         'domain': domain_key, 'records': record_count,
                         'errors': len(domain_errors),
                     })
-                    print(f'{domain_key} conversion completed (并行) - {record_count} 条记录')
                 except Exception as e:
                     message = f'Domain {domain_key} 处理失败: {e}'
-                    print(message)
                     domain_dataset[domain_key] = []
                     domain_summary.append({'domain': domain_key, 'records': 0, 'errors': 1})
                     all_errors.append({
@@ -355,8 +353,8 @@ def main():
                         'message': message,
                         'detail': str(e)
                     })
+                progress.update()
     else:
-        print("使用串行处理（Domain数量较少）")
         for args in domain_args:
             try:
                 domain_key, result_data, record_count, domain_errors = process_single_domain(args)
@@ -366,11 +364,9 @@ def main():
                     'domain': domain_key, 'records': record_count,
                     'errors': len(domain_errors),
                 })
-                print(f'{domain_key} conversion completed (串行) - {record_count} 条记录')
             except Exception as e:
                 domain_key = args[0]
                 message = f'Domain {domain_key} 处理失败: {e}'
-                print(message)
                 domain_dataset[domain_key] = []
                 domain_summary.append({'domain': domain_key, 'records': 0, 'errors': 1})
                 all_errors.append({
@@ -381,6 +377,9 @@ def main():
                     'message': message,
                     'detail': str(e)
                 })
+            progress.update()
+
+    progress.finish()
 
     print("开始保存SDTM数据集文件...")
     output_start = time.time()

@@ -100,6 +100,9 @@ def main():
             if os.path.isfile(os.path.join(actual_cleaning_path, file))
         ]
         
+        eligible_files = [f for f in fileDict.keys() if f in transFieldDict]
+        progress_build = ProgressReporter(total=len(eligible_files), desc='Build')
+
         for fileName in fileDict.keys():
             if fileName not in transFieldDict:
                 continue
@@ -155,7 +158,9 @@ def main():
                 'fields': len(file_param), 'records': file_record_count,
             })
             total_files_processed += 1
+            progress_build.update()
 
+        progress_build.finish()
         build_elapsed = time.perf_counter() - build_start
         total_records_to_insert = len(data)
         
@@ -224,24 +229,25 @@ def main():
         batch_size = 50000
         current_no = 1
         
+        total_batches = (total_staging_records + batch_size - 1) // batch_size
+        progress_transfer = ProgressReporter(total=total_batches, desc='Transfer')
+
         for offset in range(0, total_staging_records, batch_size):
             batch_sql = f"""
-            INSERT INTO {METADATA_TABLE_NAME} 
+            INSERT INTO {METADATA_TABLE_NAME}
             (No, FILENAME, ROWNUM, USUBJID, SUBJID, FIELDLBL, FIELDID, METAVAL, FORMVAL, DATETYPE, CODELISTID, CHKFIELDID)
-            SELECT 
+            SELECT
             @row_number := @row_number + 1 as No,
             FILENAME, ROWNUM, USUBJID, SUBJID, FIELDLBL, FIELDID, METAVAL, FORMVAL, DATETYPE, CODELISTID, CHKFIELDID
-            FROM (SELECT @row_number := {current_no - 1}) r, 
+            FROM (SELECT @row_number := {current_no - 1}) r,
             (SELECT * FROM {staging_table_name} ORDER BY No LIMIT {batch_size} OFFSET {offset}) s
             """
-            
+
             db.cursor.execute(batch_sql)
             current_no += batch_size
-            
-            # 显示进度
-            if offset + batch_size < total_staging_records:
-                progress = min(offset + batch_size, total_staging_records)
-                print(f"转移进度: {progress}/{total_staging_records} ({progress/total_staging_records*100:.1f}%)")
+            progress_transfer.update()
+
+        progress_transfer.finish()
         
         db.connection.commit()
         

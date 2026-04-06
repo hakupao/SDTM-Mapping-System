@@ -98,6 +98,7 @@ def makePackage(packagePath, logger):
     # 文件级统计
     file_stats = []
     skipped_files = []
+    progress_read = ProgressReporter(total=len(all_files), desc='ReadFiles')
 
     for file_name in all_files:
         with open(os.path.join(inputFilePath, file_name), 'r', encoding="utf-8-sig") as csvfile:
@@ -138,6 +139,9 @@ def makePackage(packagePath, logger):
                         'subjects': len(subjid_other_one_dict),
                         'records': record_count,
                     })
+        progress_read.update()
+
+    progress_read.finish()
 
     # 受试者一致性校验
     orphaned_subjects = {}
@@ -161,6 +165,7 @@ def makePackage(packagePath, logger):
 
     # 为每个受试者生成JSON文件
     json_count = 0
+    progress_json = ProgressReporter(total=len(usubjid_dict), desc='GenJSON')
     for usubjid in usubjid_dict:
         out_dict = {}
         out_dict['study_id'] = usubjid_dict[usubjid]['STUDYID']
@@ -181,6 +186,9 @@ def makePackage(packagePath, logger):
         ) as out_file:
             json.dump(out_dict, out_file, ensure_ascii=False)
         json_count += 1
+        progress_json.update()
+
+    progress_json.finish()
 
     # 创建压缩文件
     shutil.make_archive(zipfile, 'zip', zip_source_folder)

@@ -59,6 +59,7 @@ def main():
         db.create_codelist_table(CODELIST_TABLE_NAME)
         count_inserted = 0
         count_duplicate = 0
+        progress = ProgressReporter(total=len(codeList), desc='CodeList')
 
         query_insert = (
             f'INSERT IGNORE INTO {CODELIST_TABLE_NAME} '
@@ -76,9 +77,10 @@ def main():
             total = count_inserted + count_duplicate
             if total % 1000 == 0:
                 db.connection.commit()
-                print(f'  进度: {total}/{len(codeList)} (插入={count_inserted}, 跳过={count_duplicate})')
+            progress.update()
 
         db.connection.commit()
+        progress.finish()
 
         # 处理摘要
         TW = [28, 8]

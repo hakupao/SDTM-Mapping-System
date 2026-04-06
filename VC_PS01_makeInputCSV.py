@@ -50,6 +50,7 @@ def main():
     # 处理摘要收集
     summary = []
     site_warnings = []
+    progress = ProgressReporter(total=len(all_files), desc='MakeInputCSV')
 
     for full_name in all_files:
         sdtm_data_file_path = os.path.join(actual_sdtm_path, full_name)
@@ -155,6 +156,9 @@ def main():
             f'域[{domain}] 记录={len(data_list)}, 标准字段={len(common_fields)}, '
             f'补充字段={len(supp_fields)}, SUPP记录={len(supp_data_list)}'
         )
+        progress.update()
+
+    progress.finish()
 
     # SITEID警告汇总
     if site_warnings:

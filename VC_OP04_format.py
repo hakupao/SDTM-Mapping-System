@@ -275,11 +275,12 @@ def _run_format(db, total_start):
     # 应用性能优化配置
     
     format_summary = []  # 按文件统计
+    eligible_files = [f for f in transFieldDict.keys() if f in fileDict]
+    progress = ProgressReporter(total=len(eligible_files), desc='Format')
 
     for fileName in transFieldDict.keys():
         if fileName not in fileDict:
             continue
-        print(f'{fileName} is outputting')
         file_chk_count = 0
         file_chk_rows = 0
         file_main_rows = 0
@@ -445,7 +446,9 @@ def _run_format(db, total_start):
             'chk_rows': file_chk_rows, 'main_rows': file_main_rows,
             'dropped': file_dropped_rows, 'time': file_elapsed,
         })
-        print(f'{fileName} 完成')
+        progress.update()
+
+    progress.finish()
 
     process_combine_files(workbook, sheetSetting, actual_format_path)
 
