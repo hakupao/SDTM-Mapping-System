@@ -26,6 +26,9 @@ import pandas as pd
 from VC_BC03_fetchConfig import *
 from VC_BC04_operateType import *
 
+STEP_ID = 'OP05'
+STEP_NAME = 'Mapping'
+
 # 全局变量
 actual_format_path = None
 
@@ -389,18 +392,19 @@ def main():
     output_time = time.time() - output_start
     total_time = time.time() - start_time
 
-    print("\n=== 处理完成统计 ===")
-    print(f"总处理时间: {total_time:.2f} 秒")
-    print(f"文件输出时间: {output_time:.2f} 秒")
-    print(f"数据处理时间: {total_time - output_time:.2f} 秒")
-    print(f"处理的Domain数量: {len(domain_dataset)}")
     total_records = sum(len(data) for data in domain_dataset.values())
-    print(f"生成的总记录数: {total_records}")
+
+    print_summary_header(f'处理摘要 - {STEP_NAME}')
+    print_summary_kv('总处理时间', f'{total_time:.2f}s')
+    print_summary_kv('文件输出时间', f'{output_time:.2f}s')
+    print_summary_kv('数据处理时间', f'{total_time - output_time:.2f}s')
+    print_summary_kv('处理Domain数量', len(domain_dataset))
+    print_summary_kv('生成总记录数', total_records)
     if total_time > 0:
-        print(f"处理速度: {total_records/total_time:.0f} 记录/秒")
+        print_summary_kv('处理速度', f'{total_records/total_time:.0f} rec/s')
 
     if all_errors:
-        print(f"错误/失败数量: {len(all_errors)}")
+        print_summary_kv('错误/失败数量', len(all_errors))
         for err in all_errors:
             location_parts = []
             if err.get('definition_row'):
@@ -416,16 +420,16 @@ def main():
             if detail and detail not in err['message']:
                 print(f"  详情: {detail}")
     else:
-        print("错误/失败数量: 0")
+        print_summary_kv('错误/失败数量', 0)
 
     return True
 
 
 if __name__ == "__main__":
-    print(f'Study:{STUDY_ID} Processing has begun.' )
+    print_step_header(STEP_ID, STEP_NAME)
     success = main()
     if success:
-        print(f'Study:{STUDY_ID} Processing is over.' )
+        print_step_footer(STEP_ID, STEP_NAME)
     else:
-        print(f'Study:{STUDY_ID} Processing terminated due to errors.' )
+        print(f'[ERROR] {STEP_ID} {STEP_NAME} 处理中断')
         sys.exit(1)

@@ -3,11 +3,115 @@ VAPORCONE 项目基础工具模块
 
 该模块提供了项目中使用的基础工具函数和数据库管理类，包括：
 - 日志记录器创建
+- 统一控制台输出工具
 - 数据处理工具函数
 - 数据库操作管理类
 """
 
 from VC_BC01_constant import *
+import traceback
+import unicodedata
+
+# ======================================================================
+# 统一控制台输出规范
+# ======================================================================
+CONSOLE_WIDTH = 70
+
+
+# ------ CJK 对齐工具 ------
+
+def _display_width(s):
+    """
+    计算字符串在终端中的实际显示宽度。
+    CJK 全角字符占 2 格，ASCII 占 1 格。
+    """
+    width = 0
+    for ch in str(s):
+        if unicodedata.east_asian_width(ch) in ('W', 'F'):
+            width += 2
+        else:
+            width += 1
+    return width
+
+
+def cjk_ljust(s, width):
+    """左对齐，CJK 感知。与 str.ljust 等效但按显示宽度计算。"""
+    s = str(s)
+    return s + ' ' * max(0, width - _display_width(s))
+
+
+def cjk_rjust(s, width):
+    """右对齐，CJK 感知。与 str.rjust 等效但按显示宽度计算。"""
+    s = str(s)
+    return ' ' * max(0, width - _display_width(s)) + s
+
+
+# ------ 步骤横幅 ------
+
+def print_step_header(step_id, step_name):
+    """
+    输出步骤开始横幅 (每个 VC_OP / VC_PS 入口统一调用)
+
+    示例输出:
+    ======================================================================
+      ENSEMBLE | OP01 Cleaning | 开始处理
+    ======================================================================
+    """
+    print()
+    print('=' * CONSOLE_WIDTH)
+    print(f'  {STUDY_ID} | {step_id} {step_name} | 开始处理')
+    print('=' * CONSOLE_WIDTH)
+
+
+def print_step_footer(step_id, step_name):
+    """输出步骤结束横幅"""
+    print()
+    print('=' * CONSOLE_WIDTH)
+    print(f'  {STUDY_ID} | {step_id} {step_name} | 处理完成')
+    print('=' * CONSOLE_WIDTH)
+
+
+# ------ 摘要输出 ------
+
+def print_summary_header(title):
+    """
+    输出摘要表头
+
+    示例输出:
+    ======================================================================
+      处理摘要 - Cleaning
+    ======================================================================
+    """
+    print()
+    print('=' * CONSOLE_WIDTH)
+    print(f'  {title}')
+    print('=' * CONSOLE_WIDTH)
+
+
+def print_summary_kv(label, value):
+    """输出摘要键值行，label 按 18 显示宽度左对齐"""
+    print(f'  {cjk_ljust(label, 18)} {value}')
+
+
+def print_summary_sep():
+    """输出摘要分割线"""
+    print('-' * CONSOLE_WIDTH)
+
+
+# ------ 日志 + 控制台 ------
+
+def log_and_print(logger, level, msg):
+    """
+    同时写日志文件和 stdout，统一 tag 前缀:
+      [ERROR] / [WARN] / [SKIP] / [INFO]
+    """
+    print(f'[{level}] {msg}')
+    if level == 'ERROR':
+        logger.error(msg)
+    elif level == 'WARN':
+        logger.warning(msg)
+    else:
+        logger.info(msg)
 
 
 def create_logger(file_name, log_level=logging.DEBUG):
