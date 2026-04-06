@@ -11,10 +11,13 @@ import time
 import json
 from datetime import datetime
 
-# 将项目根目录加入 sys.path 以便导入 VC_BC 模块
+# 优先从当前工作目录导入模块（sdtm 可能通过 PATH 从别处启动）
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+_CWD = os.getcwd()
+if _CWD not in sys.path:
+    sys.path.insert(0, _CWD)
 if ROOT_DIR not in sys.path:
-    sys.path.insert(0, ROOT_DIR)
+    sys.path.append(ROOT_DIR)  # 后备，不抢 CWD 优先级
 from VC_BC02_baseUtils import PipelineProgress
 
 # ── 常量 ──────────────────────────────────────────────────────────
