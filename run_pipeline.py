@@ -78,10 +78,11 @@ def run_pipeline(start=1, end=7, continue_on_error=False, dry_run=False):
         pp.begin_step(i)
 
         step_start = time.time()
+        env = {**os.environ, 'VAPORCONE_PIPELINE': '1'}
         proc = subprocess.Popen(
             [sys.executable, '-u', f'{module}.py'],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            cwd=_ROOT,
+            cwd=_ROOT, env=env,
         )
 
         for raw_line in proc.stdout:
