@@ -30,8 +30,11 @@ STEPS = [
     (7, 'VC_PS02_csv2json',       'PS02', 'CSV2JSON',       'M5打包'),
 ]
 
-# step_id → seq 快速查表
-STEP_ID_MAP = {s[3].upper(): s[0] for s in STEPS}  # OP01->1, PS02->7
+# step_id / step_name → seq 快速查表 (支持 PS02、CSV2JSON 等写法)
+STEP_ID_MAP = {}
+for _s in STEPS:
+    STEP_ID_MAP[_s[2].upper()] = _s[0]   # OP01->1, PS02->7
+    STEP_ID_MAP[_s[3].upper()] = _s[0]   # CLEANING->1, CSV2JSON->7
 
 STAGE_DIRS = [
     ('02_Cleaning',     'cleaning_dataset'),
@@ -105,10 +108,11 @@ def run_steps(start, end, continue_on_error=False):
         pp.begin_step(i)
 
         ts = time.time()
+        env = {**os.environ, 'VAPORCONE_PIPELINE': '1'}
         proc = subprocess.Popen(
-            [sys.executable, '-u', os.path.join(ROOT_DIR, f'{module}.py')],
+            [sys.executable, '-u', f'{module}.py'],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            cwd=os.getcwd(),
+            cwd=os.getcwd(), env=env,
         )
 
         for raw_line in proc.stdout:
