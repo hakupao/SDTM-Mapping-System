@@ -44,7 +44,8 @@ STAGE_DIRS = [
 
 # ── 项目配置 ──────────────────────────────────────────────────────
 def load_config():
-    config_path = os.path.join(ROOT_DIR, 'project.local.json')
+    """从当前工作目录加载 project.local.json（支持在不同项目目录下运行）。"""
+    config_path = os.path.join(os.getcwd(), 'project.local.json')
     if os.path.isfile(config_path):
         with open(config_path, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -107,7 +108,7 @@ def run_steps(start, end, continue_on_error=False):
         proc = subprocess.Popen(
             [sys.executable, '-u', os.path.join(ROOT_DIR, f'{module}.py')],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            cwd=ROOT_DIR,
+            cwd=os.getcwd(),
         )
 
         for raw_line in proc.stdout:

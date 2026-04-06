@@ -141,6 +141,16 @@ def _bar_str(pct, width=20):
     return '#' * filled + '-' * (width - filled)
 
 
+def _fmt_elapsed(seconds):
+    """格式化已用时间: 12s / 1m23s / 1h05m"""
+    s = int(seconds)
+    if s < 60:
+        return f'{s}s'
+    if s < 3600:
+        return f'{s // 60}m{s % 60:02d}s'
+    return f'{s // 3600}h{s % 3600 // 60:02d}m'
+
+
 class ProgressReporter:
     """
     步骤内进度报告器。
@@ -243,6 +253,7 @@ class PipelineProgress:
         self.step_current = 0
         self.step_total = 0
         self.step_desc = ''
+        self._pipeline_start = _time.time()
         self._step_start = 0
 
         _enable_ansi()
@@ -344,10 +355,11 @@ class PipelineProgress:
         if self.current_step > 0:
             p_pct = self.current_step / self.total_steps
             p_bar = _bar_str(p_pct)
+            p_elapsed = _fmt_elapsed(_time.time() - self._pipeline_start)
             _sys.stdout.write(
                 f'{self._BRIGHT_YELLOW}'
                 f'  Pipeline  [{p_bar}] {self.current_step}/{self.total_steps}'
-                f'  {p_pct * 100:5.1f}%  {sid} {sdesc}'
+                f'  {p_pct * 100:5.1f}%  {p_elapsed}  {sid} {sdesc}'
                 f'{self._RESET}'
             )
 
@@ -357,20 +369,22 @@ class PipelineProgress:
         if self.step_total > 0:
             s_pct = self.step_current / self.step_total
             s_bar = _bar_str(s_pct)
-            elapsed = _time.time() - self._step_start
+            s_elapsed_raw = _time.time() - self._step_start
+            s_elapsed = _fmt_elapsed(s_elapsed_raw)
             if self.step_current > 0 and s_pct < 1.0:
-                eta_s = int(elapsed / s_pct * (1.0 - s_pct))
+                eta_s = int(s_elapsed_raw / s_pct * (1.0 - s_pct))
                 eta = f'ETA {eta_s}s' if eta_s < 60 else f'ETA {eta_s // 60}m{eta_s % 60:02d}s'
             else:
-                eta = f'{elapsed:.1f}s'
+                eta = ''
             _sys.stdout.write(
                 f'{step_color}'
                 f'  {cjk_ljust(sid, 10)}[{s_bar}] {self.step_current}/{self.step_total}'
-                f'  {s_pct * 100:5.1f}%  {self.step_desc}  {eta}'
+                f'  {s_pct * 100:5.1f}%  {s_elapsed}  {eta}'
                 f'{self._RESET}'
             )
         elif self.current_step > 0:
-            _sys.stdout.write(f'{step_color}  {cjk_ljust(sid, 10)}...{self._RESET}')
+            s_elapsed = _fmt_elapsed(_time.time() - self._step_start)
+            _sys.stdout.write(f'{step_color}  {cjk_ljust(sid, 10)}{s_elapsed}  ...{self._RESET}')
 
 
 def create_logger(file_name, log_level=logging.DEBUG):
