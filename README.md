@@ -1,115 +1,178 @@
-[English](README.md) | [中文](README_CN.md)
-
 <div align="center">
 
-<img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=700&size=30&duration=3000&pause=1000&color=667EEA&center=true&vCenter=true&width=800&height=80&lines=SDTM+Mapping+System;Clinical+Trial+ETL+%C2%B7+CDISC+SDTM+%C2%B7+Config-Driven" alt="SDTM Mapping System"/>
+[English](README.md) | [中文](README_CN.md)
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python)
-![pandas](https://img.shields.io/badge/pandas-2.3.1-150458?style=flat-square&logo=pandas)
-![numpy](https://img.shields.io/badge/numpy-2.2.6-013243?style=flat-square&logo=numpy)
-![MySQL](https://img.shields.io/badge/MySQL-Connector-4479A1?style=flat-square&logo=mysql)
-![CDISC](https://img.shields.io/badge/Standard-CDISC%20SDTM-00A0D0?style=flat-square)
-![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
-![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square)
+<!-- Typing SVG -->
+<a href="https://git.io/typing-svg">
+  <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=700&size=36&duration=3000&pause=1000&color=38BDF8&center=true&vCenter=true&random=false&width=700&height=80&lines=SDTM+Mapping+System;Config-Driven+Clinical+Trial+ETL;CDISC+SDTM+%C2%B7+M5+Packaging" alt="SDTM Mapping System" />
+</a>
 
-**Transform raw clinical study data into standardized CDISC SDTM datasets and M5 submission packages using declarative Excel configuration.**
+<p><strong>Transform raw clinical study data into CDISC SDTM datasets and M5 submission packages<br/>through a 7-step automated pipeline driven entirely by Excel configuration.</strong></p>
 
-[Features](#features) • [Architecture](#architecture) • [Quick Start](#quick-start) • [Configuration](#configuration) • [Contributing](#contributing)
+<!-- Badge wall -->
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![pandas](https://img.shields.io/badge/pandas-2.3.1-150458?style=for-the-badge&logo=pandas&logoColor=white)](https://pandas.pydata.org)
+[![NumPy](https://img.shields.io/badge/NumPy-2.2.6-013243?style=for-the-badge&logo=numpy&logoColor=white)](https://numpy.org)
+[![MySQL](https://img.shields.io/badge/MySQL-Connector-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://dev.mysql.com/doc/connector-python/en/)
+[![CDISC](https://img.shields.io/badge/CDISC-SDTM-00A0D0?style=for-the-badge)](https://www.cdisc.org/standards/foundational/sdtm)
+[![License](https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Active-34D399?style=for-the-badge)]()
+
+<br/>
+
+<!-- Hero banner -->
+<img src="docs/assets/hero.svg" alt="SDTM Mapping System Hero" width="800"/>
+
+<br/>
+
+[Features](#-features) · [Architecture](#-architecture) · [Quick Start](#-quick-start) · [Pipeline](#-pipeline-steps) · [Configuration](#-configuration) · [CLI Reference](#-cli-reference)
 
 </div>
 
 ---
 
-## Overview
+## About
 
-SDTM Mapping System (codename: **VAPORCONE**) is a production-grade, config-driven ETL pipeline for clinical trial data standardization. It transforms raw study exports into CDISC SDTM-compliant datasets and regulatory M5 submission packages.
-
-**Why SDTM Mapping System?**
-- 📋 **Config as Code**: Excel workbook acts as a "configuration DSL" – no Python coding required for study-specific mappings
-- 🔄 **Modular Pipeline**: Cleanly separated base utilities (VC_BC*), operations (VC_OP*), and preprocessing (VC_PS*)
-- 📊 **Production Ready**: Built for enterprise clinical trial workflows with CDISC compliance
-- 🗄️ **Multi-Source**: Seamless integration with MySQL, Excel, and other study export formats
-- 🎯 **Study Isolation**: Per-study configuration in `studySpecific/` directory ensures reproducibility and auditability
+**SDTM Mapping System** (codename **VAPORCONE**) is a production-grade ETL pipeline for clinical trial data standardization. Define your mapping rules in an Excel workbook, point the pipeline at your raw study exports, and receive CDISC SDTM-compliant datasets plus a ready-to-submit M5 regulatory package — no Python coding required.
 
 ---
 
-## Key Features
+## ✨ Features
 
-| Feature | Description |
-|---------|-------------|
-| 🎛️ **Excel-Driven Configuration** | Define entire mapping logic in human-readable Excel workbooks |
-| 🔗 **CDISC SDTM Compliance** | Auto-validates against SDTM IG standards |
-| 📦 **M5 Package Generation** | Direct regulatory submission package creation |
-| 🔀 **Complex ETL Workflows** | Preprocessing, transformation, validation in one pipeline |
-| 💾 **Multi-Database Support** | MySQL, Excel, CSV, Parquet integration |
-| 📈 **Audit Trail** | Full traceability from source to SDTM dataset |
-| ⚡ **Vectorized Operations** | Leverages pandas/numpy for performance at scale |
-| 🎨 **Visual Pipeline Inspection** | Preview SVG diagrams of data flow (docs/assets/) |
+| | Feature | Description |
+|---|---------|-------------|
+| 📋 | **Excel-Driven Configuration** | Define entire mapping logic in `OperationConf.xlsx` — the workbook acts as a declarative DSL |
+| 🔗 | **7-Step Automated Pipeline** | OP01~OP05 (transformation) + PS01~PS02 (output generation), each independently runnable |
+| 💻 | **Interactive CLI Console** | Built-in `sdtm` command with run / status / list commands and execution summaries |
+| ⚡ | **Batch Runner** | `run_pipeline.py` for non-interactive execution with `--continue` and `--dry-run` flags |
+| 🗄️ | **MySQL Transformation Hub** | Staging tables, auto-created indexes, and optimized views for high-performance processing |
+| 📦 | **M5 Submission Packaging** | Direct regulatory submission package creation (JSON + M5 directory structure) |
+| 🕐 | **Timestamped Versioning** | Every pipeline run creates a timestamped output folder for full traceability and audit |
+| 🌐 | **CJK-Aware Formatting** | Proper text alignment for Japanese / Chinese characters in console output |
+| 🚀 | **Performance Optimized** | Vectorized pandas/numpy, multiprocessing, precomputed caching, batch DB inserts |
 
 ---
 
-## Architecture
+## 🏗️ Architecture
+
+<details open>
+<summary><b>Pipeline Flow (Mermaid)</b></summary>
+<br/>
 
 ```mermaid
-graph TB
- A[Raw Study Export] -->|MySQL/Excel/CSV| B[Data Ingestion]
- B --> C[Config Loading]
- C -->|studySpecific/*.xlsx| D[Config DSL Parser]
+graph LR
+    subgraph INPUT
+        A[("📄 Raw CSV<br/>01_RawData")]
+        J[("📊 OperationConf.xlsx<br/>Config DSL")]
+    end
 
- D -->|VC_BC_*| E[Base Utilities]
- E -->|VC_PS_*| F[Preprocessing]
- F -->|VC_OP_*| G[Mapping Operations]
+    subgraph TRANSFORM["Transformation (OP01 → OP05)"]
+        B["OP01<br/>Cleaning"]
+        C["OP02<br/>CodeList Insert"]
+        D["OP03<br/>Metadata Insert"]
+        E["OP04<br/>Format & Views"]
+        F["OP05<br/>SDTM Mapping"]
+    end
 
- G -->|Domain Logic| H[SDTM Transformation]
- H -->|Validation| I{CDISC Compliant?}
+    subgraph OUTPUT["Output Generation (PS01 → PS02)"]
+        G["PS01<br/>Input CSV"]
+        H["PS02<br/>M5 Packaging"]
+    end
 
- I -->|Yes| J[SDTM Dataset]
- I -->|No| K[Error Report]
+    subgraph DELIVER
+        I[("📦 M5 Package<br/>06_Inputpackage")]
+    end
 
- J -->|M5 Structure| L[Submission Package]
- K -->|Audit Log| M[Investigation Queue]
+    K[("🗄️ MySQL DB")]
 
- L --> N[ Regulatory Ready]
- M --> O[ Review & Fix]
+    A --> B --> C --> D --> E --> F --> G --> H --> I
+    J -.->|config| B
+    J -.->|config| C
+    J -.->|config| E
+    J -.->|config| F
+    K <-->|staging| D
+    K <-->|views| E
+    K <-->|queries| F
 
- style A fill:#e1f5ff
- style J fill:#c8e6c9
- style L fill:#fff9c4
- style N fill:#81c784
+    style A fill:#e1f5ff,stroke:#38BDF8,color:#0c4a6e
+    style I fill:#d1fae5,stroke:#34D399,color:#064e3b
+    style J fill:#fef9c3,stroke:#FACC15,color:#713f12
+    style K fill:#fff7ed,stroke:#FB923C,color:#7c2d12
 ```
+
+</details>
+
+<br/>
+
+<details>
+<summary><b>Repository Preview</b></summary>
+<br/>
+
+<div align="center">
+<img src="docs/assets/preview.svg" alt="Repository Preview" width="800"/>
+</div>
+
+</details>
+
+<br/>
 
 ### Module Organization
 
 ```
 SDTM-Mapping-System/
-├── VC_BC_*.py              # Base classes & utilities
-├── VC_OP_*.py              # Mapping operations
-├── VC_PS_*.py              # Preprocessing modules
-├── main.py                 # Pipeline orchestrator
-├── config.toml             # Global configuration
-├── studySpecific/          # Per-study configs
-│   ├── STUDY001/
-│   │   ├── mapping.xlsx    # Study mapping DSL
-│   │   └── rules.json      # Custom business logic
-│   └── STUDY002/
-│       └── mapping.xlsx
-├── docs/
-│   ├── assets/
-│   │   ├── hero.svg        # Architecture diagram
-│   │   └── preview.svg     # Data flow visualization
-│   └── MAPPING_GUIDE.md    # Configuration reference
-└── tests/                  # Unit & integration tests
+│
+├── 🔧 Base Classes & Utilities (VC_BC_*)
+│   ├── VC_BC01_constant.py              # Project config, DB credentials, paths
+│   ├── VC_BC02_baseUtils.py             # Logger, console formatting, DatabaseManager
+│   ├── VC_BC03_fetchConfig.py           # Excel config parser & validation
+│   ├── VC_BC04_operateType.py           # Data operations, table joins, CSV caching
+│   └── VC_BC06_operateTypeFunctions.py  # Operation helper functions
+│
+├── ⚙️ Transformation Pipeline (VC_OP_*)
+│   ├── VC_OP01_cleaning.py              # Step 1 — Raw data filtering & cleaning
+│   ├── VC_OP02_insertCodeList.py        # Step 2 — Code list DB insertion
+│   ├── VC_OP03_insertMetadata.py        # Step 3 — Metadata DB insertion
+│   ├── VC_OP04_format.py                # Step 4 — Data formatting & view creation
+│   └── VC_OP05_mapping.py               # Step 5 — SDTM domain mapping
+│
+├── 📦 Output Generation (VC_PS_*)
+│   ├── VC_PS01_makeInputCSV.py          # Step 6 — Input CSV generation
+│   └── VC_PS02_csv2json.py              # Step 7 — M5 package creation
+│
+├── 🚀 Pipeline Runners
+│   ├── sdtm.py                          # Interactive CLI console
+│   ├── sdtm.bat                         # Windows launcher
+│   └── run_pipeline.py                  # Batch pipeline executor
+│
+├── 📝 Configuration
+│   ├── project.local.json               # Study ID, DB table names, paths
+│   └── requirements.txt                 # Python dependencies
+│
+└── 📂 studySpecific/                    # Per-study configuration & data
+    ├── ENSEMBLE/
+    │   ├── ENSEMBLE_OperationConf.xlsx   # Master config workbook (DSL)
+    │   ├── VC_BC05_studyFunctions.py     # Study-specific custom logic
+    │   ├── 01_RawData/                   # Raw CSV input files
+    │   ├── 02_Cleaning/                  # Step 1 output (timestamped)
+    │   ├── 03_Format/                    # Step 4 output (timestamped)
+    │   ├── 04_SDTM/                      # Step 5 output (timestamped)
+    │   ├── 05_Inputfile/                 # Step 6 output (timestamped)
+    │   └── 06_Inputpackage/              # Step 7 output (M5 package)
+    ├── CIRCULATE/
+    └── COSMOS_GC/
 ```
+
+<p align="right">(<a href="#about">back to top</a>)</p>
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - **Python 3.11+**
-- **pip** or **conda**
-- MySQL database (optional, CSV/Excel also supported)
+- **MySQL** database server (running locally or remotely)
+- **pip**
 
 ### Installation
 
@@ -120,360 +183,226 @@ cd SDTM-Mapping-System
 
 # Install dependencies
 pip install -r requirements.txt
-
-# Verify installation
-python -c "import VC_BC; print('✓ Installation successful')"
 ```
 
-### Your First SDTM Mapping (5 minutes)
-
-```bash
-# 1. Prepare raw data
-cp /path/to/study_export.xlsx data/raw/
-
-# 2. Create study config
-cp studySpecific/TEMPLATE/mapping.xlsx studySpecific/MY_STUDY/mapping.xlsx
-# Edit the Excel file with your domain mappings
-
-# 3. Run the pipeline
-python main.py --study MY_STUDY --output ./output/
-
-# 4. Review SDTM datasets
-ls output/MY_STUDY/sdtm/
-# dm.xlsx, ae.xlsx, ev.xlsx, ...
-```
-
----
-
-## Configuration
-
-### Excel Config DSL
-
-The magic happens in `studySpecific/YOUR_STUDY/mapping.xlsx`:
-
-| Sheet | Purpose | Example |
-|-------|---------|---------|
-| **DataSources** | Raw data locations | `SOURCE_PATH: C:/data/export.csv` |
-| **Demographics** | DM domain mapping | `SOURCE.PatientID → SDTM.USUBJID` |
-| **Adverse Events** | AE domain mapping | `SOURCE.AdverseEvent → SDTM.AEDECOD` |
-| **Lab** | LB domain mapping | Measurements, results, dates |
-| **Vital Signs** | VS domain mapping | Blood pressure, heart rate, temperature |
-| **Validation Rules** | Business logic | Custom checks, expected ranges |
-| **Terminology** | SDTM codelist mappings | ICD10 → MedDRA conversions |
-
-#### Example: Demographics Mapping
-
-```
-SOURCE COLUMN    | SDTM COLUMN | TRANSFORMATION | REQUIRED
-PatientID        | USUBJID     | Prepend site    | ✓
-Sex              | SEX         | M→M, F→F        | ✓
-DOB              | BRTHDTC     | ISO 8601 date   | ✓
-Status           | ACTARMCD    | Active→ACTIVE   | ✓
-```
-
-### Main Configuration (config.toml)
-
-```toml
-[pipeline]
-log_level = "INFO"
-validate_cdisc = true
-output_format = "xlsx"  # xlsx, sas, parquet
-
-[database]
-type = "mysql"
-host = "localhost"
-port = 3306
-database = "clinical_data"
-
-[m5_package]
-enabled = true
-submission_type = "IND"  # IND, BLA, NDA
-sponsor_id = "1234567"
-```
-
----
-
-## Usage Examples
-
-### Basic Pipeline Execution
-
-```python
-from VC_BC_core import Pipeline
-from VC_PS_preprocessing import PreProcessor
-from VC_OP_sdtm import SDTMTransformer
-
-# Load configuration
-config = Pipeline.load_config("studySpecific/MY_STUDY/mapping.xlsx")
-
-# Initialize pipeline stages
-prep = PreProcessor(config)
-transformer = SDTMTransformer(config)
-
-# Execute
-raw_data = prep.load_raw_data()
-clean_data = prep.execute()
-sdtm_data = transformer.map_to_sdtm(clean_data)
-
-# Validate & export
-sdtm_data.validate()
-sdtm_data.export_m5_package("./output/")
-```
-
-### Custom Preprocessing
-
-```python
-from VC_PS_preprocessing import PreProcessor
-
-class CustomPreProcessor(PreProcessor):
-    def handle_missing_values(self, df):
-        # Study-specific logic
-        return df.fillna(method='bfill')
-
-processor = CustomPreProcessor(config)
-data = processor.execute()
-```
-
-### Validation & QA
-
-```python
-from VC_OP_validation import Validator
-
-validator = Validator(config)
-report = validator.validate_sdtm_compliance(sdtm_data)
-
-print(f"✓ Passed: {report.passed_checks}")
-print(f"✗ Failed: {report.failed_checks}")
-print(f"⚠ Warnings: {report.warnings}")
-
-# Export audit trail
-report.export_html("audit_report.html")
-```
-
----
-
-## Dependencies
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| **pandas** | 2.3.1 | Data manipulation & transformation |
-| **numpy** | 2.2.6 | Numerical operations |
-| **openpyxl** | 3.1.5 | Excel configuration reading |
-| **mysql-connector-python** | 9.4.0 | Database connectivity |
-| **pydantic** | 2.0+ | Config validation |
-| **lxml** | 4.9+ | XML/SAS7BDAT handling |
-| **requests** | 2.28+ | API integration |
-
-Install all dependencies:
-```bash
-pip install pandas==2.3.1 numpy==2.2.6 openpyxl==3.1.5 mysql-connector-python==9.4.0
-```
-
----
-
-## Project Structure
-
-<details>
-<summary><b>📁 Detailed File Organization</b></summary>
-
-```
-SDTM-Mapping-System/
-│
-├── 📄 README.md & README_CN.md
-├── 📄 requirements.txt
-├── 📄 config.toml
-├── 📄 main.py                    # Entry point
-│
-├── 🔧 Base Utilities (VC_BC_*)
-│   ├── VC_BC_core.py             # Pipeline orchestration
-│   ├── VC_BC_config.py           # Configuration loader
-│   ├── VC_BC_data.py             # Data structures
-│   └── VC_BC_logger.py           # Logging & audit trail
-│
-├── 🔄 Preprocessing (VC_PS_*)
-│   ├── VC_PS_preprocessing.py    # Main preprocessing
-│   ├── VC_PS_cleaning.py         # Data cleaning
-│   ├── VC_PS_validation.py       # Input validation
-│   └── VC_PS_encoding.py         # Character encoding handling
-│
-├── 🗺️  Mapping Operations (VC_OP_*)
-│   ├── VC_OP_sdtm.py             # SDTM transformation
-│   ├── VC_OP_domains.py          # Domain-specific logic
-│   ├── VC_OP_terminology.py      # Codelist mapping
-│   └── VC_OP_validation.py       # CDISC validation
-│
-├── 📊 Study Configs
-│   ├── studySpecific/
-│   │   ├── TEMPLATE/
-│   │   │   ├── mapping.xlsx
-│   │   │   └── rules.json
-│   │   ├── STUDY001/
-│   │   │   └── mapping.xlsx
-│   │   └── STUDY002/
-│   │       └── mapping.xlsx
-│
-├── 📚 Documentation
-│   ├── docs/
-│   │   ├── MAPPING_GUIDE.md
-│   │   ├── API_REFERENCE.md
-│   │   ├── TROUBLESHOOTING.md
-│   │   └── assets/
-│   │       ├── hero.svg
-│   │       └── preview.svg
-│
-└── ✅ Tests
-    ├── tests/
-    │   ├── test_bc_core.py
-    │   ├── test_ps_preprocessing.py
-    │   ├── test_op_sdtm.py
-    │   └── test_integration.py
-```
-
-</details>
-
----
-
-## Advanced Topics
-
-<details>
-<summary><b>🚀 Performance Tuning</b></summary>
-
-### Vectorized Operations
-
-```python
-# ✓ Good: Vectorized
-df['SDTM_VALUE'] = df['RAW_VALUE'].apply(transformation_func)
-
-# ✗ Avoid: Row-by-row iteration
-for idx, row in df.iterrows():
-    df.at[idx, 'SDTM_VALUE'] = transform(row['RAW_VALUE'])
-```
-
-### Memory Optimization
-
-```python
-# Use dtypes efficiently
-df['USUBJID'] = df['USUBJID'].astype('category')
-df['SEX'] = df['SEX'].astype('category')
-
-# Process in chunks for large datasets
-for chunk in pd.read_csv('huge_file.csv', chunksize=10000):
-    process_chunk(chunk)
-```
-
-### Parallel Processing
-
-```python
-from multiprocessing import Pool
-
-def process_study(study_id):
-    config = load_config(f"studySpecific/{study_id}/mapping.xlsx")
-    return execute_pipeline(config)
-
-with Pool(4) as p:
-    results = p.map(process_study, ['STUDY001', 'STUDY002', ...])
-```
-
-</details>
-
-<details>
-<summary><b>🔐 Data Security & Compliance</b></summary>
-
-- **Audit Trail**: All transformations logged with timestamps
-- **De-identification**: Built-in masking for PHI (dates, names)
-- **Encryption**: Optional field-level encryption for sensitive data
-- **Access Control**: Study-level access policies via config
-- **HIPAA Compliance**: Follows HIPAA Privacy Rule for data handling
-- **Validation Checkpoints**: Mandatory validation gates before export
-
-</details>
-
-<details>
-<summary><b>🐛 Troubleshooting</b></summary>
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `ConfigNotFoundError` | Missing mapping.xlsx | Verify path in config.toml |
-| `DataValidationFailed` | Invalid source data | Review validation_report.html |
-| `SDTMComplianceFailed` | CDISC rule violation | Check CDISC_errors.log |
-| `DatabaseConnectionError` | MySQL connection issue | Verify credentials in config.toml |
-
-View detailed logs:
-```bash
-tail -f logs/pipeline_$(date +%Y%m%d).log
-```
-
-</details>
-
----
-
-## Contributing
-
-Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
-
-```bash
-# Fork & clone
-git clone https://github.com/YOUR_USERNAME/SDTM-Mapping-System.git
-cd SDTM-Mapping-System
-
-# Create feature branch
-git checkout -b feature/my-improvement
-
-# Make changes, add tests
-pytest tests/
-
-# Commit & push
-git commit -m "feat: add new domain mapping support"
-git push origin feature/my-improvement
-
-# Create Pull Request
-```
-
----
-
-## Roadmap
-
-- [ ] UI dashboard for mapping configuration
-- [ ] Real-time validation feedback
-- [ ] AI-powered terminology mapping suggestions
-- [ ] Multi-study batch processing
-- [ ] Cloud deployment templates (Docker, K8s)
-- [ ] OpenAPI specification for pipeline APIs
-
----
-
-## License
-
-MIT License © 2024 hakupao
-
----
-
-## Citation
-
-If you use SDTM Mapping System in your research, please cite:
-
-```bibtex
-@software{vaporcone2024,
-  author = {hakupao},
-  title = {SDTM Mapping System: Clinical Trial ETL for CDISC Standardization},
-  url = {https://github.com/hakupao/SDTM-Mapping-System},
-  year = {2024}
+### Configuration
+
+Create or edit `project.local.json` in the project root:
+
+```json
+{
+  "STUDY_ID": "ENSEMBLE",
+  "CODELIST_TABLE_NAME": "VC05_ENSEMBLE_CODELIST",
+  "METADATA_TABLE_NAME": "VC05_ENSEMBLE_METADATA",
+  "TRANSDATA_VIEW_NAME": "VC05_ENSEMBLE_TRANSDATA",
+  "M5_PROJECT_NAME": "ENSEMBLE",
+  "ROOT_PATH": "C:\\Local\\iTMS\\SDTM_ENSEMBLE",
+  "RAW_DATA_ROOT_PATH": "C:\\...\\studySpecific\\ENSEMBLE\\01_RawData"
 }
 ```
 
+### Run
+
+```bash
+# Launch the interactive console
+python sdtm.py
+
+# Or run the full pipeline directly
+python run_pipeline.py
+```
+
+<p align="right">(<a href="#about">back to top</a>)</p>
+
 ---
 
-## Contact & Support
+## 🔄 Pipeline Steps
 
-- 📧 **Issues**: [GitHub Issues](https://github.com/hakupao/SDTM-Mapping-System/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/hakupao/SDTM-Mapping-System/discussions)
-- 📖 **Documentation**: [docs/](docs/)
+| # | Module | Step ID | Name | What It Does |
+|:-:|--------|:-------:|------|-------------|
+| 1 | `VC_OP01_cleaning` | OP01 | **Cleaning** | Filter raw CSV by case dict, remove unmapped columns and invalid rows |
+| 2 | `VC_OP02_insertCodeList` | OP02 | **InsertCodeList** | Insert code / terminology mappings into MySQL |
+| 3 | `VC_OP03_insertMetadata` | OP03 | **InsertMetadata** | Parse cleaned data, format values, insert field metadata into MySQL |
+| 4 | `VC_OP04_format` | OP04 | **Format** | Create optimized DB views with indexes, export formatted CSVs |
+| 5 | `VC_OP05_mapping` | OP05 | **Mapping** | Apply SDTM domain transformations (DM, AE, LB, VS, etc.) via multiprocessing |
+| 6 | `VC_PS01_makeInputCSV` | PS01 | **MakeInputCSV** | Split SDTM data into main domain CSVs + SUPP* companion files |
+| 7 | `VC_PS02_csv2json` | PS02 | **CSV2JSON** | Generate M5 submission package (JSON + directory structure) |
+
+<details>
+<summary><b>Data Flow Diagram</b></summary>
+
+```
+01_RawData/  (raw CSV files)
+    │  [OP01] Filter by case dict, clean columns
+    ▼
+02_Cleaning/cleaning_dataset-{YYYYMMDDHHMMSS}/
+    │  [OP02] Code list  ──▶  MySQL CODELIST table
+    │  [OP03] Metadata   ──▶  MySQL METADATA table
+    ▼
+MySQL: CODELIST + METADATA tables (with auto-created indexes)
+    │  [OP04] Create TRANSDATA view, export formatted CSV
+    ▼
+03_Format/format_dataset-{YYYYMMDDHHMMSS}/
+    │  [OP05] Apply SDTM domain mappings (parallel processing)
+    ▼
+04_SDTM/sdtm_dataset-{YYYYMMDDHHMMSS}/
+    │  [PS01] Split into main domains + SUPP* files
+    ▼
+05_Inputfile/inputfile_dataset-{YYYYMMDDHHMMSS}/
+    │  [PS02] Build M5 JSON package structure
+    ▼
+06_Inputpackage/inputpackage_dataset-{YYYYMMDDHHMMSS}/
+    └── m5/m5/datasets/{STUDY}/tabulations/sdtm/
+```
+
+</details>
+
+<p align="right">(<a href="#about">back to top</a>)</p>
+
+---
+
+## 💻 CLI Reference
+
+<div align="center">
+<img src="docs/assets/cli-screenshot.png" alt="SDTM Pipeline Console" width="750"/>
+</div>
+
+<br/>
+
+### Interactive Console (`sdtm.py`)
+
+```bash
+python sdtm.py          # Enter interactive mode
+sdtm                    # Windows shortcut (via sdtm.bat)
+python sdtm.py run all  # One-shot: run and exit
+```
+
+| Command | Description |
+|---------|-------------|
+| `run all` | Run all 7 steps (OP01 ~ PS02) |
+| `run <n>` | Run from step n to the end |
+| `run <n> <m>` | Run steps n through m |
+| `run op03 ps01` | Run by step ID (case-insensitive) |
+| `run ... --continue` | Continue past failures |
+| `status` | Show latest output timestamps and version counts |
+| `list` | List all pipeline steps |
+| `help` | Show available commands |
+| `exit` | Quit the console |
+
+### Batch Runner (`run_pipeline.py`)
+
+```bash
+python run_pipeline.py              # Run all 7 steps
+python run_pipeline.py 3            # From step 3 onward
+python run_pipeline.py 3 5          # Steps 3 to 5 only
+python run_pipeline.py --continue   # Continue past failures
+python run_pipeline.py --dry-run    # Preview execution plan without running
+```
+
+### Individual Steps
+
+Each step module can be run standalone:
+
+```bash
+python VC_OP01_cleaning.py
+python VC_OP05_mapping.py
+python VC_PS02_csv2json.py
+```
+
+<p align="right">(<a href="#about">back to top</a>)</p>
+
+---
+
+## 📋 Configuration
+
+### Excel Config DSL — `OperationConf.xlsx`
+
+The master configuration workbook drives the entire pipeline. Each sheet controls a specific aspect:
+
+| Sheet | Purpose |
+|-------|---------|
+| **SheetSetting** | Column configurations and starting row definitions for each sheet |
+| **CaseList** | Patient ID mappings (SUBJID &#8594; USUBJID) and migration flags |
+| **FileDict** | Raw data file definitions (filename, encoding, delimiters) |
+| **FieldDict** | Field specifications, data types, and transformation rules |
+| **CodeList** | Code / terminology value mappings |
+| **Mapping** | SDTM domain transformation rules (DM, AE, LB, VS, EV, etc.) |
+| **Combine** | Custom table join / combination definitions |
+
+### Study-Specific Functions — `VC_BC05_studyFunctions.py`
+
+For domain logic that cannot be expressed in the Excel DSL, each study defines custom Python functions:
+
+```python
+def DM():
+    """Custom DM domain generation.
+
+    Sources: RGST (registration), LSVDAT (last survival), OC (outcome)
+    Computes: RFENDAT (end date), DTHFLG (death flag)
+    """
+    ...
+```
+
+### Project Settings — `project.local.json`
+
+| Key | Description |
+|-----|-------------|
+| `STUDY_ID` | Active study identifier |
+| `CODELIST_TABLE_NAME` | MySQL table for code list data |
+| `METADATA_TABLE_NAME` | MySQL table for metadata |
+| `TRANSDATA_VIEW_NAME` | MySQL view for formatted data |
+| `M5_PROJECT_NAME` | Project name in M5 package output |
+| `ROOT_PATH` | Absolute path to project root |
+| `RAW_DATA_ROOT_PATH` | Absolute path to raw data directory |
+
+<p align="right">(<a href="#about">back to top</a>)</p>
+
+---
+
+## 🛠️ Tech Stack
+
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![pandas](https://img.shields.io/badge/pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
+![NumPy](https://img.shields.io/badge/NumPy-013243?style=for-the-badge&logo=numpy&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
+![Excel](https://img.shields.io/badge/Excel-217346?style=for-the-badge&logo=microsoftexcel&logoColor=white)
+
+| Package | Version | Purpose |
+|---------|:-------:|---------|
+| **mysql-connector-python** | 9.4.0 | MySQL database connectivity |
+| **pandas** | 2.3.1 | Data manipulation & transformation |
+| **numpy** | 2.2.6 | Numerical operations |
+| **openpyxl** | 3.1.5 | Excel workbook reading |
+| **python-dateutil** | 2.9.0 | Date parsing & formatting |
+
+```bash
+pip install -r requirements.txt
+```
+
+<p align="right">(<a href="#about">back to top</a>)</p>
+
+---
+
+## 📄 License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+
+---
+
+## 📬 Contact & Support
+
+- **Issues** — [GitHub Issues](https://github.com/hakupao/SDTM-Mapping-System/issues)
+- **Discussions** — [GitHub Discussions](https://github.com/hakupao/SDTM-Mapping-System/discussions)
 
 ---
 
 <div align="center">
 
-**[⬆ Back to Top](#-sdtm-mapping-system)**
+**[⬆ Back to Top](#about)**
 
-Made with ❤️ for clinical data professionals
+Made with care for clinical data professionals
+
+<a href="https://github.com/hakupao/SDTM-Mapping-System/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=hakupao/SDTM-Mapping-System" />
+</a>
 
 </div>
