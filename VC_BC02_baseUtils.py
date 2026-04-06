@@ -120,6 +120,7 @@ def log_and_print(logger, level, msg):
 # ------ 进度条 ------
 
 PROGRESS_MARKER = '@@PG@@'
+PIPELINE_ENV_KEY = 'VAPORCONE_PIPELINE'
 
 
 def _enable_ansi():
@@ -176,13 +177,20 @@ class ProgressReporter:
         self._start = _time.time()
         self._last_render = 0
         self._is_tty = _sys.stdout.isatty()
+        # 管道协议模式: 仅当 pipeline runner 设置了环境变量时才发送 @@PG@@ 标记
+        self._is_pipeline = not self._is_tty and _os.environ.get(PIPELINE_ENV_KEY) == '1'
+        # 动态步长: 将总量分为 ~100 次渲染，减少 I/O 开销
+        self._render_every = max(1, self.total // 100)
         self._render()
 
     def update(self, n=1):
         """进度推进 n 步"""
         self.current = min(self.current + n, self.total)
+        if self.current < self.total and self.current % self._render_every != 0:
+            return
         now = _time.time()
-        if self.current >= self.total or (now - self._last_render) >= 0.1:
+        interval = 0.5 if not self._is_tty else 0.1
+        if self.current >= self.total or (now - self._last_render) >= interval:
             self._render()
             self._last_render = now
 
@@ -192,13 +200,16 @@ class ProgressReporter:
         self._render()
         if self._is_tty:
             _sys.stdout.write('\n')
-        _sys.stdout.flush()
+            _sys.stdout.flush()
 
     def _render(self):
-        if not self._is_tty:
-            # 管道模式: 发送协议标记
+        if self._is_pipeline:
+            # 管道协议模式: 仅 pipeline runner 消费
             _sys.stdout.write(f'{PROGRESS_MARKER}{self.current}/{self.total}/{self._desc}\n')
             _sys.stdout.flush()
+            return
+        if not self._is_tty:
+            # 非 TTY 且非 pipeline (如 Code Runner): 静默，不输出噪音
             return
 
         # TTY 模式: \r 内联刷新
@@ -255,6 +266,7 @@ class PipelineProgress:
         self.step_desc = ''
         self._pipeline_start = _time.time()
         self._step_start = 0
+        self._last_footer_render = 0
 
         _enable_ansi()
         try:
@@ -296,7 +308,12 @@ class PipelineProgress:
                 self.step_desc = parts[2] if len(parts) > 2 else ''
             except (ValueError, IndexError):
                 return True
-            self._update_footer()
+            # 节流: 父进程快速消费管道数据，但限制 ANSI 重绘频率，
+            # 避免 Windows 终端渲染过慢导致管道反压阻塞子进程
+            now = _time.time()
+            if self.step_current >= self.step_total or (now - self._last_footer_render) >= 0.1:
+                self._update_footer()
+                self._last_footer_render = now
             return True
         return False
 
