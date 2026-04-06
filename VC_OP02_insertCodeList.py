@@ -10,21 +10,49 @@ VAPORCONE 项目代码列表插入模块
 
 from VC_BC03_fetchConfig import *
 
+STEP_ID = 'OP02'
+STEP_NAME = 'InsertCodeList'
+
 
 def main():
     """
     主函数，执行代码列表插入流程
     """
+    logger = create_logger(
+        os.path.join(SPECIFIC_PATH, 'log_file.log'),
+        log_level=logging.DEBUG
+    )
+
     # 获取代码列表配置
     workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
     sheetSetting = getSheetSetting(workbook)
-    _, codeList = getCodeListInfo(workbook, sheetSetting)
-   
+    codeDict, codeList = getCodeListInfo(workbook, sheetSetting)
+
+    print(f'配置加载完成: 记录={len(codeList)}, 代码表={len(codeDict)}')
+    print_summary_sep()
+
+    # 数据质量预检
+    warnings = []
+    empty_value_count = 0
+    for i, row in enumerate(codeList):
+        codelist_name, code, value_raw, value_en, value_sdtm = row
+        if not value_en and not value_sdtm:
+            empty_value_count += 1
+            if empty_value_count <= 5:
+                warnings.append(f'  CodeList=[{codelist_name}] Code=[{code}]: VALUE_EN和VALUE_SDTM均为空')
+    if empty_value_count > 0:
+        log_and_print(logger, 'WARN', f'{empty_value_count} 条记录的VALUE_EN和VALUE_SDTM均为空')
+        for w in warnings:
+            print(w)
+        if empty_value_count > 5:
+            print(f'  ... 还有 {empty_value_count - 5} 条类似警告')
+
     db = DatabaseManager()
     db.connect()
     try:
         db.create_codelist_table(CODELIST_TABLE_NAME)
-        count = 0
+        count_inserted = 0
+        count_duplicate = 0
 
         query_insert = (
             f'INSERT IGNORE INTO {CODELIST_TABLE_NAME} '
@@ -34,17 +62,28 @@ def main():
         for row in codeList:
             values_insert = [row[0], row[1], row[2], row[3], row[4]]
             db.cursor.execute(query_insert, values_insert)
-            count += 1
+            if db.cursor.rowcount > 0:
+                count_inserted += 1
+            else:
+                count_duplicate += 1
 
-            if count % 1000 == 0:
+            total = count_inserted + count_duplicate
+            if total % 1000 == 0:
                 db.connection.commit()
-                print(count, 'records processed.')
+                print(f'  进度: {total}/{len(codeList)} (插入={count_inserted}, 跳过={count_duplicate})')
 
         db.connection.commit()
-        print(f'{count} records processed (duplicates skipped).')
+
+        # 处理摘要
+        print_summary_header(f'处理摘要 - {STEP_NAME}')
+        print_summary_kv('配置总记录数', len(codeList))
+        print_summary_kv('成功插入', count_inserted)
+        print_summary_kv('重复跳过', count_duplicate)
+        print_summary_kv('代码表数量', len(codeDict))
+        logger.info(f'CodeList插入完成: 插入={count_inserted}, 跳过重复={count_duplicate}, 代码表={len(codeDict)}')
 
     except Exception as e:
-        print(f'Error: {e}')
+        log_and_print(logger, 'ERROR', f'CodeList插入失败: {e}')
         traceback.print_exc()
         if db.connection and db.connection.is_connected():
             db.connection.rollback()
@@ -52,12 +91,11 @@ def main():
     finally:
         if db.cursor:
             db.cursor.close()
-            print('Cursor closed.')
-        if db.connection.is_connected():
+        if db.connection and db.connection.is_connected():
             db.disconnect()
-            print('Connection closed.')
+
 
 if __name__ == '__main__':
-    print(f'Study:{STUDY_ID} Processing has begun.' )
+    print_step_header(STEP_ID, STEP_NAME)
     main()
-    print(f'Study:{STUDY_ID} Processing is over.' )
+    print_step_footer(STEP_ID, STEP_NAME)

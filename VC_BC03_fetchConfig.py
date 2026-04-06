@@ -92,28 +92,35 @@ def getCaseDict(workbook, sheetSetting):
     colnum_migration_flag = patients_sheetsetting[COL_MIGRATIONFLAG]
 
     caseDict = {}
+    current_row_num = patients_sheetsetting[COL_STARTINGROW]
     for row in workbook[CASELIST_SHEET_NAME].iter_rows(
-        min_row=patients_sheetsetting[COL_STARTINGROW], 
-        min_col=1, 
-        max_col=patients_sheetsetting[COL_MAXCOL], 
+        min_row=patients_sheetsetting[COL_STARTINGROW],
+        min_col=1,
+        max_col=patients_sheetsetting[COL_MAXCOL],
         values_only=True
     ):
         if not any(row):
             break
-        
+
         subjid = get_cell_value(row, colnum_subjid)
         usubjid = get_cell_value(row, colnum_usubjid)
         migration_flag = get_cell_value(row, colnum_migration_flag)
 
         # 跳过标记为不迁移的病例
         if migration_flag in MARK_CROSS:
+            current_row_num += 1
             continue
         if migration_flag not in MARK_CIRCLE:
-            print(f'Study:[{STUDY_ID}] case:[{subjid}] is mapping wrong')
-            sys.exit(1)
+            raise MappingConfigurationError(
+                f"第{current_row_num}行的MigrationFlag值无效: '{migration_flag}'，SUBJID='{subjid}'。"
+                f"期望值为 {MARK_CIRCLE} 或 {MARK_CROSS}。",
+                sheet=CASELIST_SHEET_NAME,
+                row=current_row_num
+            )
 
         caseDict[subjid] = usubjid
-    
+        current_row_num += 1
+
     return caseDict
 
 # 仕様書からシートFiles読込
@@ -127,6 +134,7 @@ def getFileDict(workbook, sheetSetting):
     colnum_processing_logic = files_sheetsetting[COL_PROCESSINGLOGIC]
 
     fileDict = {}
+    current_row_num = files_sheetsetting[COL_STARTINGROW]
     for row in workbook[FILELIST_SHEET_NAME].iter_rows(min_row=files_sheetsetting[COL_STARTINGROW], min_col=1, max_col=files_sheetsetting[COL_MAXCOL], values_only=True):
         if not any(row):
             break
@@ -136,21 +144,35 @@ def getFileDict(workbook, sheetSetting):
         data_row = get_cell_value(row, colnum_data_row)
         subjid_fieldid = get_cell_value(row, colnum_subjid_fieldid)
         processing_logic = get_cell_value(row, colnum_processing_logic)
-        
+
         if migration_flag in MARK_CROSS:
+            current_row_num += 1
             continue
         if migration_flag not in MARK_CIRCLE:
-            print(f'Study:[{STUDY_ID}] File:[{file_name}] is mapping wrong')
-            sys.exit(1)
+            raise MappingConfigurationError(
+                f"第{current_row_num}行的MigrationFlag值无效: '{migration_flag}'，文件名='{file_name}'。"
+                f"期望值为 {MARK_CIRCLE} 或 {MARK_CROSS}。",
+                sheet=FILELIST_SHEET_NAME,
+                row=current_row_num
+            )
         if not file_name:
-            print(f'Study:[{STUDY_ID}] File:[{file_name}] is undefined')
-            sys.exit(1)
+            raise MappingConfigurationError(
+                f"第{current_row_num}行的FileName列为空。",
+                sheet=FILELIST_SHEET_NAME,
+                row=current_row_num
+            )
         if not subjid_fieldid:
-            print(f'Study:[{STUDY_ID}] File:[{file_name}] subjid_fieldid is undefined')
-            sys.exit(1)
+            raise MappingConfigurationError(
+                f"第{current_row_num}行的SubjIdFieldId列为空，文件名='{file_name}'。",
+                sheet=FILELIST_SHEET_NAME,
+                row=current_row_num
+            )
         if not title_row.isdigit() or not data_row.isdigit():
-            print(f'Study:[{STUDY_ID}] File:[{file_name}] row is wrong')
-            sys.exit(1)
+            raise MappingConfigurationError(
+                f"第{current_row_num}行的TitleRow('{title_row}')或DataRow('{data_row}')不是有效数字，文件名='{file_name}'。",
+                sheet=FILELIST_SHEET_NAME,
+                row=current_row_num
+            )
 
         if file_name.endswith(EXTENSION):
             file_name = file_name.removesuffix(EXTENSION)
@@ -161,6 +183,7 @@ def getFileDict(workbook, sheetSetting):
         fileDict[file_name][COL_PROCESSINGLOGIC] = processing_logic
         fileDict[file_name][COL_TITLEROW] = int(title_row)
         fileDict[file_name][COL_DATARROW] = int(data_row)
+        current_row_num += 1
     return fileDict
 
 # 仕様書からシートProcess読込
@@ -204,11 +227,12 @@ def getProcess(workbook, sheetSetting):
 
     starting_row = sheetSetting[PROCESS_SHEET_NAME][COL_STARTINGROW]
     max_col = sheetSetting[PROCESS_SHEET_NAME][COL_MAXCOL]
+    current_row_num = starting_row
 
     for row in process_sheet.iter_rows(min_row=starting_row, min_col=1, max_col=max_col, values_only=True):
         if not any(row):
             break
-        
+
         file_name = get_cell_value(row, colnum_file_name)
         field_id = get_cell_value(row, colnum_field_name)
         label = get_cell_value(row, colnum_label)
@@ -222,8 +246,12 @@ def getProcess(workbook, sheetSetting):
             try:
                 other_val, other_details_field = other_details_process.split(MARK_COLON, 1)
             except ValueError:
-                print(f'Study:[{STUDY_ID}] File:[{file_name}] Field:[{field_id}] OtherDetailsProcess is wrong')
-                sys.exit(1)
+                raise MappingConfigurationError(
+                    f"第{current_row_num}行的OtherDetailsProcess格式错误: '{other_details_process}'，"
+                    f"文件名='{file_name}'，字段='{field_id}'。期望格式为 '值:字段名'。",
+                    sheet=PROCESS_SHEET_NAME,
+                    row=current_row_num
+                )
 
         if file_name.endswith(EXTENSION):
             file_name = file_name.removesuffix(EXTENSION)
@@ -238,9 +266,11 @@ def getProcess(workbook, sheetSetting):
             fieldDict[file_name].append(field_id)
         elif migration_flag in MARK_CROSS:
             fieldDict[dfile_name].append(field_id)
+            current_row_num += 1
             continue
         else:
             fieldDict[dfile_name].append(field_id)
+            current_row_num += 1
             continue
 
         if file_name not in transFieldDict:
@@ -274,6 +304,8 @@ def getProcess(workbook, sheetSetting):
                     chkFileDict[file_name][chkfileName][COL_OTHERDETAILS][field_id] = fileFieldflg
                     ex_fieldsDict[file_name].append(field_id)
 
+        current_row_num += 1
+
     return fieldDict,transFieldDict,chkFileDict,ex_fieldsDict
 
 # 仕様書からシートCodeList読込
@@ -287,6 +319,7 @@ def getCodeListInfo(workbook, sheetSetting):
 
     codeDict = {}
     codeList = []
+    current_row_num = codeList_sheetsetting[COL_STARTINGROW]
 
     for row in workbook[CODELIST_SHEET_NAME].iter_rows(min_row=codeList_sheetsetting[COL_STARTINGROW], min_col=1, max_col=codeList_sheetsetting[COL_MAXCOL], values_only=True):
         if not any(row):
@@ -297,11 +330,25 @@ def getCodeListInfo(workbook, sheetSetting):
         value_en = get_cell_value(row, colnum_value_en)
         value_sdtm = get_cell_value(row, colnum_value_sdtm)
 
+        if not codelist_name:
+            raise MappingConfigurationError(
+                f"第{current_row_num}行的CodelistName列为空。",
+                sheet=CODELIST_SHEET_NAME,
+                row=current_row_num
+            )
+        if not code:
+            raise MappingConfigurationError(
+                f"第{current_row_num}行的Code列为空，CodelistName='{codelist_name}'。",
+                sheet=CODELIST_SHEET_NAME,
+                row=current_row_num
+            )
+
         # 注意：已移除4OTHER功能，不再处理带有4OTHER后缀的代码表
         if codelist_name not in codeDict:
             codeDict[codelist_name] = {}
         codeDict[codelist_name][value_en] = value_sdtm
         codeList.append([codelist_name,code,value_raw,value_en,value_sdtm])
+        current_row_num += 1
     return codeDict, codeList
 
 # 仕様書からシートRefactoring読込
@@ -519,12 +566,26 @@ def getSites(workbook, sheetSetting):
     colnum_sitecode = site_sheetsetting[COL_SITECODE]
     
     siteDict = {}
+    current_row_num = site_sheetsetting[COL_STARTINGROW]
     for row in workbook[SITEMASTER_SHEET_NAME].iter_rows(min_row=site_sheetsetting[COL_STARTINGROW], min_col=1, max_col=site_sheetsetting[COL_MAXCOL], values_only=True):
         if not any(row):
             break
         site_name = get_cell_value(row, colnum_sitename)
         site_code = get_cell_value(row, colnum_sitecode)
+        if not site_name:
+            raise MappingConfigurationError(
+                f"第{current_row_num}行的SiteName列为空。",
+                sheet=SITEMASTER_SHEET_NAME,
+                row=current_row_num
+            )
+        if not site_code:
+            raise MappingConfigurationError(
+                f"第{current_row_num}行的SiteCode列为空，SiteName='{site_name}'。",
+                sheet=SITEMASTER_SHEET_NAME,
+                row=current_row_num
+            )
         siteDict[site_name] = site_code
+        current_row_num += 1
     return siteDict
 
 def getCombineInfo(workbook, sheetSetting):

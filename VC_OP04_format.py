@@ -42,6 +42,9 @@ from VC_BC03_fetchConfig import *
 from VC_BC04_operateType import *
 import time
 
+STEP_ID = 'OP04'
+STEP_NAME = 'Format'
+
 # ================== 性能优化配置 ==================
 # 可通过修改这些常量来调整优化策略
 
@@ -429,9 +432,10 @@ def _run_format(db, total_start):
 
     process_combine_files(workbook, sheetSetting, actual_format_path)
 
-    print(f"=== 处理完成 ===")
+    print_summary_header(f'处理摘要 - {STEP_NAME}')
+    print_summary_kv('处理完成', 'OK')
 
 if __name__ == "__main__":
-    print(f'Study:{STUDY_ID} Processing has begun.' )
+    print_step_header(STEP_ID, STEP_NAME)
     main()
-    print(f'Study:{STUDY_ID} Processing is over.' )
+    print_step_footer(STEP_ID, STEP_NAME)

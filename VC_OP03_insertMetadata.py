@@ -11,11 +11,19 @@ VAPORCONE 项目元数据插入模块
 from VC_BC03_fetchConfig import *
 import time  # 性能计时
 
+STEP_ID = 'OP03'
+STEP_NAME = 'InsertMetadata'
+
 
 def main():
     """
     主函数，执行元数据插入流程
     """
+    logger = create_logger(
+        os.path.join(SPECIFIC_PATH, 'log_file.log'),
+        log_level=logging.DEBUG
+    )
+
     # 获取配置信息
     workbook = load_workbook(filename=os.path.join(SPECIFIC_PATH, CONFIG_NAME))
     sheetSetting = getSheetSetting(workbook)
@@ -257,29 +265,31 @@ def main():
             except Exception as e:
                 print(f"⚠ 恢复设置跳过: {setting}, 错误: {e}")
         
-        # 总结统计输出
+        # 处理摘要
         t_total_elapsed = time.perf_counter() - t_total_start
         overall_rps = (total_records_to_insert / t_total_elapsed) if t_total_elapsed > 0 else 0.0
 
-        print("—— 性能统计 ——")
-        print(f"处理文件数: {total_files_processed}")
-        print(f"准备插入记录数: {total_records_to_insert}")
-        print(f"实际插入记录数: {final_count}")
-        print(f"总耗时: {t_total_elapsed:.3f}s")
-        print(f"总体吞吐: {overall_rps:.1f} rec/s")
-        
+        print_summary_header(f'处理摘要 - {STEP_NAME}')
+        print_summary_kv('处理文件数', total_files_processed)
+        print_summary_kv('准备插入记录数', total_records_to_insert)
+        print_summary_kv('实际插入记录数', final_count)
+        print_summary_kv('总耗时', f'{t_total_elapsed:.3f}s')
+        print_summary_kv('总体吞吐', f'{overall_rps:.1f} rec/s')
+        logger.info(
+            f'Metadata插入完成: 文件={total_files_processed}, '
+            f'记录={final_count}, 耗时={t_total_elapsed:.3f}s'
+        )
+
     except Exception as e:
-        print(f'Error: {e}')
+        log_and_print(logger, 'ERROR', f'Metadata插入失败: {e}')
         traceback.print_exc()
     finally:
         if db.cursor:
             db.cursor.close()
-            print('Cursor closed.')
-        if db.connection.is_connected():
+        if db.connection and db.connection.is_connected():
             db.disconnect()
-            print('Connection closed.')
 
 if __name__ == '__main__':
-    print(f'Study:{STUDY_ID} Processing has begun.' )
+    print_step_header(STEP_ID, STEP_NAME)
     main()
-    print(f'Study:{STUDY_ID} Processing is over.' )
+    print_step_footer(STEP_ID, STEP_NAME)
