@@ -67,7 +67,7 @@ def main():
         
         if not full_name:
             print(f'Study:[{STUDY_ID}] File:[{shorten_name}] is not existed')
-            sys.exit()
+            sys.exit(1)
 
         file_param = fileDict[shorten_name]
         subjid_field_id = file_param[COL_SUBJIDFIELDID]
@@ -106,7 +106,7 @@ def main():
                     not_transfer_rows_data.append(row)
                     continue
 
-                if processing_logic and not eval(file_param[COL_PROCESSINGLOGIC]):
+                if processing_logic and not eval(file_param[COL_PROCESSINGLOGIC], {"__builtins__": {}}, {"row": row}):
                     not_transfer_rows_data.append(row)
                     continue
                 
@@ -142,11 +142,10 @@ def main():
             continue
         
         # 🆕 使用动态时间戳路径输出清洗数据
-        if transfer_file_fields:
-            with open(os.path.join(actual_cleaning_path, f'{PREFIX_C}{shorten_name}{EXTENSION}'), 'w', newline=MARK_BLANK, encoding="utf-8-sig") as writer_transfer_file:
-                transfer_writer = csv.DictWriter(writer_transfer_file, fieldnames=transfer_file_fields)
-                transfer_writer.writeheader()
-                transfer_writer.writerows(transfer_data)
+        with open(os.path.join(actual_cleaning_path, f'{PREFIX_C}{shorten_name}{EXTENSION}'), 'w', newline=MARK_BLANK, encoding="utf-8-sig") as writer_transfer_file:
+            transfer_writer = csv.DictWriter(writer_transfer_file, fieldnames=transfer_file_fields)
+            transfer_writer.writeheader()
+            transfer_writer.writerows(transfer_data)
 
         # 🆕 使用动态时间戳路径输出未迁移列数据
         if not_transfer_file_fields:

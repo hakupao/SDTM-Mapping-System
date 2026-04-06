@@ -77,7 +77,7 @@ def opertype_FLG(result_df, be_converted_df, standard_field, fieldname_cycle, pa
 
     if fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
         source_col = be_converted_df[fieldname_cycle[0]]
-        result_values = [MARK_BLANK] * len(source_col)
+        result_values = np.full(len(source_col), MARK_BLANK, dtype='object')
 
         for part in parameter_cycle.split(MARK_DOLLAR):
             if MARK_COLON in part:
@@ -85,11 +85,8 @@ def opertype_FLG(result_df, be_converted_df, standard_field, fieldname_cycle, pa
                 if sVal.lower() == 'null':
                     sVal = MARK_BLANK
 
-                # 向量化条件匹配
-                mask = (source_col == sVal)
-                for i, match in enumerate(mask):
-                    if match:
-                        result_values[i] = fVal
+                mask = (source_col == sVal).values
+                result_values = np.where(mask, fVal, result_values)
 
         result_df[standard_field] = result_values
 
@@ -113,22 +110,19 @@ def opertype_IIF(result_df, be_converted_df, standard_field, fieldname_cycle, pa
     continue_flags = np.zeros(len(result_df), dtype=bool)
 
     if fieldname_cycle:
-        result_values = [MARK_BLANK] * len(be_converted_df)
+        result_values = np.full(len(be_converted_df), MARK_BLANK, dtype='object')
         parameters = parameter_cycle.split(MARK_DOLLAR)
 
         for idx, param_record in enumerate(parameters):
             if MARK_COLON in param_record:
                 flg_field, flg_value = param_record.split(MARK_COLON, 1)
                 if flg_field in be_converted_df.columns:
-                    condition_mask = (be_converted_df[flg_field] == flg_value)
+                    condition_mask = (be_converted_df[flg_field] == flg_value).values
 
-                    # 选择对应的列
                     col_idx = 0 if len(fieldname_cycle) == 1 else idx
                     if col_idx < len(fieldname_cycle) and fieldname_cycle[col_idx] in be_converted_df.columns:
-                        source_values = be_converted_df[fieldname_cycle[col_idx]]
-                        for i, match in enumerate(condition_mask):
-                            if match:
-                                result_values[i] = source_values.iloc[i]
+                        source_values = be_converted_df[fieldname_cycle[col_idx]].values
+                        result_values = np.where(condition_mask, source_values, result_values)
 
         result_df[standard_field] = result_values
 
@@ -157,13 +151,11 @@ def opertype_COB(result_df, be_converted_df, standard_field, fieldname_cycle, pa
 
     valid_cols = [col for col in fieldname_cycle if col in be_converted_df.columns]
     if valid_cols:
-        # 高效字符串连接
-        combined_values = []
-        for idx in range(len(be_converted_df)):
-            vals = [str(be_converted_df.iloc[idx][col]) for col in valid_cols
-                   if be_converted_df.iloc[idx][col]]
-            combined_values.append(separator.join(vals))
-        result_df[standard_field] = combined_values
+        # 向量化字符串连接
+        str_df = be_converted_df[valid_cols].fillna('').astype(str)
+        result_df[standard_field] = str_df.apply(
+            lambda row: separator.join(v for v in row if v), axis=1
+        )
 
     return result_df, continue_flags
 
