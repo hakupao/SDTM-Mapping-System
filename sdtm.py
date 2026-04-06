@@ -195,7 +195,7 @@ def parse_run_args(parts):
             return None, None, cont
         return s, e, cont
 
-    return s, 7, cont
+    return s, s, cont
 
 
 # ── 命令处理 ──────────────────────────────────────────────────────

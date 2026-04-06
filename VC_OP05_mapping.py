@@ -324,6 +324,11 @@ def main():
 
     use_parallel = len(domain_args) >= 3
 
+    def _on_domain_done(domain_key, record_count, error_count, idx, total):
+        """主进程输出 domain 完成状态（直接走管道，实时可见）。"""
+        err_tag = f'  [{error_count} err]' if error_count else ''
+        print(f'  {domain_key:<10} {record_count:>8} 条记录{err_tag}', flush=True)
+
     if use_parallel:
         max_workers = min(mp.cpu_count() - 1, len(domain_args), 4)
 
@@ -331,6 +336,7 @@ def main():
             future_to_domain = {executor.submit(process_single_domain, args): args[0]
                                 for args in domain_args}
 
+            done_count = 0
             for future in as_completed(future_to_domain):
                 domain_key = future_to_domain[future]
                 try:
@@ -341,6 +347,8 @@ def main():
                         'domain': domain_key, 'records': record_count,
                         'errors': len(domain_errors),
                     })
+                    done_count += 1
+                    _on_domain_done(domain_key, record_count, len(domain_errors), done_count, len(domain_args))
                 except Exception as e:
                     message = f'Domain {domain_key} 处理失败: {e}'
                     domain_dataset[domain_key] = []
@@ -353,8 +361,11 @@ def main():
                         'message': message,
                         'detail': str(e)
                     })
+                    done_count += 1
+                    _on_domain_done(domain_key, 0, 1, done_count, len(domain_args))
                 progress.update()
     else:
+        done_count = 0
         for args in domain_args:
             try:
                 domain_key, result_data, record_count, domain_errors = process_single_domain(args)
@@ -364,6 +375,8 @@ def main():
                     'domain': domain_key, 'records': record_count,
                     'errors': len(domain_errors),
                 })
+                done_count += 1
+                _on_domain_done(domain_key, record_count, len(domain_errors), done_count, len(domain_args))
             except Exception as e:
                 domain_key = args[0]
                 message = f'Domain {domain_key} 处理失败: {e}'
@@ -377,6 +390,8 @@ def main():
                     'message': message,
                     'detail': str(e)
                 })
+                done_count += 1
+                _on_domain_done(domain_key, 0, 1, done_count, len(domain_args))
             progress.update()
 
     progress.finish()
