@@ -141,15 +141,18 @@ def vectorized_domain_mapping_ultra(domain_key, precomputed_rules, caseDict, cod
                 if np.any(valid_rows):
                     filtered_df = result_df[valid_rows].copy()
 
-                    deduped_rows = []
-                    for idx, row in filtered_df.iterrows():
-                        combination = tuple(row[field] for field in standard_fields if field != seq_field)
-                        if combination not in unique_combinations:
-                            unique_combinations.add(combination)
-                            deduped_rows.append(row)
+                    # 跨 cycle/definition 去重：用非序号字段组合做唯一键
+                    dedup_cols = [f for f in standard_fields if f != seq_field]
+                    # 先去除批内重复
+                    filtered_df = filtered_df.drop_duplicates(subset=dedup_cols, keep='first')
+                    # 再去除跨批重复
+                    filtered_df['_dedup_key'] = filtered_df[dedup_cols].apply(lambda r: tuple(r), axis=1)
+                    new_mask = ~filtered_df['_dedup_key'].isin(unique_combinations)
+                    unique_combinations.update(filtered_df.loc[new_mask, '_dedup_key'])
+                    filtered_df = filtered_df.loc[new_mask].drop(columns=['_dedup_key'])
 
-                    if deduped_rows:
-                        cycle_dataset = pd.DataFrame(deduped_rows)
+                    if len(filtered_df) > 0:
+                        cycle_dataset = filtered_df
 
                         if seq_field in cycle_dataset.columns and len(cycle_dataset) > 0:
                             if domain_key in domainsSettingDict:
@@ -167,27 +170,14 @@ def vectorized_domain_mapping_ultra(domain_key, precomputed_rules, caseDict, cod
                                 sort_keys = [VARIABLE_USUBJID]
 
                             if len(cycle_dataset) > 0:
-                                if 'EPOCH' in sort_keys and 'EPOCH' in cycle_dataset.columns:
-                                    epoch_sort_col = '_EPOCH_SORT_TEMP'
-                                    cycle_dataset[epoch_sort_col] = cycle_dataset['EPOCH'].fillna('').astype(str)
-                                    cycle_dataset[epoch_sort_col] = cycle_dataset[epoch_sort_col].str.replace('TREATMENT', '', regex=False)
-                                    cycle_dataset[epoch_sort_col] = pd.to_numeric(cycle_dataset[epoch_sort_col], errors='coerce').fillna(0).astype('int32')
-
-                                    actual_sort_keys = []
-                                    for key in sort_keys:
-                                        if key == 'EPOCH':
-                                            actual_sort_keys.append(epoch_sort_col)
-                                        else:
-                                            actual_sort_keys.append(key)
-                                else:
-                                    actual_sort_keys = sort_keys
+                                actual_sort_keys, epoch_col = prepare_epoch_sort(cycle_dataset, sort_keys)
 
                                 available_sort_keys = [key for key in actual_sort_keys if key in cycle_dataset.columns]
                                 if available_sort_keys:
                                     cycle_dataset = cycle_dataset.sort_values(available_sort_keys, kind='mergesort')
 
-                                if 'EPOCH' in sort_keys and '_EPOCH_SORT_TEMP' in cycle_dataset.columns:
-                                    cycle_dataset = cycle_dataset.drop('_EPOCH_SORT_TEMP', axis=1)
+                                if epoch_col and epoch_col in cycle_dataset.columns:
+                                    cycle_dataset = cycle_dataset.drop(epoch_col, axis=1)
 
                         all_results.append(cycle_dataset)
         except KeyError as e:

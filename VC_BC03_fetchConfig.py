@@ -110,7 +110,7 @@ def getCaseDict(workbook, sheetSetting):
             continue
         if migration_flag not in MARK_CIRCLE:
             print(f'Study:[{STUDY_ID}] case:[{subjid}] is mapping wrong')
-            sys.exit()
+            sys.exit(1)
 
         caseDict[subjid] = usubjid
     
@@ -141,16 +141,16 @@ def getFileDict(workbook, sheetSetting):
             continue
         if migration_flag not in MARK_CIRCLE:
             print(f'Study:[{STUDY_ID}] File:[{file_name}] is mapping wrong')
-            sys.exit()
+            sys.exit(1)
         if not file_name:
             print(f'Study:[{STUDY_ID}] File:[{file_name}] is undefined')
-            sys.exit()
+            sys.exit(1)
         if not subjid_fieldid:
             print(f'Study:[{STUDY_ID}] File:[{file_name}] subjid_fieldid is undefined')
-            sys.exit()
+            sys.exit(1)
         if not title_row.isdigit() or not data_row.isdigit():
             print(f'Study:[{STUDY_ID}] File:[{file_name}] row is wrong')
-            sys.exit()
+            sys.exit(1)
 
         if file_name.endswith(EXTENSION):
             file_name = file_name.removesuffix(EXTENSION)
@@ -168,7 +168,6 @@ def getProcess(workbook, sheetSetting):
     colnum_file_name = sheetSetting[PROCESS_SHEET_NAME][COL_FILENAME]
     colnum_field_name = sheetSetting[PROCESS_SHEET_NAME][COL_FIELDNAME]
     colnum_label = sheetSetting[PROCESS_SHEET_NAME][COL_LABEL]
-    # colnum_data_type = sheetSetting[PROCESS_SHEET_NAME][COL_DATATYPE]
     colnum_codelist_name = sheetSetting[PROCESS_SHEET_NAME][COL_CODELISTNAME]
     colnum_migration_flag = sheetSetting[PROCESS_SHEET_NAME][COL_MIGRATIONFLAG]
     colnum_chk_type = sheetSetting[PROCESS_SHEET_NAME][COL_CHKTYPE]
@@ -224,7 +223,7 @@ def getProcess(workbook, sheetSetting):
                 other_val, other_details_field = other_details_process.split(MARK_COLON, 1)
             except ValueError:
                 print(f'Study:[{STUDY_ID}] File:[{file_name}] Field:[{field_id}] OtherDetailsProcess is wrong')
-                sys.exit()
+                sys.exit(1)
 
         if file_name.endswith(EXTENSION):
             file_name = file_name.removesuffix(EXTENSION)
@@ -461,7 +460,7 @@ def getMapping(workbook, sheetSetting):
             if variable not in mappingDict[domain_key][active_definition_row]:
                 mappingDict[domain_key][active_definition_row][variable] = {}
 
-            mappingDict[domain_key][active_definition_row][variable][COL_NDKEY] = True if nd_keys in MARK_CIRCLE else False
+            mappingDict[domain_key][active_definition_row][variable][COL_NDKEY] = nd_keys in MARK_CIRCLE
             mappingDict[domain_key][active_definition_row][variable][COL_FIELDNAME] = field_name
             mappingDict[domain_key][active_definition_row][variable][COL_OPERTYPE] = oper_type
             mappingDict[domain_key][active_definition_row][variable][COL_PARAMETER] = parameter
@@ -494,16 +493,13 @@ def getDomainsSetting(workbook, sheetSetting):
         domain_name = get_cell_value(row, colnum_domain)
         sortkeys = [s.strip() for s in get_cell_value(row, colnum_sortkey).split(',')]
         if COL_USUBJID not in sortkeys:
-            sortkeys.appendleft(COL_USUBJID)
+            sortkeys.insert(0, COL_USUBJID)
         domainsSettingDict[domain_name] = sortkeys
     return domainsSettingDict
 
 # Refactoring時に必要なファイルを読込
-def getFormatDataset(*fileNames, **fileNameList):
-    allFileNameList = fileNameList.get('fileNameList')
-    if not allFileNameList:
-        allFileNameList = []
-    allFileNameList.extend(fileNames)
+def getFormatDataset(*fileNames):
+    allFileNameList = list(fileNames)
 
     # 🆕 动态获取最新的格式化数据文件夹路径
     actual_format_path = find_latest_timestamped_path(FORMAT_PATH, 'format_dataset')

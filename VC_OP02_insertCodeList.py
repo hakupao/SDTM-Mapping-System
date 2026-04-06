@@ -26,40 +26,29 @@ def main():
         db.create_codelist_table(CODELIST_TABLE_NAME)
         count = 0
 
+        query_insert = (
+            f'INSERT IGNORE INTO {CODELIST_TABLE_NAME} '
+            f'(`CODELISTID`, `CODE`, `VALUE_RAW`, `VALUE_EN`, `VALUE_SDTM`) '
+            f'VALUES (%s, %s, %s, %s, %s);'
+        )
         for row in codeList:
-            # 检查记录是否已存在
-            query_select = (
-                f'SELECT * FROM {CODELIST_TABLE_NAME} '
-                f'WHERE `CODELISTID` = %s AND `CODE` = %s;'
-            )
-            values = [row[0], row[1]]
-            db.cursor.execute(query_select, tuple(values))
-            existing_records = db.cursor.fetchall()
-            
-            if existing_records:
-                print(f'[{row[0]}] [{row[1]}] is existed')
-            else:
-                # 插入新记录
-                query_insert = (
-                    f'INSERT INTO {CODELIST_TABLE_NAME} '
-                    f'(`CODELISTID`, `CODE`, `VALUE_RAW`, `VALUE_EN`, `VALUE_SDTM`) '
-                    f'VALUES (%s, %s, %s, %s, %s);'
-                )
-                values_insert = [row[0], row[1], row[2], row[3], row[4]]
-                db.cursor.execute(query_insert, values_insert)
-                count += 1
-                
-                # 每1000条记录提交一次
-                if count % 1000 == 0:
-                    db.connection.commit()
-                    print(count, 'records inserted.')
+            values_insert = [row[0], row[1], row[2], row[3], row[4]]
+            db.cursor.execute(query_insert, values_insert)
+            count += 1
+
+            if count % 1000 == 0:
+                db.connection.commit()
+                print(count, 'records processed.')
 
         db.connection.commit()
-        print(count, 'records inserted.')
+        print(f'{count} records processed (duplicates skipped).')
 
     except Exception as e:
         print(f'Error: {e}')
         traceback.print_exc()
+        if db.connection and db.connection.is_connected():
+            db.connection.rollback()
+            print('Transaction rolled back.')
     finally:
         if db.cursor:
             db.cursor.close()

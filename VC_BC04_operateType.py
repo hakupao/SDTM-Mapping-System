@@ -38,8 +38,6 @@ def get_cached_csv(file_path, needed_columns=None, error_callback=None):
     - DataFrame | None: 读取的数据框，读取失败时返回None
     """
     global csv_cache
-    if csv_cache is None:
-        csv_cache = {}
 
     cache_key = (file_path, tuple(sorted(needed_columns)) if needed_columns else None)
 
@@ -103,8 +101,8 @@ def tableJoinType1(*tableList):
                 how='outer'
             ).fillna('')
             left_info = be_converted_list
-    
-    return be_converted_list.astype(str)
+
+    return left_info.astype(str)
 
 def precompute_mapping_rules(domain_param, definition_merge_rule):
     """
@@ -188,6 +186,26 @@ def precompute_mapping_rules(domain_param, definition_merge_rule):
     
     return precomputed_rules
 
+def prepare_epoch_sort(df, sort_keys):
+    """
+    预处理 EPOCH 字段用于排序：将 'TREATMENT1' 等转为数值。
+
+    返回:
+    - (actual_sort_keys, epoch_col_name): 替换后的排序键列表和临时列名（或 None）
+    """
+    epoch_col = None
+    actual_sort_keys = list(sort_keys)
+    for i, key in enumerate(actual_sort_keys):
+        if key == 'EPOCH' and 'EPOCH' in df.columns:
+            epoch_col = '_EPOCH_SORT'
+            df[epoch_col] = df['EPOCH'].fillna('').astype(str)
+            df[epoch_col] = df[epoch_col].str.replace('TREATMENT', '', regex=False)
+            df[epoch_col] = pd.to_numeric(df[epoch_col], errors='coerce').fillna(0).astype('int32')
+            actual_sort_keys[i] = epoch_col
+            break
+    return actual_sort_keys, epoch_col
+
+
 def ultra_fast_sequence_generation(df, seq_field, sort_keys, domain_key, sequenceDict):
     """
     超高效序号生成算法 - 保持序号连续性
@@ -205,28 +223,12 @@ def ultra_fast_sequence_generation(df, seq_field, sort_keys, domain_key, sequenc
     if df.empty or seq_field not in df.columns:
         return df
     
-    # 1. 预排序优化 - 完全复制原版排序逻辑
+    # 1. 预排序优化
     sort_df = df.copy()
-    
-    # 2. 预处理EPOCH字段（如果存在）
-    epoch_col = None
-    for sort_key in sort_keys:
-        if sort_key == 'EPOCH' and 'EPOCH' in sort_df.columns:
-            epoch_col = '_EPOCH_SORT'
-            # 向量化的EPOCH数值提取
-            sort_df[epoch_col] = sort_df['EPOCH'].fillna('').astype(str)
-            sort_df[epoch_col] = sort_df[epoch_col].str.replace('TREATMENT', '', regex=False)
-            sort_df[epoch_col] = pd.to_numeric(sort_df[epoch_col], errors='coerce').fillna(0).astype('int32')
-            break
-    
-    # 3. 构建实际排序列
-    actual_sort_keys = []
-    for key in sort_keys:
-        if key == 'EPOCH' and epoch_col:
-            actual_sort_keys.append(epoch_col)
-        else:
-            actual_sort_keys.append(key)
-    
+
+    # 2-3. 预处理EPOCH字段并构建排序列
+    actual_sort_keys, epoch_col = prepare_epoch_sort(sort_df, sort_keys)
+
     # 4. 高效排序
     sort_df = sort_df.sort_values(actual_sort_keys, kind='mergesort')  # 稳定排序
     

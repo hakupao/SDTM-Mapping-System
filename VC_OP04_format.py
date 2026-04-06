@@ -63,15 +63,6 @@ TEMP_TABLE_THRESHOLD = 1                  # 文件有>=N个CHK分支时使用临
 EXPLAIN_TIME_THRESHOLD = 5000             # 查询超过N毫秒时自动EXPLAIN分析
 EMPTY_SCAN_ROW_THRESHOLD = 10000          # 结果集超过N行时跳过空列扫描
 
-print("=== 性能优化配置 ===")
-print(f"索引优化: {ENABLE_PERFORMANCE_INDEXES}")  
-print(f"临时表策略: {'自适应' if (USE_TEMP_TABLES and ADAPTIVE_OPTIMIZATION) else '预定义' if USE_TEMP_TABLES else '禁用'}")
-print(f"排序: {ENABLE_ORDER_BY}")
-print(f"OTHERDETAILS合并: {MERGE_OTHERDETAILS_QUERIES}")
-print(f"EXPLAIN分析: {'自动触发' if ADAPTIVE_OPTIMIZATION else '强制开启' if ENABLE_EXPLAIN_ANALYSIS else '禁用'}")
-if ADAPTIVE_OPTIMIZATION:
-    print(f"自适应阈值: CHK>={TEMP_TABLE_THRESHOLD}, 慢查询>={EXPLAIN_TIME_THRESHOLD}ms, 空列扫描<{EMPTY_SCAN_ROW_THRESHOLD}行")
-print("=========================")
 
 def process_combine_files(workbook, sheetSetting, actual_format_path):
     """
@@ -84,20 +75,21 @@ def process_combine_files(workbook, sheetSetting, actual_format_path):
     """
     for file_name, function_name in getCombineInfo(workbook, sheetSetting).items():
         combine_start = time.perf_counter()
-        be_converted_list = eval(function_name)
+        # 安全调度：提取函数名并验证已导入，然后在受限命名空间中执行
+        func_name = function_name.split('(')[0].strip()
+        if func_name not in globals() or not callable(globals()[func_name]):
+            raise ValueError(f"Combine 配置中的函数 '{func_name}' 未定义或不可调用")
+        be_converted_list = eval(function_name, {"__builtins__": {}}, globals())
         rows, cols = (0, 0)
         try:
             rows, cols = be_converted_list.shape
         except Exception:
             pass
-        write_start = time.perf_counter()
         be_converted_list.fillna('').to_csv(
-            os.path.join(actual_format_path, f'{PREFIX_F}{file_name}{EXTENSION}'), 
-            index=False, 
+            os.path.join(actual_format_path, f'{PREFIX_F}{file_name}{EXTENSION}'),
+            index=False,
             encoding='utf-8-sig'
         )
-        write_ms = (time.perf_counter() - write_start) * 1000
-        total_ms = (time.perf_counter() - combine_start) * 1000
         print(f'{file_name} is outputting | {rows}x{cols}')
 
 def build_optimized_chk_query(db, fileName, select_fieldIDs, chk_fieldIDs, case_fieldIDs, 
@@ -190,39 +182,13 @@ def build_optimized_chk_query(db, fileName, select_fieldIDs, chk_fieldIDs, case_
 def should_use_temp_table(chk_file_count):
     """
     智能决策是否使用临时表优化
-    
+
     参数:
     - chk_file_count: CHK分支数量
-    
+
     返回: bool - 是否应该使用临时表
     """
-    if not USE_TEMP_TABLES:
-        return False
-    
-    if not ADAPTIVE_OPTIMIZATION:
-        # 非自适应模式已废弃，始终使用自适应逻辑
-        pass
-    
-    # 自适应决策逻辑：只基于CHK分支数量
-    if chk_file_count >= TEMP_TABLE_THRESHOLD:
-        return True
-    
-    return False
-
-def should_enable_explain(exec_time_ms):
-    """
-    智能决策是否启用EXPLAIN分析
-    
-    参数:
-    - exec_time_ms: 查询执行时间（毫秒）
-    
-    返回: bool - 是否应该执行EXPLAIN
-    """
-    if ENABLE_EXPLAIN_ANALYSIS:
-        return True
-    
-    # 自动启用：超过阈值的慢查询
-    return exec_time_ms > EXPLAIN_TIME_THRESHOLD
+    return USE_TEMP_TABLES and chk_file_count >= TEMP_TABLE_THRESHOLD
 
 def should_scan_empty_columns(rows_count):
     """
@@ -269,20 +235,24 @@ def main():
     """
     total_start = time.perf_counter()
     db = DatabaseManager()
-    t0 = time.perf_counter()
     db.connect()
-    connect_ms = (time.perf_counter() - t0) * 1000
-    t1 = time.perf_counter()
+    try:
+        _run_format(db, total_start)
+    finally:
+        if USE_TEMP_TABLES:
+            db.cleanup_work_tables()
+        db.disconnect()
+
+
+def _run_format(db, total_start):
+    """格式化处理的实际逻辑（由 main 包裹 try/finally）"""
     db.create_transdata_view(TRANSDATA_VIEW_NAME, METADATA_TABLE_NAME, CODELIST_TABLE_NAME)
-    create_view_ms = (time.perf_counter() - t1) * 1000
-    
+
     # 创建性能优化索引
-    t2 = time.perf_counter()
     created_indexes = 0
     if ENABLE_PERFORMANCE_INDEXES:
         created_indexes = db.create_performance_indexes(METADATA_TABLE_NAME)
-    index_ms = (time.perf_counter() - t2) * 1000
-    
+
     print(f'数据库连接成功 | 视图已就绪 | 索引: {created_indexes} 个已创建')
 
     logger = create_logger(
@@ -304,10 +274,8 @@ def main():
     for fileName in transFieldDict.keys():
         if fileName not in fileDict:
             continue
-        file_start = time.perf_counter()
         print(f'{fileName} is outputting')
         exceptFields = ex_fieldsDict.get(fileName, [])
-        rownum_fieldID = MARK_BLANK
         file_param = transFieldDict[fileName]
 
         # 智能决策数据源（原视图或临时表）
@@ -319,9 +287,7 @@ def main():
         
         # 智能决策是否使用工作表
         if should_use_temp_table(chk_file_count):
-            t_temp = time.perf_counter()
-            temp_table_name = db.create_temp_table_for_file("temp", TRANSDATA_VIEW_NAME, fileName)
-            temp_ms = (time.perf_counter() - t_temp) * 1000
+            temp_table_name = db.create_temp_table_for_file(TRANSDATA_VIEW_NAME, fileName)
             if temp_table_name:
                 transdata_source = temp_table_name
                 print(f'  → 工作表优化 (CHK:{chk_file_count})')
@@ -388,44 +354,29 @@ def main():
                 )
 
                 logger.info(query.replace('                    ',MARK_BLANK))
-                
-                exec_start = time.perf_counter()
+
                 db.cursor.execute(query)
-                exec_ms = (time.perf_counter() - exec_start) * 1000
-                
-                fetch_start = time.perf_counter()
                 results = db.cursor.fetchall()
-                fetch_ms = (time.perf_counter() - fetch_start) * 1000
-                
-                # 智能EXPLAIN分析（慢查询自动触发）- 在获取结果后进行
-                if should_enable_explain(exec_ms):
-                    print(f"  ⚠ 慢查询检测")
-                    db.analyze_query_performance(query)
+
                 header = [i[0] for i in db.cursor.description]
-                cols_cnt = len(header)
                 rows_cnt = len(results)
                 
                 # 智能空列扫描（大结果集自动跳过）
-                scan_ms = 0
                 empty_columns = []
                 if should_scan_empty_columns(rows_cnt) and results:
-                    scan_start = time.perf_counter()
-                for i in range(len(header)):
-                    column_values = [row[i] for row in results]
-                    if all(value == None for value in column_values):
-                        empty_columns.append(header[i])
-                    scan_ms = (time.perf_counter() - scan_start) * 1000
+                    for i in range(len(header)):
+                        column_values = [row[i] for row in results]
+                        if all(value is None for value in column_values):
+                            empty_columns.append(header[i])
 
                 if results:
                     if empty_columns:
                         print(f'{outputFileName} columns:{empty_columns} is empty')
 
-                    write_start = time.perf_counter()
                     with open(outputfilePath, 'w', newline=MARK_BLANK, encoding='utf-8-sig') as file:
                         writer = csv.writer(file)
                         writer.writerow([i[0] for i in db.cursor.description])
                         writer.writerows(results)
-                    write_ms = (time.perf_counter() - write_start) * 1000
                     print(f'  [CHK:{chkfileName}] {rows_cnt} rows')
                 
         fields = ['max(if((FIELDID = \'' + fieldID + '\'),TRANSVAL,NULL)) AS `' + fieldID  + '`' 
@@ -437,19 +388,10 @@ def main():
             query = build_optimized_main_query(fileName, fields, transdata_source, ENABLE_ORDER_BY)
             
             logger.info(query.replace('            ',MARK_BLANK))
-            
-            exec_start = time.perf_counter()
-            db.cursor.execute(query)
-            exec_ms = (time.perf_counter() - exec_start) * 1000
 
-            fetch_start = time.perf_counter()
+            db.cursor.execute(query)
             results = db.cursor.fetchall()
-            fetch_ms = (time.perf_counter() - fetch_start) * 1000
-            
-            # 智能EXPLAIN分析（慢查询自动触发）- 在获取结果后进行
-            if should_enable_explain(exec_ms):
-                print(f"  ⚠ 慢查询检测")
-                db.analyze_query_performance(query)
+
             header = [i[0] for i in db.cursor.description]
 
             # 仅保留除SUBJID外至少有一个非空值的记录
@@ -472,34 +414,21 @@ def main():
                 filtered_results.append(row)
 
             rows_cnt = len(filtered_results)
-            cols_cnt = len(header)
 
-            write_start = time.perf_counter()
             with open(os.path.join(actual_format_path, f'{PREFIX_F}{fileName}{EXTENSION}'), 'w', newline=MARK_BLANK, encoding='utf-8-sig') as file:
                 writer = csv.writer(file)
                 writer.writerow(header)
                 writer.writerows(filtered_results)
-            write_ms = (time.perf_counter() - write_start) * 1000
             print(f'  [MAIN] {rows_cnt} rows', end='')
             if dropped_only_subjid:
                 print(f' | dropped only-SUBJID rows: {dropped_only_subjid}')
             else:
                 print()
 
-        file_ms = (time.perf_counter() - file_start) * 1000
         print(f'{fileName} 完成')
 
-    process_start = time.perf_counter()
     process_combine_files(workbook, sheetSetting, actual_format_path)
-    combine_ms = (time.perf_counter() - process_start) * 1000
-    
-    # 清理工作表
-    cleanup_start = time.perf_counter()
-    if USE_TEMP_TABLES:
-        db.cleanup_work_tables()
-    cleanup_ms = (time.perf_counter() - cleanup_start) * 1000
-    
-    total_ms = (time.perf_counter() - total_start) * 1000
+
     print(f"=== 处理完成 ===")
 
 if __name__ == "__main__":

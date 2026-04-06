@@ -9,8 +9,6 @@ VAPORCONE 项目常量定义模块
 - 标准字段定义
 """
 
-import ast
-import copy
 import csv
 import json
 import logging
@@ -18,16 +16,14 @@ import os
 import re
 import shutil
 import sys
-import traceback
 
 import mysql.connector
 import numpy
 import pandas
 from openpyxl import load_workbook
 from mysql.connector import errorcode
-from dateutil import parser 
+from dateutil import parser
 from datetime import datetime
-from functools import reduce
 
 DEFAULT_PROJECT_CONFIG = {
     'STUDY_ID': '',
@@ -266,6 +262,9 @@ STANDARD_FIELDS = {
 }
 
 EXCLUSION_DOMAIN = ['DM','SV','TA','TD','TE','TI','TM','TV']
+
+# 工作表持久化开关（由 VC_OP04 和 VC_BC02 共用，放在基础层避免循环依赖）
+ENABLE_WORK_TABLE_PERSISTENCE = False
 
 TIME_VARIABLE = ['AGSTDTC','AGENDTC','CMSTDTC','CMENDTC','ECSTDTC','ECENDTC','ECRFTDTC'
                  ,'EXSTDTC','EXENDTC','EXRFTDTC','MLDTC','MLSTDTC','MLENDTC','MLRFTDTC'

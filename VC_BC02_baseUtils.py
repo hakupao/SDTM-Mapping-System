@@ -40,15 +40,14 @@ def create_logger(file_name, log_level=logging.DEBUG):
         
     return logger
 
-def get_cell_value(row, idx, context=None):
+def get_cell_value(row, idx):
     """
     获取单元格值并进行格式化处理
-    
+
     参数:
     - row: 行数据
     - idx (int): 列索引
-    - context (dict, optional): 上下文信息（保留兼容性，但不再使用）
-    
+
     返回:
     - str: 格式化后的单元格值
     """
@@ -161,21 +160,6 @@ def find_latest_timestamped_path(base_path, folder_pattern):
         print(f'查找时间戳文件夹时出错: {e}')
         return os.path.join(base_path, folder_pattern)
 
-def try_convert_to_int(value):
-    """
-    尝试将值转换为整数
-    
-    参数:
-    - value: 要转换的值
-    
-    返回:
-    - int 或 原值: 转换成功返回整数，失败返回原值
-    """
-    try:
-        return int(value)
-    except ValueError:
-        return value
-    
 def make_format_value(tMETAVAL, isDateType):
     """
     格式化字段值，主要处理日期类型的转换
@@ -342,12 +326,21 @@ class DatabaseManager:
                     raise
             elif err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
                 print('Error: Access denied. Please check your username and password.')
+                raise
             else:
                 print(f'Error: {err}')
+                raise
 
     def disconnect(self):
+        if self.cursor:
+            try:
+                self.cursor.close()
+            except Exception:
+                pass
+            self.cursor = None
         if self.connection:
             self.connection.close()
+            self.connection = None
             print('Disconnected from the database.')
 
     def execute_query(self, query, values=None):
@@ -550,12 +543,12 @@ class DatabaseManager:
             # 确保游标正确关闭
             try:
                 cursor.close()
-            except:
+            except Exception:
                 pass
 
-    def create_temp_table_for_file(self, table_name, view_name, filename):
+    def create_temp_table_for_file(self, view_name, filename):
         """为特定文件创建优化的工作表"""
-        from VC_OP04_format import ENABLE_WORK_TABLE_PERSISTENCE
+        # ENABLE_WORK_TABLE_PERSISTENCE 已定义在 VC_BC01_constant 中，通过星号导入可用
         
         work_table_name = f"work_{filename.lower().replace('-', '_')}"
         
@@ -572,7 +565,7 @@ class DatabaseManager:
         # 如果不保留或工作表不存在，则删除重建
         try:
             self.execute_query(f"DROP TABLE IF EXISTS {work_table_name}")
-        except:
+        except Exception:
             pass
         
         # 创建工作表（使用普通表而非临时表以避免重用问题）
@@ -610,7 +603,7 @@ class DatabaseManager:
 
     def cleanup_work_tables(self):
         """清理所有工作表（可配置是否保留）"""
-        from VC_OP04_format import ENABLE_WORK_TABLE_PERSISTENCE
+        # ENABLE_WORK_TABLE_PERSISTENCE 已定义在 VC_BC01_constant 中，通过星号导入可用
         
         if not ENABLE_WORK_TABLE_PERSISTENCE:
             cursor = self.connection.cursor()
@@ -622,15 +615,15 @@ class DatabaseManager:
                     try:
                         self.execute_query(f"DROP TABLE IF EXISTS {table_name}")
                         print(f"✓ 清理工作表: {table_name}")
-                    except:
+                    except Exception:
                         pass
-                        
+
             except mysql.connector.Error:
                 pass
             finally:
                 try:
                     cursor.close()
-                except:
+                except Exception:
                     pass
         else:
             print("✓ 工作表已保留以供下次使用")
