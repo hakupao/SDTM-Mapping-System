@@ -58,7 +58,7 @@ def load_config():
 # ── 数据状态 ──────────────────────────────────────────────────────
 def get_status(study_id):
     """扫描各阶段的时间戳文件夹，返回状态列表。"""
-    specific = os.path.join(ROOT_DIR, 'studySpecific', study_id)
+    specific = os.path.join(os.getcwd(), 'studySpecific', study_id)
     rows = []
     for folder, pattern in STAGE_DIRS:
         stage_path = os.path.join(specific, folder)
