@@ -205,9 +205,9 @@ def parse_run_args(parts):
 def cmd_help():
     print()
     print('  run [all]            全部运行 (OP01 ~ PS02)')
-    print('  run <n>              从第 n 步开始')
+    print('  run <n>              仅运行第 n 步')
     print('  run <n> <m>          运行第 n ~ m 步')
-    print('  run op03             从 OP03 开始 (支持步骤ID)')
+    print('  run op03             仅运行 OP03 (支持步骤ID)')
     print('  run op03 ps01        运行 OP03 ~ PS01')
     print('  run ... --continue   失败后继续执行后续步骤')
     print()

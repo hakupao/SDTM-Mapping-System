@@ -279,8 +279,9 @@ python sdtm.py run all  # One-shot: run and exit
 | Command | Description |
 |---------|-------------|
 | `run all` | Run all 7 steps (OP01 ~ PS02) |
-| `run <n>` | Run from step n to the end |
+| `run <n>` | Run step n only |
 | `run <n> <m>` | Run steps n through m |
+| `run op03` | Run OP03 only (step IDs are case-insensitive) |
 | `run op03 ps01` | Run by step ID (case-insensitive) |
 | `run ... --continue` | Continue past failures |
 | `status` | Show latest output timestamps and version counts |
