@@ -112,5 +112,6 @@ coverage/
 # experiment 的csv输出目录
 experiment/combine_test/TEST_COMBINE/
 
-# omx
+# agent
 .omx/
+.omc/
