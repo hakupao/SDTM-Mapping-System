@@ -15,6 +15,24 @@ import time as _time
 import sys as _sys
 import os as _os
 
+
+def _configure_console_encoding():
+    """
+    统一使用 UTF-8 输出控制台文本。
+
+    VSCode Code Runner 和非中文 Windows 区域设置可能给 Python stdout
+    分配 cp932 等编码，直接打印中文会触发 UnicodeEncodeError。
+    """
+    for stream in (_sys.stdout, _sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            try:
+                stream.reconfigure(encoding='utf-8', errors='replace')
+            except (OSError, ValueError):
+                pass
+
+
+_configure_console_encoding()
+
 # ======================================================================
 # 统一控制台输出规范
 # ======================================================================
@@ -677,6 +695,7 @@ class DatabaseManager:
                 database=self.database,
                 charset="utf8mb4",
                 use_unicode=True,
+                use_pure=True,
                 allow_local_infile=True  # 启用LOCAL INFILE支持
             )
             self.cursor = self.connection.cursor()
@@ -692,6 +711,7 @@ class DatabaseManager:
                         password=self.password,
                         charset="utf8mb4",
                         use_unicode=True,
+                        use_pure=True,
                         allow_local_infile=True
                     )
                     cursor = cnx.cursor()
@@ -718,6 +738,7 @@ class DatabaseManager:
                         database=self.database,
                         charset="utf8mb4",
                         use_unicode=True,
+                        use_pure=True,
                         allow_local_infile=True
                     )
                     self.cursor = self.connection.cursor()

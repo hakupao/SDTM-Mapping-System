@@ -8,3 +8,6 @@ openpyxl==3.1.5
 
 # 日期处理 - 已更新
 python-dateutil==2.9.0
+
+# TUI 界面
+textual==8.2.5

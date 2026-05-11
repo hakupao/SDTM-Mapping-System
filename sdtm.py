@@ -1,94 +1,39 @@
 """
-SDTM ENSEMBLE Interactive Pipeline Console
+SDTM ENSEMBLE Pipeline Console.
 
-在项目根目录输入 sdtm 即可启动交互式控制台。
+在项目根目录输入 sdtm 即可启动 TUI；命令行参数仍保留原有 CLI 行为。
 """
 
-import subprocess
-import sys
 import os
+import sys
 import time
-import json
-from datetime import datetime
 
-# 优先从当前工作目录导入模块（sdtm 可能通过 PATH 从别处启动）
+# 优先从当前工作目录导入模块（sdtm 可能通过 PATH 从别处启动）。
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 _CWD = os.getcwd()
 if _CWD not in sys.path:
     sys.path.insert(0, _CWD)
 if ROOT_DIR not in sys.path:
-    sys.path.append(ROOT_DIR)  # 后备，不抢 CWD 优先级
-from VC_BC02_baseUtils import PipelineProgress
-
-# ── 常量 ──────────────────────────────────────────────────────────
-W = 70
-
-STEPS = [
-    (1, 'VC_OP01_cleaning',       'OP01', 'Cleaning',       '数据清洗'),
-    (2, 'VC_OP02_insertCodeList', 'OP02', 'InsertCodeList', '代码表插入'),
-    (3, 'VC_OP03_insertMetadata', 'OP03', 'InsertMetadata', '元数据插入'),
-    (4, 'VC_OP04_format',         'OP04', 'Format',         '数据格式化'),
-    (5, 'VC_OP05_mapping',        'OP05', 'Mapping',        'SDTM映射'),
-    (6, 'VC_PS01_makeInputCSV',   'PS01', 'MakeInputCSV',   '输入CSV生成'),
-    (7, 'VC_PS02_csv2json',       'PS02', 'CSV2JSON',       'M5打包'),
-]
-
-# step_id / step_name → seq 快速查表 (支持 PS02、CSV2JSON 等写法)
-STEP_ID_MAP = {}
-for _s in STEPS:
-    STEP_ID_MAP[_s[2].upper()] = _s[0]   # OP01->1, PS02->7
-    STEP_ID_MAP[_s[3].upper()] = _s[0]   # CLEANING->1, CSV2JSON->7
-
-STAGE_DIRS = [
-    ('02_Cleaning',     'cleaning_dataset'),
-    ('03_Format',       'format_dataset'),
-    ('04_SDTM',         'sdtm_dataset'),
-    ('05_Inputfile',    'inputfile_dataset'),
-    ('06_Inputpackage', 'inputpackage_dataset'),
-]
+    sys.path.append(ROOT_DIR)
 
 
-# ── 项目配置 ──────────────────────────────────────────────────────
-def load_config():
-    """从当前工作目录加载 project.local.json（支持在不同项目目录下运行）。"""
-    config_path = os.path.join(os.getcwd(), 'project.local.json')
-    if os.path.isfile(config_path):
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {}
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, 'reconfigure'):
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+
+from VC_BC02_baseUtils import PROGRESS_MARKER, PipelineProgress
+from sdtm_core import (
+    STEP_ID_MAP,
+    STEPS,
+    W,
+    get_status,
+    iter_pipeline_events,
+    load_config,
+)
 
 
-# ── 数据状态 ──────────────────────────────────────────────────────
-def get_status(study_id):
-    """扫描各阶段的时间戳文件夹，返回状态列表。"""
-    specific = os.path.join(os.getcwd(), 'studySpecific', study_id)
-    rows = []
-    for folder, pattern in STAGE_DIRS:
-        stage_path = os.path.join(specific, folder)
-        if not os.path.isdir(stage_path):
-            rows.append((folder, '-', '-'))
-            continue
-        ts_folders = sorted(
-            [d for d in os.listdir(stage_path)
-             if d.startswith(pattern + '-') and os.path.isdir(os.path.join(stage_path, d))],
-            reverse=True,
-        )
-        if ts_folders:
-            latest = ts_folders[0]
-            ts_part = latest[len(pattern) + 1:]
-            try:
-                dt = datetime.strptime(ts_part, '%Y%m%d%H%M%S')
-                time_str = dt.strftime('%Y-%m-%d %H:%M:%S')
-            except ValueError:
-                time_str = ts_part
-            rows.append((folder, time_str, f'{len(ts_folders)} 个版本'))
-        else:
-            rows.append((folder, '-', '-'))
-    return rows
-
-
-# ── 执行流水线 ────────────────────────────────────────────────────
 def run_steps(start, end, continue_on_error=False):
+    """以传统 CLI 方式执行流水线步骤。"""
     selected = [s for s in STEPS if start <= s[0] <= end]
     if not selected:
         print(f'  [ERROR] 无效范围: {start}~{end}')
@@ -101,72 +46,77 @@ def run_steps(start, end, continue_on_error=False):
     print(f'  共 {len(selected)} 个步骤')
     print('-' * W)
 
-    results = []
-    t0 = time.time()
-
-    steps_info = [(s[2], s[4]) for s in selected]  # (step_id, desc_cn)
+    steps_info = [(s[2], s[4]) for s in selected]
     pp = PipelineProgress(len(selected), steps_info)
+    results = []
+    total_start = time.time()
 
-    for i, (seq, module, step_id, name, desc) in enumerate(selected):
-        pp.begin_step(i)
+    try:
+        for event in iter_pipeline_events(
+            start,
+            end,
+            continue_on_error=continue_on_error,
+            cwd=os.getcwd(),
+        ):
+            kind = event['kind']
+            if kind == 'step_start':
+                pp.begin_step(event['index'])
+            elif kind == 'progress':
+                marker = (
+                    f"{PROGRESS_MARKER}{event['current']}/"
+                    f"{event['total']}/{event['desc']}"
+                )
+                pp.parse_and_update(marker)
+            elif kind == 'log':
+                pp.print_line(event['line'])
+            elif kind == 'step_end':
+                pp.end_step()
+                results.append(event)
+                if event['status'] != 'OK':
+                    print(f"\n  [ERROR] {event['step_id']} 失败 ({event['status']})")
+                    if not continue_on_error:
+                        print('  流程中断。')
+            elif kind == 'error':
+                print(f"  [ERROR] {event['message']}")
+                return
+    finally:
+        pp.cleanup()
 
-        ts = time.time()
-        env = {**os.environ, 'VAPORCONE_PIPELINE': '1'}
-        proc = subprocess.Popen(
-            [sys.executable, '-u', f'{module}.py'],
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            cwd=os.getcwd(), env=env,
-        )
+    total = time.time() - total_start
+    print_run_summary(results, total)
 
-        for raw_line in proc.stdout:
-            line = raw_line.decode('utf-8', errors='replace').rstrip('\r\n')
-            if pp.parse_and_update(line):
-                continue
-            pp.print_line(line)
 
-        proc.wait()
-        pp.end_step()
-        elapsed = time.time() - ts
-
-        ok = proc.returncode == 0
-        status = 'OK' if ok else f'FAIL (exit {proc.returncode})'
-        results.append((seq, step_id, status, elapsed))
-
-        if not ok:
-            print(f'\n  [ERROR] {step_id} 失败 (exit {proc.returncode})')
-            if not continue_on_error:
-                print(f'  流程中断。')
-                break
-
-    total = time.time() - t0
-    pp.cleanup()
-
-    # 摘要
+def print_run_summary(results, total):
+    """打印传统 CLI 执行摘要。"""
     print()
     print('=' * W)
     print('  Pipeline 执行摘要')
     print('=' * W)
     print(f'  {"#":<4} {"步骤":<8} {"状态":<20} {"耗时":>8}')
     print('-' * W)
-    for seq, step_id, status, elapsed in results:
-        mark = ' ' if status == 'OK' else '!'
-        print(f' {mark}{seq:<4} {step_id:<8} {status:<20} {elapsed:>7.1f}s')
+    for result in results:
+        mark = ' ' if result['status'] == 'OK' else '!'
+        print(
+            f" {mark}{result['seq']:<4} {result['step_id']:<8} "
+            f"{result['status']:<20} {result['elapsed']:>7.1f}s"
+        )
     print('-' * W)
     print(f'  总耗时: {total:.1f}s')
-    failed = [r for r in results if r[2] != 'OK']
+    failed = [r for r in results if r['status'] != 'OK']
     if failed:
-        print(f'  失败: {", ".join(r[1] for r in failed)}')
+        print(f'  失败: {", ".join(r["step_id"] for r in failed)}')
     else:
         print(f'  全部 {len(results)} 步成功')
     print('=' * W)
 
 
-# ── 解析 run 参数 ─────────────────────────────────────────────────
 def parse_run_args(parts):
     """
-    解析 run 子命令参数，返回 (start, end, continue_flag)
-    支持:  run  /  run all  /  run 3  /  run 3 5  /  run op03  /  run op03 ps01
-           任意后缀 --continue
+    解析 run 子命令参数，返回 (start, end, continue_flag)。
+
+    支持:
+      run / run all / run 3 / run 3 5 / run op03 / run op03 ps01
+      任意后缀 --continue
     """
     cont = '--continue' in parts
     args = [p for p in parts if p != '--continue']
@@ -186,24 +136,24 @@ def parse_run_args(parts):
             pass
         return None
 
-    s = to_seq(args[0])
-    if s is None:
+    start = to_seq(args[0])
+    if start is None:
         print(f'  [ERROR] 无法识别步骤: {args[0]}')
         return None, None, cont
 
     if len(args) >= 2:
-        e = to_seq(args[1])
-        if e is None:
+        end = to_seq(args[1])
+        if end is None:
             print(f'  [ERROR] 无法识别步骤: {args[1]}')
             return None, None, cont
-        return s, e, cont
+        return start, end, cont
 
-    return s, s, cont
+    return start, start, cont
 
 
-# ── 命令处理 ──────────────────────────────────────────────────────
 def cmd_help():
     print()
+    print('  tui                  启动 TUI 界面')
     print('  run [all]            全部运行 (OP01 ~ PS02)')
     print('  run <n>              仅运行第 n 步')
     print('  run <n> <m>          运行第 n ~ m 步')
@@ -243,33 +193,37 @@ def cmd_run(parts):
     run_steps(start, end, continue_on_error=cont)
 
 
-# ── 欢迎画面 ──────────────────────────────────────────────────────
 def print_banner(study_id):
     print()
     print('=' * W)
-    print('  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2557   \u2588\u2588\u2588\u2557')
-    print('  \u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u255a\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u255d\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2551')
-    print('  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551  \u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2554\u2588\u2588\u2588\u2588\u2554\u2588\u2588\u2551')
-    print('  \u255a\u2550\u2550\u2550\u2550\u2588\u2588\u2551\u2588\u2588\u2551  \u2588\u2588\u2551   \u2588\u2588\u2551   \u2588\u2588\u2551\u255a\u2588\u2588\u2554\u255d\u2588\u2588\u2551')
-    print('  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d   \u2588\u2588\u2551   \u2588\u2588\u2551 \u255a\u2550\u255d \u2588\u2588\u2551')
-    print('  \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u2550\u2550\u2550\u2550\u255d    \u255a\u2550\u255d   \u255a\u2550\u255d     \u255a\u2550\u255d  Pipeline Console')
+    print('  ███████╗██████╗ ████████╗███╗   ███╗')
+    print('  ██╔════╝██╔══██╗╚══██╔══╝████╗ ████║')
+    print('  ███████╗██║  ██║   ██║   ██╔████╔██║')
+    print('  ╚════██║██║  ██║   ██║   ██║╚██╔╝██║')
+    print('  ███████║██████╔╝   ██║   ██║ ╚═╝ ██║')
+    print('  ╚══════╝╚═════╝    ╚═╝   ╚═╝     ╚═╝  Pipeline Console')
     print()
     print(f'  Study: {study_id}')
-    print(f'  输入 help 查看可用命令, 输入 exit 退出')
+    print('  输入 help 查看可用命令, 输入 exit 退出')
     print('=' * W)
 
 
-# ── 主循环 ────────────────────────────────────────────────────────
-def main():
-    cfg = load_config()
-    study_id = cfg.get('STUDY_ID', 'UNKNOWN')
+def launch_tui():
+    """启动 Textual TUI；缺少依赖时返回 False。"""
+    try:
+        from sdtm_tui import main as tui_main
+    except ModuleNotFoundError as exc:
+        if exc.name == 'textual':
+            print('  [ERROR] 缺少 TUI 依赖 textual。请先运行: pip install -r requirements.txt')
+            return False
+        raise
 
-    # 如果带了命令行参数，直接执行不进入交互模式
-    if len(sys.argv) > 1:
-        arg_line = ' '.join(sys.argv[1:])
-        dispatch(arg_line, study_id)
-        return
+    tui_main()
+    return True
 
+
+def run_shell(study_id):
+    """保留原交互式 CLI shell。"""
     print_banner(study_id)
 
     while True:
@@ -292,6 +246,8 @@ def dispatch(line, study_id):
     if cmd in ('exit', 'quit', 'q'):
         print('  Bye!')
         sys.exit(0)
+    if cmd in ('tui', 'ui'):
+        launch_tui()
     elif cmd == 'help':
         cmd_help()
     elif cmd == 'list':
@@ -302,6 +258,27 @@ def dispatch(line, study_id):
         cmd_run(parts[1:])
     else:
         print(f'  未知命令: {cmd}  (输入 help 查看可用命令)')
+
+
+def main():
+    cfg = load_config()
+    study_id = cfg.get('STUDY_ID', 'UNKNOWN')
+
+    if len(sys.argv) > 1:
+        first = sys.argv[1].lower()
+        if first in ('tui', '--tui', 'ui', '--ui'):
+            launch_tui()
+            return
+        if first in ('shell', 'cli', '--shell', '--cli'):
+            run_shell(study_id)
+            return
+
+        arg_line = ' '.join(sys.argv[1:])
+        dispatch(arg_line, study_id)
+        return
+
+    if not launch_tui():
+        run_shell(study_id)
 
 
 if __name__ == '__main__':
