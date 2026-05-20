@@ -201,7 +201,7 @@ Do NOT add chapters. Do NOT remove placeholders. Only fill values.
 
 | IF-ID | 関数名 | 引数 | 引数の指定形式 | 戻り値 | 対応 FR |
 |---|---|---|---|---|---|
-| IF-01 | `left_join_on_SUBJID` | `main_file`, `sub_file`, `fields` | `main_file`/`sub_file`: 連携設定では整形済テーブル名、プログラム呼び出しでは DataFrame も許容。`fields`: 副表保持列の単一/複数指定または未指定 | `pandas.DataFrame` | FR-01, FR-03, FR-04 |
+| IF-01 | `left_join_on_SUBJID` | `main_file`, `sub_file`, `fields` | `main_file`/`sub_file`: 連携設定では整形済テーブル名、プログラム呼び出しでは DataFrame も許容。`fields`: 副テーブル保持列の単一/複数指定または未指定 | `pandas.DataFrame` | FR-01, FR-03, FR-04 |
 | IF-02 | `get_DEMOGRAPHIC_Data` | なし | 連携設定から引数なしで呼び出す | `pandas.DataFrame` | FR-02, FR-05, FR-06, FR-07 |
 | IF-03 | `TUMDATA_process` | なし | 連携設定から引数なしで呼び出す | `pandas.DataFrame` | FR-08 |
 
@@ -747,7 +747,7 @@ RULE-GUARD §5.2: 文件名・保存先・形式は連携設定の責務、本�
 - 処理: 臨床ステージに基づき、業務ルール (基本設計書 §5) に従って癌種列を付与する。
 
 #### (c) 汎用症例 ID 統合 (補助)
-- 入力: 症例 ID 列を持つ任意の整形済データ 2 件 + 副表からの抽出項目指定。
+- 入力: 症例 ID 列を持つ任意の整形済データ 2 件 + 副テーブルからの抽出項目指定。
 - 処理: 症例 ID をキーとした左結合を実行する。
 - 位置付け: (a) の内部部品であり、連携設定からの独立呼び出しにも対応する (例: コホート情報と登録日の結合)。
 <!-- END: rd_process_units -->
@@ -1006,7 +1006,7 @@ RULE-GUARD §7: R-xx は業務意図のみ。実装手段は DD/コードへ。
 | IF-ID | 対応機能 | 関数名 | 引数 | 引数の指定形式 | 戻り値 |
 |-------|----------|--------|------|----------------|--------|
 <!-- BEGIN: public_funcs -->
-| IF-01 | F-01 / F-02 | `left_join_on_SUBJID` | `main_file`, `sub_file`, `fields` | `main_file` / `sub_file`: 連携設定では整形済テーブル名を指定する。プログラム内呼び出しでは DataFrame 直接指定も許容する。`fields`: 副表から保持する項目名の単一指定、複数指定、または未指定。 | `pandas.DataFrame` |
+| IF-01 | F-01 / F-02 | `left_join_on_SUBJID` | `main_file`, `sub_file`, `fields` | `main_file` / `sub_file`: 連携設定では整形済テーブル名を指定する。プログラム内呼び出しでは DataFrame 直接指定も許容する。`fields`: 副テーブルから保持する項目名の単一指定、複数指定、または未指定。 | `pandas.DataFrame` |
 | IF-02 | F-03 | `get_DEMOGRAPHIC_Data` | なし | 連携設定から引数なしで呼び出す。 | `pandas.DataFrame` |
 | IF-03 | F-04 | `TUMDATA_process` | なし | 連携設定から引数なしで呼び出す。 | `pandas.DataFrame` |
 <!-- END: public_funcs -->
