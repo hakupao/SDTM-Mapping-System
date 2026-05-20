@@ -36,6 +36,7 @@ class SdtmTui(App):
         ('s', 'stop_pipeline', 'Stop'),
         ('u', 'refresh_status', 'Refresh'),
         ('y', 'copy_log', 'Copy log'),
+        ('l', 'clear_log', 'Clear log'),
         ('c', 'toggle_continue', 'Continue'),
         ('q', 'quit', 'Quit'),
     ]
@@ -122,6 +123,10 @@ class SdtmTui(App):
         width: 10;
     }
 
+    #clear-log {
+        width: 11;
+    }
+
     Checkbox {
         margin-left: 1;
         width: 28;
@@ -175,6 +180,7 @@ class SdtmTui(App):
                 yield Button('Stop', id='stop', variant='error', disabled=True)
                 yield Button('Refresh', id='refresh')
                 yield Button('Copy Log', id='copy-log')
+                yield Button('Clear Log', id='clear-log')
                 yield Checkbox('Continue on error', id='continue-check')
             with Vertical(id='progress-panel'):
                 yield Label('Pipeline: idle', id='pipeline-label')
@@ -221,6 +227,8 @@ class SdtmTui(App):
             self.action_refresh_status()
         elif button_id == 'copy-log':
             self.action_copy_log()
+        elif button_id == 'clear-log':
+            self.action_clear_log()
 
     def on_checkbox_changed(self, event: Checkbox.Changed):
         if event.checkbox.id == 'continue-check':
@@ -266,6 +274,10 @@ class SdtmTui(App):
             return
 
         self._write_log('Copied current log to clipboard.')
+
+    def action_clear_log(self):
+        self.log_lines.clear()
+        self.query_one('#log', RichLog).clear()
 
     def action_refresh_status(self):
         self._refresh_status_table()
