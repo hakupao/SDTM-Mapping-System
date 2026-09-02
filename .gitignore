@@ -116,3 +116,5 @@ experiment/combine_test/TEST_COMBINE/
 # agent
 .omx/
 .omc/
+# ConfigurationReport V59 抜粋（不同步）
+studySpecific/ENSEMBLE/20_Doc/ConfigurationReport_ENSEMBLE_V59_抜粋/
