@@ -119,3 +119,8 @@ experiment/combine_test/TEST_COMBINE/
 # ConfigurationReport V59 抜粋（不同步）
 studySpecific/**/ConfigurationReport_ENSEMBLE_V59_抜粋/
 studySpecific/ENSEMBLE2/20_Doc/ConfigurationReport_ENSEMBLE_V59_抜粋/
+
+# SDTM
+!studySpecific/SDTM/*.*
+# agent 用一時スクリプト（ローカルのみ）
+tools/
