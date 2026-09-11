@@ -29,17 +29,6 @@ missing_columns_log.txt
 
 # 生成的数据文件
 *.csv
-studySpecific/**
-!studySpecific/**/
-!studySpecific/**/*.py
-!studySpecific/**/*.md
-!studySpecific/**/*.xlsx
-!studySpecific/**/*.xls
-!studySpecific/**/*.txt
-# 20_Doc 配下の資料（EDC 資料・PDF・JSON 等）はすべて同期
-!studySpecific/**/20_Doc/**
-# 会員管理ファイルは同期しない
-studySpecific/**/20_Doc/VAPORCONEスタディ及び会員管理.xlsm
 ai_summary.md
 batch_ai_summary.md
 
@@ -72,9 +61,7 @@ desktop.ini
 # Excel文件
 *.xlk
 *.~*
-ENSEMBLE_Myriad_DATA_251216.xlsx
 ~$*.xlsx
-studySpecific/COSMOS_GC/VAPORCONE SDTM定義書 V1.11ー20260115.xlsx
 
 # 其他文件
 .svn/
@@ -121,7 +108,8 @@ experiment/combine_test/TEST_COMBINE/
 .omx/
 .omc/
 
-# SDTM
-!studySpecific/SDTM/*.*
+# 研究ディレクトリ（別リポジトリ SDTM-Studies で管理。ここには含めない）
+studySpecific/
+
 # agent 用一時スクリプト（ローカルのみ）
 tools/

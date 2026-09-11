@@ -148,19 +148,21 @@ SDTM-Mapping-System/
 │   ├── project.local.json               # 研究ID、数据库表名、路径
 │   └── requirements.txt                 # Python 依赖
 │
-└── 📂 studySpecific/                    # 逐研究配置与数据
-    ├── ENSEMBLE/
-    │   ├── ENSEMBLE_OperationConf.xlsx   # 主配置工作簿（DSL）
-    │   ├── VC_BC05_studyFunctions.py     # 研究特定自定义逻辑
-    │   ├── 01_RawData/                   # 原始 CSV 输入文件
-    │   ├── 02_Cleaning/                  # 步骤 1 输出（带时间戳）
-    │   ├── 03_Format/                    # 步骤 4 输出（带时间戳）
-    │   ├── 04_SDTM/                      # 步骤 5 输出（带时间戳）
-    │   ├── 05_Inputfile/                 # 步骤 6 输出（带时间戳）
-    │   └── 06_Inputpackage/              # 步骤 7 输出（M5 包）
-    ├── CIRCULATE/
-    └── COSMOS_GC/
+└── 📂 studySpecific/                    # 逐研究配置与数据（不在本仓库中，见下）
+    └── <STUDY_ID>/
+        ├── <STUDY_ID>_OperationConf.xlsx # 主配置工作簿（DSL）
+        ├── VC_BC05_studyFunctions.py     # 研究特定自定义逻辑
+        ├── 01_RawData/                   # 原始 CSV 输入文件
+        ├── 02_Cleaning/                  # 步骤 1 输出（带时间戳）
+        ├── 03_Format/                    # 步骤 4 输出（带时间戳）
+        ├── 04_SDTM/                      # 步骤 5 输出（带时间戳）
+        ├── 05_Inputfile/                 # 步骤 6 输出（带时间戳）
+        └── 06_Inputpackage/              # 步骤 7 输出（M5 包）
 ```
+
+> **研究目录不在本仓库中。** `studySpecific/` 在本仓库被 git 忽略，临床文档和数据不会进入公开历史。
+> 请将研究放在独立的（私有）仓库中，或克隆到 `studySpecific/` 下，
+> 或在 `project.local.json` 里用 `STUDIES_ROOT_PATH` 指向其位置。
 
 <p align="right">(<a href="#关于">回到顶部</a>)</p>
 
@@ -354,6 +356,7 @@ def DM():
 | `M5_PROJECT_NAME` | M5 包输出中的项目名称 |
 | `ROOT_PATH` | 项目根目录绝对路径 |
 | `RAW_DATA_ROOT_PATH` | 原始数据目录绝对路径 |
+| `STUDIES_ROOT_PATH` | *（可选）* 各研究目录的父目录。默认为 `<ROOT_PATH>/studySpecific` |
 
 <p align="right">(<a href="#关于">回到顶部</a>)</p>
 

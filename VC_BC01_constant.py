@@ -33,6 +33,9 @@ DEFAULT_PROJECT_CONFIG = {
     'M5_PROJECT_NAME': '',
     'ROOT_PATH': '',
     'RAW_DATA_ROOT_PATH': '',
+    # Optional. Parent directory of the per-study folders.
+    # Defaults to <ROOT_PATH>/studySpecific when empty.
+    'STUDIES_ROOT_PATH': '',
 }
 
 PROJECT_CONFIG_ENV = 'PROJECT_CONFIG_PATH'
@@ -77,7 +80,8 @@ DB_USER = 'root'
 DB_PASSWORD = 'root'
 DB_DATABASE = 'VC-DataMigration_2.0'
 
-SPECIFIC_PATH = os.path.join(ROOT_PATH, 'studySpecific', STUDY_ID)
+STUDIES_ROOT_PATH = _PROJECT_CONFIG['STUDIES_ROOT_PATH'] or os.path.join(ROOT_PATH, 'studySpecific')
+SPECIFIC_PATH = os.path.join(STUDIES_ROOT_PATH, STUDY_ID)
 
 FOLDER_CLEANINGSTEP = '02_Cleaning'
 CLEANINGSTEP_PATH = os.path.join(SPECIFIC_PATH, FOLDER_CLEANINGSTEP)

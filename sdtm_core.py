@@ -47,10 +47,21 @@ def load_config(cwd=None):
     return {}
 
 
+def get_studies_root(cwd=None, config=None):
+    """返回研究目录的父目录。
+
+    优先使用 project.local.json 的 STUDIES_ROOT_PATH，
+    未设置时默认为 <cwd>/studySpecific。
+    """
+    base_dir = cwd or os.getcwd()
+    if config is None:
+        config = load_config(base_dir)
+    return config.get('STUDIES_ROOT_PATH') or os.path.join(base_dir, 'studySpecific')
+
+
 def get_status(study_id, cwd=None):
     """扫描各阶段的时间戳文件夹，返回状态列表。"""
-    base_dir = cwd or os.getcwd()
-    specific = os.path.join(base_dir, 'studySpecific', study_id)
+    specific = os.path.join(get_studies_root(cwd), study_id)
     rows = []
     for folder, pattern in STAGE_DIRS:
         stage_path = os.path.join(specific, folder)

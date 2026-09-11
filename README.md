@@ -148,19 +148,22 @@ SDTM-Mapping-System/
 │   ├── project.local.json               # Study ID, DB table names, paths
 │   └── requirements.txt                 # Python dependencies
 │
-└── 📂 studySpecific/                    # Per-study configuration & data
-    ├── ENSEMBLE/
-    │   ├── ENSEMBLE_OperationConf.xlsx   # Master config workbook (DSL)
-    │   ├── VC_BC05_studyFunctions.py     # Study-specific custom logic
-    │   ├── 01_RawData/                   # Raw CSV input files
-    │   ├── 02_Cleaning/                  # Step 1 output (timestamped)
-    │   ├── 03_Format/                    # Step 4 output (timestamped)
-    │   ├── 04_SDTM/                      # Step 5 output (timestamped)
-    │   ├── 05_Inputfile/                 # Step 6 output (timestamped)
-    │   └── 06_Inputpackage/              # Step 7 output (M5 package)
-    ├── CIRCULATE/
-    └── COSMOS_GC/
+└── 📂 studySpecific/                    # Per-study configuration & data (NOT in this repo, see below)
+    └── <STUDY_ID>/
+        ├── <STUDY_ID>_OperationConf.xlsx # Master config workbook (DSL)
+        ├── VC_BC05_studyFunctions.py     # Study-specific custom logic
+        ├── 01_RawData/                   # Raw CSV input files
+        ├── 02_Cleaning/                  # Step 1 output (timestamped)
+        ├── 03_Format/                    # Step 4 output (timestamped)
+        ├── 04_SDTM/                      # Step 5 output (timestamped)
+        ├── 05_Inputfile/                 # Step 6 output (timestamped)
+        └── 06_Inputpackage/              # Step 7 output (M5 package)
 ```
+
+> **Studies live outside this repository.** `studySpecific/` is git-ignored here so that
+> clinical documents and data never enter the public history. Keep your studies in a
+> separate (private) repository and either clone it into `studySpecific/` or point
+> `STUDIES_ROOT_PATH` in `project.local.json` at its location.
 
 <p align="right">(<a href="#about">back to top</a>)</p>
 
@@ -354,6 +357,7 @@ def DM():
 | `M5_PROJECT_NAME` | Project name in M5 package output |
 | `ROOT_PATH` | Absolute path to project root |
 | `RAW_DATA_ROOT_PATH` | Absolute path to raw data directory |
+| `STUDIES_ROOT_PATH` | *(optional)* Parent directory of the per-study folders. Defaults to `<ROOT_PATH>/studySpecific` |
 
 <p align="right">(<a href="#about">back to top</a>)</p>
 
