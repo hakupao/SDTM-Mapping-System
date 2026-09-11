@@ -36,6 +36,10 @@ studySpecific/**
 !studySpecific/**/*.xlsx
 !studySpecific/**/*.xls
 !studySpecific/**/*.txt
+# 20_Doc 配下の資料（EDC 資料・PDF・JSON 等）はすべて同期
+!studySpecific/**/20_Doc/**
+# 会員管理ファイルは同期しない
+studySpecific/**/20_Doc/VAPORCONEスタディ及び会員管理.xlsm
 ai_summary.md
 batch_ai_summary.md
 
@@ -116,9 +120,6 @@ experiment/combine_test/TEST_COMBINE/
 # agent
 .omx/
 .omc/
-# ConfigurationReport V59 抜粋（不同步）
-studySpecific/**/ConfigurationReport_ENSEMBLE_V59_抜粋/
-studySpecific/ENSEMBLE2/20_Doc/ConfigurationReport_ENSEMBLE_V59_抜粋/
 
 # SDTM
 !studySpecific/SDTM/*.*
