@@ -67,9 +67,15 @@ def program_root():
 
 
 def project_config_path(base_dir=None):
-    return os.getenv(PROJECT_CONFIG_ENV) or os.path.join(
-        base_dir or program_root(), PROJECT_CONFIG_FILENAME
-    )
+    """环境变量 > base_dir 下的文件（存在时） > 程序目录下的文件。"""
+    env_path = os.getenv(PROJECT_CONFIG_ENV)
+    if env_path:
+        return env_path
+    if base_dir:
+        candidate = os.path.join(base_dir, PROJECT_CONFIG_FILENAME)
+        if os.path.isfile(candidate):
+            return candidate
+    return os.path.join(program_root(), PROJECT_CONFIG_FILENAME)
 
 
 def load_project_config(base_dir=None):
