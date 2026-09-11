@@ -98,6 +98,8 @@ def get_studies_root(base_dir=None, config=None):
         config = load_project_config(base_dir)
     root = config.get('STUDIES_ROOT_PATH')
     if root:
+        if not os.path.isabs(root):
+            root = os.path.join(program_root(), root)
         return os.path.normpath(root)
     parent = config.get('ROOT_PATH') or base_dir or program_root()
     return os.path.normpath(os.path.join(parent, STUDIES_DIRNAME))

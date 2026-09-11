@@ -1,0 +1,5 @@
+﻿Subject Id,Event Id,Re-evaluation performed,Re-evaluation performed - Code,Re-evaluation result,Re-evaluation result - Code,Decision date
+SubjectId,EventId,REV_YN,REV_YNCD,REV_R,REV_RCD,NOMDAT
+DEMO-001,E_REV,Performed,Y,Non-operative management,1,2024/03/05
+DEMO-002,E_REV,Performed,Y,Surgery,2,2024/04/18
+DEMO-003,E_REV,Not performed,N,,,

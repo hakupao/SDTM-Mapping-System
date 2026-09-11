@@ -146,7 +146,7 @@ SDTM-Mapping-System/
 │
 ├── 📝 配置文件
 │   ├── project.local.json               # 机器设置：研究根目录、默认研究、数据库（不提交）
-│   ├── examples/                        # project.local.json 示例 + 研究目录模板
+│   ├── examples/                        # project.local.json 示例 + 可运行的 DEMO 研究
 │   └── requirements.txt                 # Python 依赖
 │
 └── 📂 studySpecific/                    # 逐研究配置与数据（不在本仓库中，见下）
@@ -202,7 +202,17 @@ pip install -r requirements.txt
 
 每个研究是一个目录 `<STUDIES_ROOT_PATH>/<STUDY_ID>/`，内含
 `<STUDY_ID>_OperationConf.xlsx`、`VC_BC05_studyFunctions.py` 和可选的
-`study.json`（参考 `examples/study_template/`）。
+`study.json`。完整可运行的示例见 `examples/studies/DEMO/`。
+
+### 先跑一下自带的示例
+
+```bash
+# 按上文把 STUDIES_ROOT_PATH 指向 examples/studies，然后
+python run_pipeline.py --study DEMO
+```
+
+3 名虚构受试者约 10 秒走完全部 7 步，在 `examples/studies/DEMO/` 下生成 DM、DS、SS 和 M5 包。
+详见 `examples/studies/DEMO/README.md`。
 
 ### 运行
 
@@ -342,7 +352,7 @@ python VC_PS02_csv2json.py
 | **DomainsSetting** | `DOMAIN`、`SEQFIELD`、`SORTKEYS` | 各域的排序键和用于编号的 `--SEQ` 变量 |
 | **Sites** | `SITENAME`、`SITECODE` | 生成 M5 输入 CSV 时使用的施设名 → 施设代码对照 |
 
-九个表都必须存在。本仓库目前没有示例工作簿，参见 `examples/study_template/README.md`。
+九个表都必须存在。`examples/studies/DEMO/DEMO_OperationConf.xlsx` 是一份最小可用工作簿，其 README 逐表说明。
 
 ### 研究特定函数 — `VC_BC05_studyFunctions.py`
 

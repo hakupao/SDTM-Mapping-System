@@ -113,3 +113,8 @@ studySpecific/
 
 # agent 用一時スクリプト（ローカルのみ）
 tools/
+
+# examples/studies/DEMO: 生の CSV はサンプルとして追跡し、パイプライン出力は除外
+!examples/studies/DEMO/01_RawData/*.csv
+examples/studies/DEMO/0[2-6]_*/
+examples/studies/DEMO/log_file.log

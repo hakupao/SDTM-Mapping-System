@@ -146,7 +146,7 @@ SDTM-Mapping-System/
 │
 ├── 📝 Configuration
 │   ├── project.local.json               # Machine settings: studies root, default study, DB (not committed)
-│   ├── examples/                        # project.local.json example + study folder template
+│   ├── examples/                        # project.local.json example + runnable DEMO study
 │   └── requirements.txt                 # Python dependencies
 │
 └── 📂 studySpecific/                    # Per-study configuration & data (NOT in this repo, see below)
@@ -203,7 +203,17 @@ It describes **this machine only**; study-specific settings live in each study f
 
 Each study is a folder `<STUDIES_ROOT_PATH>/<STUDY_ID>/` containing
 `<STUDY_ID>_OperationConf.xlsx`, `VC_BC05_studyFunctions.py` and an optional
-`study.json` (see `examples/study_template/`).
+`study.json`. A complete runnable example is in `examples/studies/DEMO/`.
+
+### Try the bundled demo
+
+```bash
+# point STUDIES_ROOT_PATH at examples/studies (see above), then
+python run_pipeline.py --study DEMO
+```
+
+Three fake subjects go through all 7 steps in about 10 seconds and produce DM, DS, SS
+and an M5 package under `examples/studies/DEMO/`. See `examples/studies/DEMO/README.md`.
 
 ### Run
 
@@ -343,7 +353,7 @@ The master configuration workbook drives the entire pipeline. Each sheet control
 | **DomainsSetting** | `DOMAIN`, `SEQFIELD`, `SORTKEYS` | Per-domain sort keys and the `--SEQ` variable to number records with |
 | **Sites** | `SITENAME`, `SITECODE` | Site name → site code lookup used when building the M5 input CSVs |
 
-All nine sheets must exist. There is no sample workbook in this repository yet; see `examples/study_template/README.md`.
+All nine sheets must exist. `examples/studies/DEMO/DEMO_OperationConf.xlsx` is a minimal working workbook; its README walks through every sheet.
 
 ### Study-Specific Functions — `VC_BC05_studyFunctions.py`
 
