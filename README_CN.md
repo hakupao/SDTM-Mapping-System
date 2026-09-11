@@ -174,7 +174,7 @@ SDTM-Mapping-System/
 ### 前置条件
 
 - **Python 3.11+**
-- **MySQL** 数据库服务器（本地或远程）
+- **MySQL** 数据库服务器（本地或远程）。配置的账号需要 `CREATE DATABASE` / `CREATE TABLE` / `CREATE VIEW` 权限：流水线会自行创建数据库和表
 - **pip**
 
 ### 安装
@@ -330,15 +330,19 @@ python VC_PS02_csv2json.py
 
 主配置工作簿驱动整个流水线，每张工作表控制一个特定方面：
 
-| 工作表 | 用途 |
-|-------|------|
-| **SheetSetting** | 各工作表的列配置与起始行定义 |
-| **CaseList** | 患者ID映射（SUBJID &#8594; USUBJID）及迁移标志 |
-| **FileDict** | 原始数据文件定义（文件名、编码、分隔符） |
-| **FieldDict** | 字段规格、数据类型与转换规则 |
-| **CodeList** | 代码/术语值映射 |
-| **Mapping** | SDTM 域转换规则（DM、AE、LB、VS、EV 等） |
-| **Combine** | 自定义表连接/合并定义 |
+| 工作表 | 列（第 1 行为表头） | 用途 |
+|-------|------------------|------|
+| **SheetSetting** | `SheetName`、`StartingRow`，之后是其他各表的列名 | 工作簿索引：记录每个表的数据起始行和列顺序，解析器通过它读取其余所有表 |
+| **Patients** | `USUBJID`、`SUBJID`、`MIGRATIONFLAG` | 要迁移的受试者及 `SUBJID` → `USUBJID` 对应关系 |
+| **Files** | `FILENAME`、`MIGRATIONFLAG`、`TITLEROW`、`DATARROW`、`SUBJIDFIELDID`、`PROCESSINGLOGIC` | `01_RawData/` 下的原始 CSV：表头行、数据起始行、受试者 ID 列 |
+| **Process** | `FILENAME`、`FIELDNAME`、`LABEL`、`DATATYPE`、`CODELISTNAME`、`MIGRATIONFLAG`、`CHKTYPE`、`OTHERDETAILSPROCESS` | 每个原始文件的每个字段：标签、数据类型、代码表、是否保留、附加格式规则 |
+| **CodeList** | `CODELISTNAME`、`CODE`、`VALUERAW`、`VALUEEN`、`VALUESDTM` | 代码/术语映射（原始值 → 英文 → SDTM 受控术语） |
+| **Mapping** | `DEFINITION`、`DOMAIN`、`VARIABLE`、`NDKEY`、`FILENAME`、`FIELDNAME`、`OPERTYPE`、`PARAMETER` | SDTM 域规则：每个目标变量一行，指定来源文件/字段和所用操作 |
+| **Combine** | `FILENAME`、`FUNCTION` | 由 `VC_BC05_studyFunctions.py` 中的 Python 函数（如 `DM()`）生成的派生表，可在 Mapping 中作为 `FILENAME` 引用 |
+| **DomainsSetting** | `DOMAIN`、`SEQFIELD`、`SORTKEYS` | 各域的排序键和用于编号的 `--SEQ` 变量 |
+| **Sites** | `SITENAME`、`SITECODE` | 生成 M5 输入 CSV 时使用的施设名 → 施设代码对照 |
+
+九个表都必须存在。本仓库目前没有示例工作簿，参见 `examples/study_template/README.md`。
 
 ### 研究特定函数 — `VC_BC05_studyFunctions.py`
 

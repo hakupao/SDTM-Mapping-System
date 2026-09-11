@@ -175,7 +175,7 @@ SDTM-Mapping-System/
 ### Prerequisites
 
 - **Python 3.11+**
-- **MySQL** database server (running locally or remotely)
+- **MySQL** database server (running locally or remotely). The configured user needs `CREATE DATABASE` / `CREATE TABLE` / `CREATE VIEW` privileges: the pipeline creates the database and its tables itself
 - **pip**
 
 ### Installation
@@ -331,15 +331,19 @@ python VC_PS02_csv2json.py
 
 The master configuration workbook drives the entire pipeline. Each sheet controls a specific aspect:
 
-| Sheet | Purpose |
-|-------|---------|
-| **SheetSetting** | Column configurations and starting row definitions for each sheet |
-| **CaseList** | Patient ID mappings (SUBJID &#8594; USUBJID) and migration flags |
-| **FileDict** | Raw data file definitions (filename, encoding, delimiters) |
-| **FieldDict** | Field specifications, data types, and transformation rules |
-| **CodeList** | Code / terminology value mappings |
-| **Mapping** | SDTM domain transformation rules (DM, AE, LB, VS, EV, etc.) |
-| **Combine** | Custom table join / combination definitions |
+| Sheet | Columns (row 1 = header) | Purpose |
+|-------|--------------------------|---------|
+| **SheetSetting** | `SheetName`, `StartingRow`, then the column names of every other sheet | Index of the workbook: for each sheet, the first data row and the order of its columns. The parser reads all other sheets through this table |
+| **Patients** | `USUBJID`, `SUBJID`, `MIGRATIONFLAG` | Subjects to migrate and their `SUBJID` → `USUBJID` mapping |
+| **Files** | `FILENAME`, `MIGRATIONFLAG`, `TITLEROW`, `DATARROW`, `SUBJIDFIELDID`, `PROCESSINGLOGIC` | Raw CSV files in `01_RawData/`: header row, first data row, subject-id column |
+| **Process** | `FILENAME`, `FIELDNAME`, `LABEL`, `DATATYPE`, `CODELISTNAME`, `MIGRATIONFLAG`, `CHKTYPE`, `OTHERDETAILSPROCESS` | Every field of every raw file: label, data type, code list, whether to keep it, extra formatting rules |
+| **CodeList** | `CODELISTNAME`, `CODE`, `VALUERAW`, `VALUEEN`, `VALUESDTM` | Code / terminology value mappings (raw value → English → SDTM controlled term) |
+| **Mapping** | `DEFINITION`, `DOMAIN`, `VARIABLE`, `NDKEY`, `FILENAME`, `FIELDNAME`, `OPERTYPE`, `PARAMETER` | SDTM domain rules: one row per target variable, with source file/field and the operation applied |
+| **Combine** | `FILENAME`, `FUNCTION` | Derived tables built by a Python call in `VC_BC05_studyFunctions.py` (e.g. `DM()`), usable as `FILENAME` in Mapping |
+| **DomainsSetting** | `DOMAIN`, `SEQFIELD`, `SORTKEYS` | Per-domain sort keys and the `--SEQ` variable to number records with |
+| **Sites** | `SITENAME`, `SITECODE` | Site name → site code lookup used when building the M5 input CSVs |
+
+All nine sheets must exist. There is no sample workbook in this repository yet; see `examples/study_template/README.md`.
 
 ### Study-Specific Functions — `VC_BC05_studyFunctions.py`
 
