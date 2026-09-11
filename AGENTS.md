@@ -1,5 +1,5 @@
 # AGENTS.md
-Guide for autonomous coding agents working in `SDTM_ENSEMBLE2`.
+Guide for autonomous coding agents working in `SDTM-Mapping-System`.
 Use this as the baseline for edits, validation, and safe execution.
 
 ## 1) Repository Overview
