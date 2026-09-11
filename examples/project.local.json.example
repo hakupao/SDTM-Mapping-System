@@ -1,0 +1,9 @@
+{
+  "STUDIES_ROOT_PATH": "C:\path\to\SDTM-Studies",
+  "DEFAULT_STUDY": "MYSTUDY",
+
+  "DB_HOST": "127.0.0.1",
+  "DB_USER": "root",
+  "DB_PASSWORD": "root",
+  "DB_DATABASE": "VC-DataMigration_2.0"
+}

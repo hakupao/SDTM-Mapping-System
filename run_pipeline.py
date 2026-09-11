@@ -7,6 +7,7 @@ VAPORCONE 全流程一键运行脚本
     python run_pipeline.py 3 5            # 只运行第 3 ~ 5 步 (OP03 ~ OP05)
     python run_pipeline.py --continue     # 某步失败后继续运行后续步骤
     python run_pipeline.py --dry-run      # 只打印将要执行的步骤，不实际运行
+    python run_pipeline.py --study ENSEMBLE2 3 5   # 指定研究（否则按 SDTM_STUDY / DEFAULT_STUDY / 唯一研究）
 """
 
 import subprocess
@@ -19,7 +20,7 @@ import argparse
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
-from VC_BC02_baseUtils import PipelineProgress
+from sdtm_study import STUDY_ENV, PIPELINE_ENV_KEY, StudyNotFoundError, format_available, resolve_study_id
 
 # 有序的步骤定义: (序号, 模块名, 步骤ID, 描述)
 STEPS = [
@@ -35,7 +36,9 @@ STEPS = [
 W = 70
 
 
-def run_pipeline(start=1, end=7, continue_on_error=False, dry_run=False):
+def run_pipeline(start=1, end=7, continue_on_error=False, dry_run=False, study_id=None):
+    from VC_BC02_baseUtils import PipelineProgress  # 延迟导入：需要研究已确定
+
     selected = [s for s in STEPS if start <= s[0] <= end]
 
     if not selected:
@@ -48,6 +51,9 @@ def run_pipeline(start=1, end=7, continue_on_error=False, dry_run=False):
     print('  VAPORCONE Pipeline Runner')
     print('=' * W)
     print()
+    if study_id:
+        print(f'  Study: {study_id}')
+        print()
     for seq, module, step_id, desc in selected:
         print(f'  [{seq}] {step_id}  {desc}')
     print()
@@ -78,7 +84,9 @@ def run_pipeline(start=1, end=7, continue_on_error=False, dry_run=False):
         pp.begin_step(i)
 
         step_start = time.time()
-        env = {**os.environ, 'VAPORCONE_PIPELINE': '1'}
+        env = {**os.environ, PIPELINE_ENV_KEY: '1'}
+        if study_id:
+            env[STUDY_ENV] = study_id
         proc = subprocess.Popen(
             [sys.executable, '-u', f'{module}.py'],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -160,15 +168,29 @@ def main():
         '--dry-run', dest='dry_run', action='store_true',
         help='仅打印执行计划，不实际运行',
     )
+    parser.add_argument(
+        '--study', dest='study', default=None,
+        help='研究 ID（默认: 环境变量 SDTM_STUDY / project.local.json DEFAULT_STUDY / 唯一研究）',
+    )
 
     args = parser.parse_args()
     end = args.end if args.end is not None else 7
+
+    try:
+        study_id = resolve_study_id(args.study, _ROOT)
+    except StudyNotFoundError as exc:
+        print(f'[ERROR] {exc}')
+        print('可用研究:')
+        print(format_available(exc.available))
+        sys.exit(2)
+    os.environ[STUDY_ENV] = study_id
 
     run_pipeline(
         start=args.start,
         end=end,
         continue_on_error=args.continue_on_error,
         dry_run=args.dry_run,
+        study_id=study_id,
     )
 
 

@@ -7,8 +7,9 @@ Use this as the baseline for edits, validation, and safe execution.
 - Main dependencies: `pandas`, `numpy`, `openpyxl`, `mysql-connector-python`, `python-dateutil`
 - Architecture: config-driven ETL from raw clinical CSVs to CDISC SDTM and M5 package output
 - Main config files:
-  - `project.local.json`
-  - `studySpecific/<STUDY_ID>/<STUDY_ID>_OperationConf.xlsx`
+  - `project.local.json` (machine-level: `STUDIES_ROOT_PATH`, `DEFAULT_STUDY`, DB)
+  - `<STUDIES_ROOT_PATH>/<STUDY_ID>/<STUDY_ID>_OperationConf.xlsx` (+ optional `study.json`)
+  - Study selection at runtime: `sdtm <STUDY>` / `run_pipeline.py --study` / env `SDTM_STUDY` (see `sdtm_study.py`)
 - Core module chain:
   - `VC_BC01_constant.py` -> constants + project config
   - `VC_BC02_baseUtils.py` -> logger/fs/db helpers

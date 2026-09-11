@@ -21,7 +21,7 @@ from textual.widgets import (
     Static,
 )
 
-from sdtm_core import STEPS, get_status, iter_pipeline_events, load_config
+from sdtm_core import STEPS, StudyNotFoundError, get_status, iter_pipeline_events, load_config, select_study
 
 
 class SdtmTui(App):
@@ -150,7 +150,12 @@ class SdtmTui(App):
         super().__init__()
         self.cwd = os.getcwd()
         self.config = load_config(self.cwd)
-        self.study_id = self.config.get('STUDY_ID', 'UNKNOWN')
+        try:
+            self.study_id = select_study(cwd=self.cwd)
+            self.study_error = None
+        except StudyNotFoundError as exc:
+            self.study_id = 'UNKNOWN'
+            self.study_error = str(exc)
         self.continue_on_error = False
         self.pipeline_running = False
         self.stop_event = threading.Event()
@@ -203,7 +208,7 @@ class SdtmTui(App):
         yield Footer()
 
     def on_mount(self):
-        self.title = f'SDTM ENSEMBLE - {self.study_id}'
+        self.title = f'SDTM Pipeline - {self.study_id}'
         self._populate_steps()
         self._refresh_status_table()
         self.query_one('#steps-table', DataTable).focus()
@@ -212,6 +217,9 @@ class SdtmTui(App):
             'a=all, r=selected, f=from selected, s=stop, y=copy log.'
         )
         self._write_log(f'Log file: {self.log_path}')
+        if self.study_error:
+            self._write_log(f'[ERROR] {self.study_error}')
+            self._write_log('Start with: sdtm <STUDY>  (or set SDTM_STUDY / DEFAULT_STUDY)')
 
     def on_button_pressed(self, event: Button.Pressed):
         button_id = event.button.id
@@ -370,6 +378,7 @@ class SdtmTui(App):
                 stop_requested=self.stop_event.is_set,
                 on_process_start=on_process_start,
                 on_process_end=on_process_end,
+                study_id=self.study_id,
             ):
                 self.call_from_thread(self._handle_runner_event, event)
         except Exception as exc:

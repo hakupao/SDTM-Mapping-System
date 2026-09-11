@@ -1,7 +1,13 @@
 """
-SDTM ENSEMBLE Pipeline Console.
+SDTM Pipeline Console.
 
-在项目根目录输入 sdtm 即可启动 TUI；命令行参数仍保留原有 CLI 行为。
+用法:
+    sdtm                        启动 TUI（研究按 SDTM_STUDY / DEFAULT_STUDY / 唯一研究 自动确定）
+    sdtm <STUDY>                以指定研究启动 TUI
+    sdtm <STUDY> run 1 7        以指定研究直接运行第 1~7 步
+    sdtm <STUDY> status         查看指定研究各阶段状态
+    sdtm studies                列出研究根目录下的所有研究
+    sdtm --study <STUDY> ...    与 sdtm <STUDY> ... 等价
 """
 
 import os
@@ -21,19 +27,25 @@ for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, 'reconfigure'):
         _stream.reconfigure(encoding='utf-8', errors='replace')
 
-from VC_BC02_baseUtils import PROGRESS_MARKER, PipelineProgress
+from sdtm_study import PROGRESS_MARKER
 from sdtm_core import (
     STEP_ID_MAP,
     STEPS,
     W,
+    StudyNotFoundError,
+    format_available,
     get_status,
+    get_studies_root,
     iter_pipeline_events,
-    load_config,
+    list_studies,
+    select_study,
 )
 
 
-def run_steps(start, end, continue_on_error=False):
+def run_steps(start, end, continue_on_error=False, study_id=None):
     """以传统 CLI 方式执行流水线步骤。"""
+    from VC_BC02_baseUtils import PipelineProgress  # 延迟导入：需要研究已确定
+
     selected = [s for s in STEPS if start <= s[0] <= end]
     if not selected:
         print(f'  [ERROR] 无效范围: {start}~{end}')
@@ -57,6 +69,7 @@ def run_steps(start, end, continue_on_error=False):
             end,
             continue_on_error=continue_on_error,
             cwd=os.getcwd(),
+            study_id=study_id,
         ):
             kind = event['kind']
             if kind == 'step_start':
@@ -154,6 +167,7 @@ def parse_run_args(parts):
 def cmd_help():
     print()
     print('  tui                  启动 TUI 界面')
+    print('  studies              列出所有研究')
     print('  run [all]            全部运行 (OP01 ~ PS02)')
     print('  run <n>              仅运行第 n 步')
     print('  run <n> <m>          运行第 n ~ m 步')
@@ -175,6 +189,18 @@ def cmd_list():
     print()
 
 
+def cmd_studies(current=None):
+    print()
+    print(f'  研究根目录: {get_studies_root()}')
+    studies = list_studies()
+    if not studies:
+        print('  （无可用研究）')
+    for s in studies:
+        mark = '*' if s == current else ' '
+        print(f'  {mark} {s}')
+    print()
+
+
 def cmd_status(study_id):
     rows = get_status(study_id)
     print()
@@ -186,11 +212,11 @@ def cmd_status(study_id):
     print()
 
 
-def cmd_run(parts):
+def cmd_run(parts, study_id=None):
     start, end, cont = parse_run_args(parts)
     if start is None:
         return
-    run_steps(start, end, continue_on_error=cont)
+    run_steps(start, end, continue_on_error=cont, study_id=study_id)
 
 
 def print_banner(study_id):
@@ -203,7 +229,7 @@ def print_banner(study_id):
     print('  ███████║██████╔╝   ██║   ██║ ╚═╝ ██║')
     print('  ╚══════╝╚═════╝    ╚═╝   ╚═╝     ╚═╝  Pipeline Console')
     print()
-    print(f'  Study: {study_id}')
+    print(f'  Study: {study_id}    (切换研究: sdtm <STUDY>)')
     print('  输入 help 查看可用命令, 输入 exit 退出')
     print('=' * W)
 
@@ -252,29 +278,73 @@ def dispatch(line, study_id):
         cmd_help()
     elif cmd == 'list':
         cmd_list()
+    elif cmd == 'studies':
+        cmd_studies(study_id)
     elif cmd == 'status':
         cmd_status(study_id)
     elif cmd == 'run':
-        cmd_run(parts[1:])
+        cmd_run(parts[1:], study_id)
     else:
         print(f'  未知命令: {cmd}  (输入 help 查看可用命令)')
 
 
-def main():
-    cfg = load_config()
-    study_id = cfg.get('STUDY_ID', 'UNKNOWN')
+KNOWN_COMMANDS = {
+    'tui', '--tui', 'ui', '--ui', 'shell', 'cli', '--shell', '--cli',
+    'run', 'status', 'list', 'help', '--help', '-h', 'studies', '--studies',
+    'exit', 'quit', 'q',
+}
 
-    if len(sys.argv) > 1:
-        first = sys.argv[1].lower()
+
+def split_study_arg(argv):
+    """
+    从参数中取出研究指定: --study X / --study=X / 首个与已知研究匹配的位置参数。
+    返回 (study_or_None, 其余参数)。
+    """
+    rest = list(argv)
+    explicit = None
+    if rest and rest[0].startswith('--study='):
+        explicit = rest.pop(0).split('=', 1)[1]
+    elif len(rest) >= 2 and rest[0] == '--study':
+        explicit = rest[1]
+        rest = rest[2:]
+    elif rest and rest[0].lower() not in KNOWN_COMMANDS:
+        # 不是命令 → 视为研究 ID（不存在时由 select_study 报错并列出可选研究）
+        known = {s.lower(): s for s in list_studies()}
+        token = rest.pop(0)
+        explicit = known.get(token.lower(), token)
+    return explicit, rest
+
+
+def main():
+    explicit, argv = split_study_arg(sys.argv[1:])
+    first = argv[0].lower() if argv else ''
+
+    if first in ('studies', '--studies'):
+        cmd_studies(explicit)
+        return
+    if first in ('help', '--help', '-h'):
+        cmd_help()
+        return
+    if first == 'list':
+        cmd_list()
+        return
+
+    try:
+        study_id = select_study(explicit)
+    except StudyNotFoundError as exc:
+        print(f'  [ERROR] {exc}')
+        print('  可用研究:')
+        print(format_available(exc.available))
+        sys.exit(2)
+
+    if argv:
         if first in ('tui', '--tui', 'ui', '--ui'):
             launch_tui()
             return
         if first in ('shell', 'cli', '--shell', '--cli'):
             run_shell(study_id)
             return
-
-        arg_line = ' '.join(sys.argv[1:])
-        dispatch(arg_line, study_id)
+        dispatch(' '.join(argv), study_id)
         return
 
     if not launch_tui():

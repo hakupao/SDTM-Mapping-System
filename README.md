@@ -145,7 +145,8 @@ SDTM-Mapping-System/
 │   └── run_pipeline.py                  # Batch pipeline executor
 │
 ├── 📝 Configuration
-│   ├── project.local.json               # Study ID, DB table names, paths
+│   ├── project.local.json               # Machine settings: studies root, default study, DB (not committed)
+│   ├── examples/                        # project.local.json example + study folder template
 │   └── requirements.txt                 # Python dependencies
 │
 └── 📂 studySpecific/                    # Per-study configuration & data (NOT in this repo, see below)
@@ -190,29 +191,32 @@ pip install -r requirements.txt
 
 ### Configuration
 
-Create or edit `project.local.json` in the project root:
+Create `project.local.json` in the project root (see `examples/project.local.json.example`).
+It describes **this machine only**; study-specific settings live in each study folder.
 
 ```json
 {
-  "STUDY_ID": "ENSEMBLE",
-  "CODELIST_TABLE_NAME": "VC05_ENSEMBLE_CODELIST",
-  "METADATA_TABLE_NAME": "VC05_ENSEMBLE_METADATA",
-  "TRANSDATA_VIEW_NAME": "VC05_ENSEMBLE_TRANSDATA",
-  "M5_PROJECT_NAME": "ENSEMBLE",
-  "ROOT_PATH": "C:\\Local\\iTMS\\SDTM_ENSEMBLE",
-  "RAW_DATA_ROOT_PATH": "C:\\...\\studySpecific\\ENSEMBLE\\01_RawData"
+  "STUDIES_ROOT_PATH": "C:\\path\\to\\SDTM-Studies",
+  "DEFAULT_STUDY": "ENSEMBLE"
 }
 ```
+
+Each study is a folder `<STUDIES_ROOT_PATH>/<STUDY_ID>/` containing
+`<STUDY_ID>_OperationConf.xlsx`, `VC_BC05_studyFunctions.py` and an optional
+`study.json` (see `examples/study_template/`).
 
 ### Run
 
 ```bash
-# Launch the interactive console
-python sdtm.py
+# Launch the interactive console for a study
+python sdtm.py ENSEMBLE
 
 # Or run the full pipeline directly
-python run_pipeline.py
+python run_pipeline.py --study ENSEMBLE
 ```
+
+The study can also be chosen via the `SDTM_STUDY` environment variable or
+`DEFAULT_STUDY` in `project.local.json`; with a single study folder it is picked automatically.
 
 <p align="right">(<a href="#about">back to top</a>)</p>
 
@@ -274,10 +278,14 @@ MySQL: CODELIST + METADATA tables (with auto-created indexes)
 ### Interactive Console (`sdtm.py`)
 
 ```bash
-python sdtm.py          # Enter interactive mode
-sdtm                    # Windows shortcut (via sdtm.bat)
-python sdtm.py run all  # One-shot: run and exit
+python sdtm.py <STUDY>            # Enter interactive mode for a study
+sdtm <STUDY>                      # Windows shortcut (via sdtm.bat)
+sdtm <STUDY> run all              # One-shot: run and exit
+sdtm studies                      # List studies under STUDIES_ROOT_PATH
+sdtm --study <STUDY> status       # Same as sdtm <STUDY> status
 ```
+
+`<STUDY>` may be omitted when `SDTM_STUDY` / `DEFAULT_STUDY` is set or only one study exists.
 
 | Command | Description |
 |---------|-------------|
@@ -288,6 +296,7 @@ python sdtm.py run all  # One-shot: run and exit
 | `run op03 ps01` | Run by step ID (case-insensitive) |
 | `run ... --continue` | Continue past failures |
 | `status` | Show latest output timestamps and version counts |
+| `studies` | List available studies |
 | `list` | List all pipeline steps |
 | `help` | Show available commands |
 | `exit` | Quit the console |
@@ -295,11 +304,11 @@ python sdtm.py run all  # One-shot: run and exit
 ### Batch Runner (`run_pipeline.py`)
 
 ```bash
-python run_pipeline.py              # Run all 7 steps
-python run_pipeline.py 3            # From step 3 onward
-python run_pipeline.py 3 5          # Steps 3 to 5 only
-python run_pipeline.py --continue   # Continue past failures
-python run_pipeline.py --dry-run    # Preview execution plan without running
+python run_pipeline.py --study ENSEMBLE       # Run all 7 steps for ENSEMBLE
+python run_pipeline.py 3                      # From step 3 onward (study from env / DEFAULT_STUDY)
+python run_pipeline.py 3 5                    # Steps 3 to 5 only
+python run_pipeline.py --continue             # Continue past failures
+python run_pipeline.py --dry-run              # Preview execution plan without running
 ```
 
 ### Individual Steps
@@ -348,16 +357,32 @@ def DM():
 
 ### Project Settings — `project.local.json`
 
+Machine-level settings (not committed). All keys are optional.
+
 | Key | Description |
 |-----|-------------|
-| `STUDY_ID` | Active study identifier |
-| `CODELIST_TABLE_NAME` | MySQL table for code list data |
-| `METADATA_TABLE_NAME` | MySQL table for metadata |
-| `TRANSDATA_VIEW_NAME` | MySQL view for formatted data |
-| `M5_PROJECT_NAME` | Project name in M5 package output |
-| `ROOT_PATH` | Absolute path to project root |
-| `RAW_DATA_ROOT_PATH` | Absolute path to raw data directory |
-| `STUDIES_ROOT_PATH` | *(optional)* Parent directory of the per-study folders. Defaults to `<ROOT_PATH>/studySpecific` |
+| `STUDIES_ROOT_PATH` | Parent directory of the study folders. Default: `<project root>/studySpecific` |
+| `DEFAULT_STUDY` | Study used when none is given on the command line / `SDTM_STUDY` |
+| `DB_HOST` / `DB_USER` / `DB_PASSWORD` / `DB_DATABASE` | MySQL connection (defaults: `127.0.0.1` / `root` / `root` / `VC-DataMigration_2.0`) |
+
+**Study resolution order:** command-line argument → `SDTM_STUDY` env var → `DEFAULT_STUDY` →
+legacy `STUDY_ID` → the only study folder present → error listing available studies.
+
+### Study Settings — `<STUDY_ID>/study.json`
+
+Optional, lives inside the study folder. Everything is derived from the study id when absent.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `M5_PROJECT_NAME` | `<STUDY_ID>` | Project name in M5 package output |
+| `RAW_DATA_DIR` | `01_RawData` | Raw CSV directory, relative to the study folder |
+| `RAW_DATA_ROOT_PATH` | – | Absolute raw CSV directory (overrides `RAW_DATA_DIR`) |
+| `CODELIST_TABLE_NAME` | `VC05_<STUDY_ID>_CODELIST` | MySQL table for code list data |
+| `METADATA_TABLE_NAME` | `VC05_<STUDY_ID>_METADATA` | MySQL table for metadata |
+| `TRANSDATA_VIEW_NAME` | `VC05_<STUDY_ID>_TRANSDATA` | MySQL view for formatted data |
+
+> **Legacy format:** a `project.local.json` that contains `STUDY_ID`, table names and
+> `RAW_DATA_ROOT_PATH` (pre-2026-09 layout) keeps working unchanged.
 
 <p align="right">(<a href="#about">back to top</a>)</p>
 

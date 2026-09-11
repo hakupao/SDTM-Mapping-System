@@ -9,7 +9,17 @@ import sys
 import time
 from datetime import datetime
 
-from VC_BC02_baseUtils import PIPELINE_ENV_KEY, PROGRESS_MARKER
+from sdtm_study import (
+    PIPELINE_ENV_KEY,
+    PROGRESS_MARKER,
+    STUDY_ENV,
+    StudyNotFoundError,
+    format_available,
+    get_studies_root as _get_studies_root,
+    list_studies,
+    load_project_config,
+    resolve_study_id,
+)
 
 W = 70
 
@@ -38,25 +48,23 @@ STAGE_DIRS = [
 
 
 def load_config(cwd=None):
-    """从当前工作目录加载 project.local.json。"""
-    base_dir = cwd or os.getcwd()
-    config_path = os.path.join(base_dir, 'project.local.json')
-    if os.path.isfile(config_path):
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {}
+    """从当前工作目录（或程序目录）加载 project.local.json。"""
+    return load_project_config(cwd or os.getcwd())
 
 
 def get_studies_root(cwd=None, config=None):
-    """返回研究目录的父目录。
+    """返回研究目录的父目录（见 sdtm_study.get_studies_root）。"""
+    return _get_studies_root(cwd or os.getcwd(), config)
 
-    优先使用 project.local.json 的 STUDIES_ROOT_PATH，
-    未设置时默认为 <cwd>/studySpecific。
+
+def select_study(explicit=None, cwd=None):
     """
-    base_dir = cwd or os.getcwd()
-    if config is None:
-        config = load_config(base_dir)
-    return config.get('STUDIES_ROOT_PATH') or os.path.join(base_dir, 'studySpecific')
+    确定当前研究并写入环境变量，供子进程阶段脚本继承。
+    失败时抛出 StudyNotFoundError。
+    """
+    study_id = resolve_study_id(explicit, cwd or os.getcwd())
+    os.environ[STUDY_ENV] = study_id
+    return study_id
 
 
 def get_status(study_id, cwd=None):
@@ -122,6 +130,7 @@ def iter_pipeline_events(
     stop_requested=None,
     on_process_start=None,
     on_process_end=None,
+    study_id=None,
 ):
     """
     Run pipeline steps and yield event dictionaries for CLI/TUI renderers.
@@ -159,6 +168,8 @@ def iter_pipeline_events(
             PIPELINE_ENV_KEY: '1',
             'PYTHONIOENCODING': 'utf-8',
         }
+        if study_id:
+            env[STUDY_ENV] = study_id
         proc = subprocess.Popen(
             [sys.executable, '-u', f'{module}.py'],
             stdout=subprocess.PIPE,

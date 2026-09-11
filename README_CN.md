@@ -145,7 +145,8 @@ SDTM-Mapping-System/
 │   └── run_pipeline.py                  # 批量流水线执行器
 │
 ├── 📝 配置文件
-│   ├── project.local.json               # 研究ID、数据库表名、路径
+│   ├── project.local.json               # 机器设置：研究根目录、默认研究、数据库（不提交）
+│   ├── examples/                        # project.local.json 示例 + 研究目录模板
 │   └── requirements.txt                 # Python 依赖
 │
 └── 📂 studySpecific/                    # 逐研究配置与数据（不在本仓库中，见下）
@@ -189,29 +190,32 @@ pip install -r requirements.txt
 
 ### 配置
 
-在项目根目录创建或编辑 `project.local.json`：
+在项目根目录创建 `project.local.json`（参考 `examples/project.local.json.example`）。
+它只描述**这台机器**；研究相关的设置放在各研究目录内。
 
 ```json
 {
-  "STUDY_ID": "ENSEMBLE",
-  "CODELIST_TABLE_NAME": "VC05_ENSEMBLE_CODELIST",
-  "METADATA_TABLE_NAME": "VC05_ENSEMBLE_METADATA",
-  "TRANSDATA_VIEW_NAME": "VC05_ENSEMBLE_TRANSDATA",
-  "M5_PROJECT_NAME": "ENSEMBLE",
-  "ROOT_PATH": "C:\\Local\\iTMS\\SDTM_ENSEMBLE",
-  "RAW_DATA_ROOT_PATH": "C:\\...\\studySpecific\\ENSEMBLE\\01_RawData"
+  "STUDIES_ROOT_PATH": "C:\\path\\to\\SDTM-Studies",
+  "DEFAULT_STUDY": "ENSEMBLE"
 }
 ```
+
+每个研究是一个目录 `<STUDIES_ROOT_PATH>/<STUDY_ID>/`，内含
+`<STUDY_ID>_OperationConf.xlsx`、`VC_BC05_studyFunctions.py` 和可选的
+`study.json`（参考 `examples/study_template/`）。
 
 ### 运行
 
 ```bash
-# 启动交互式控制台
-python sdtm.py
+# 启动指定研究的交互式控制台
+python sdtm.py ENSEMBLE
 
 # 或直接运行完整流水线
-python run_pipeline.py
+python run_pipeline.py --study ENSEMBLE
 ```
+
+研究也可以通过环境变量 `SDTM_STUDY` 或 `project.local.json` 的 `DEFAULT_STUDY` 指定；
+研究根目录下只有一个研究时会自动选中。
 
 <p align="right">(<a href="#关于">回到顶部</a>)</p>
 
@@ -273,20 +277,25 @@ MySQL: CODELIST + METADATA 表（含自动创建的索引）
 ### 交互式控制台（`sdtm.py`）
 
 ```bash
-python sdtm.py          # 进入交互模式
-sdtm                    # Windows 快捷方式（通过 sdtm.bat）
-python sdtm.py run all  # 一次性运行后退出
+python sdtm.py <STUDY>            # 进入指定研究的交互模式
+sdtm <STUDY>                      # Windows 快捷方式（通过 sdtm.bat）
+sdtm <STUDY> run all              # 一次性运行后退出
+sdtm studies                      # 列出 STUDIES_ROOT_PATH 下的所有研究
+sdtm --study <STUDY> status       # 与 sdtm <STUDY> status 等价
 ```
+
+设置了 `SDTM_STUDY` / `DEFAULT_STUDY`，或只有一个研究时，`<STUDY>` 可以省略。
 
 | 命令 | 说明 |
 |------|------|
 | `run all` | 运行全部 7 步（OP01 ~ PS02） |
 | `run <n>` | 仅运行第 n 步 |
 | `run <n> <m>` | 运行第 n 到 m 步 |
-| `run op03` | 仅运行 OP03（步骤ID不区分大小写） |
-| `run op03 ps01` | 按步骤ID运行（不区分大小写） |
-| `run ... --continue` | 失败后继续执行后续步骤 |
-| `status` | 显示各阶段最新输出时间和历史版本数 |
+| `run op03` | 仅运行 OP03（步骤 ID 不区分大小写） |
+| `run op03 ps01` | 按步骤 ID 运行区间 |
+| `run ... --continue` | 失败后继续执行 |
+| `status` | 查看各阶段最新输出时间与版本数 |
+| `studies` | 列出可用研究 |
 | `list` | 列出所有流水线步骤 |
 | `help` | 显示可用命令 |
 | `exit` | 退出控制台 |
@@ -294,11 +303,11 @@ python sdtm.py run all  # 一次性运行后退出
 ### 批量运行器（`run_pipeline.py`）
 
 ```bash
-python run_pipeline.py              # 运行全部 7 步
-python run_pipeline.py 3            # 从第 3 步开始
-python run_pipeline.py 3 5          # 只运行第 3 ~ 5 步
-python run_pipeline.py --continue   # 失败后继续
-python run_pipeline.py --dry-run    # 仅预览执行计划，不实际运行
+python run_pipeline.py --study ENSEMBLE       # 运行 ENSEMBLE 的全部 7 步
+python run_pipeline.py 3                      # 从第 3 步开始（研究取自环境变量 / DEFAULT_STUDY）
+python run_pipeline.py 3 5                    # 仅运行第 3 ~ 5 步
+python run_pipeline.py --continue             # 失败后继续
+python run_pipeline.py --dry-run              # 仅预览执行计划，不实际运行
 ```
 
 ### 单独运行
@@ -347,16 +356,32 @@ def DM():
 
 ### 项目配置 — `project.local.json`
 
+机器级设置（不提交到仓库）。所有键均可选。
+
 | 键 | 说明 |
 |----|------|
-| `STUDY_ID` | 当前活动的研究标识 |
-| `CODELIST_TABLE_NAME` | MySQL 代码表表名 |
-| `METADATA_TABLE_NAME` | MySQL 元数据表名 |
-| `TRANSDATA_VIEW_NAME` | MySQL 格式化数据视图名 |
-| `M5_PROJECT_NAME` | M5 包输出中的项目名称 |
-| `ROOT_PATH` | 项目根目录绝对路径 |
-| `RAW_DATA_ROOT_PATH` | 原始数据目录绝对路径 |
-| `STUDIES_ROOT_PATH` | *（可选）* 各研究目录的父目录。默认为 `<ROOT_PATH>/studySpecific` |
+| `STUDIES_ROOT_PATH` | 研究目录的父目录。默认 `<项目根目录>/studySpecific` |
+| `DEFAULT_STUDY` | 命令行 / `SDTM_STUDY` 未指定时使用的研究 |
+| `DB_HOST` / `DB_USER` / `DB_PASSWORD` / `DB_DATABASE` | MySQL 连接（默认 `127.0.0.1` / `root` / `root` / `VC-DataMigration_2.0`） |
+
+**研究解析顺序：** 命令行参数 → 环境变量 `SDTM_STUDY` → `DEFAULT_STUDY` →
+旧格式 `STUDY_ID` → 研究根目录下唯一的研究 → 报错并列出可用研究。
+
+### 研究配置 — `<STUDY_ID>/study.json`
+
+可选，放在研究目录内。缺省时全部按研究 ID 推导。
+
+| 键 | 默认值 | 说明 |
+|----|--------|------|
+| `M5_PROJECT_NAME` | `<STUDY_ID>` | M5 包输出中的项目名称 |
+| `RAW_DATA_DIR` | `01_RawData` | 原始 CSV 目录，相对研究目录 |
+| `RAW_DATA_ROOT_PATH` | – | 原始 CSV 目录绝对路径（覆盖 `RAW_DATA_DIR`） |
+| `CODELIST_TABLE_NAME` | `VC05_<STUDY_ID>_CODELIST` | MySQL 代码表表名 |
+| `METADATA_TABLE_NAME` | `VC05_<STUDY_ID>_METADATA` | MySQL 元数据表名 |
+| `TRANSDATA_VIEW_NAME` | `VC05_<STUDY_ID>_TRANSDATA` | MySQL 格式化数据视图名 |
+
+> **旧格式兼容：** 含 `STUDY_ID`、表名和 `RAW_DATA_ROOT_PATH` 的 `project.local.json`
+> （2026-09 之前的布局）无需修改即可继续使用。
 
 <p align="right">(<a href="#关于">回到顶部</a>)</p>
 

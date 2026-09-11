@@ -137,8 +137,7 @@ def log_and_print(logger, level, msg):
 
 # ------ 进度条 ------
 
-PROGRESS_MARKER = '@@PG@@'
-PIPELINE_ENV_KEY = 'VAPORCONE_PIPELINE'
+from sdtm_study import PIPELINE_ENV_KEY, PROGRESS_MARKER  # noqa: E402  (共享常量)
 
 
 def _enable_ansi():

@@ -25,63 +25,51 @@ from mysql.connector import errorcode
 from dateutil import parser
 from datetime import datetime
 
-DEFAULT_PROJECT_CONFIG = {
-    'STUDY_ID': '',
-    'CODELIST_TABLE_NAME': '',
-    'METADATA_TABLE_NAME': '',
-    'TRANSDATA_VIEW_NAME': '',
-    'M5_PROJECT_NAME': '',
-    'ROOT_PATH': '',
-    'RAW_DATA_ROOT_PATH': '',
-    # Optional. Parent directory of the per-study folders.
-    # Defaults to <ROOT_PATH>/studySpecific when empty.
-    'STUDIES_ROOT_PATH': '',
-}
+# ---------------------------------------------------------------------------
+# 研究选择与研究设定
+#   研究 ID 由 sdtm_study.resolve_study_id 决定（命令行 / 环境变量 SDTM_STUDY /
+#   project.local.json DEFAULT_STUDY / 旧格式 STUDY_ID / 唯一研究自动选择）。
+#   表名等按研究 ID 推导，可在 <研究目录>/study.json 中覆盖。
+# ---------------------------------------------------------------------------
+from sdtm_study import (  # noqa: E402
+    PROJECT_CONFIG_ENV,
+    PROJECT_CONFIG_FILENAME,
+    STUDY_ENV,
+    StudyNotFoundError,
+    format_available,
+    load_project_config,
+    load_study_settings,
+    resolve_study_id,
+)
 
-PROJECT_CONFIG_ENV = 'PROJECT_CONFIG_PATH'
-PROJECT_CONFIG_FILENAME = 'project.local.json'
+_PROJECT_CONFIG = load_project_config()
 
-
-def _load_project_config():
-    """Load project-specific overrides from a local JSON file if present."""
-    config = DEFAULT_PROJECT_CONFIG.copy()
-    config_path = os.getenv(PROJECT_CONFIG_ENV) or os.path.join(
-        os.path.dirname(__file__), PROJECT_CONFIG_FILENAME
+try:
+    STUDY_ID = resolve_study_id(config=_PROJECT_CONFIG)
+except StudyNotFoundError as _exc:
+    sys.stderr.write(
+        f'[VC_BC01_constant] {_exc}\n可用研究:\n{format_available(_exc.available)}\n'
     )
+    raise SystemExit(2)
 
-    if os.path.isfile(config_path):
-        try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                overrides = json.load(f)
-            if not isinstance(overrides, dict):
-                raise ValueError('config content must be a JSON object')
-            # only accept keys we know; ignore others silently
-            for key in DEFAULT_PROJECT_CONFIG:
-                if key in overrides:
-                    config[key] = overrides[key]
-        except Exception as exc:
-            print(f'[VC_BC01_constant] Failed to load {config_path}: {exc}. Using defaults.')
+# 让子进程 / 后续导入沿用同一研究
+os.environ[STUDY_ENV] = STUDY_ID
 
-    return config
+_STUDY = load_study_settings(STUDY_ID, config=_PROJECT_CONFIG)
 
+CODELIST_TABLE_NAME = _STUDY['CODELIST_TABLE_NAME']
+METADATA_TABLE_NAME = _STUDY['METADATA_TABLE_NAME']
+TRANSDATA_VIEW_NAME = _STUDY['TRANSDATA_VIEW_NAME']
+M5_PROJECT_NAME = _STUDY['M5_PROJECT_NAME']
+ROOT_PATH = _STUDY['ROOT_PATH']
+RAW_DATA_ROOT_PATH = _STUDY['RAW_DATA_ROOT_PATH']
+STUDIES_ROOT_PATH = _STUDY['STUDIES_ROOT_PATH']
+SPECIFIC_PATH = _STUDY['STUDY_PATH']
 
-_PROJECT_CONFIG = _load_project_config()
-
-STUDY_ID = _PROJECT_CONFIG['STUDY_ID']
-CODELIST_TABLE_NAME = _PROJECT_CONFIG['CODELIST_TABLE_NAME']
-METADATA_TABLE_NAME = _PROJECT_CONFIG['METADATA_TABLE_NAME']
-TRANSDATA_VIEW_NAME = _PROJECT_CONFIG['TRANSDATA_VIEW_NAME']
-M5_PROJECT_NAME = _PROJECT_CONFIG['M5_PROJECT_NAME']
-ROOT_PATH = _PROJECT_CONFIG['ROOT_PATH']
-RAW_DATA_ROOT_PATH = _PROJECT_CONFIG['RAW_DATA_ROOT_PATH']
-
-DB_HOST = '127.0.0.1'
-DB_USER = 'root'
-DB_PASSWORD = 'root'
-DB_DATABASE = 'VC-DataMigration_2.0'
-
-STUDIES_ROOT_PATH = _PROJECT_CONFIG['STUDIES_ROOT_PATH'] or os.path.join(ROOT_PATH, 'studySpecific')
-SPECIFIC_PATH = os.path.join(STUDIES_ROOT_PATH, STUDY_ID)
+DB_HOST = _PROJECT_CONFIG.get('DB_HOST') or '127.0.0.1'
+DB_USER = _PROJECT_CONFIG.get('DB_USER') or 'root'
+DB_PASSWORD = _PROJECT_CONFIG.get('DB_PASSWORD') or 'root'
+DB_DATABASE = _PROJECT_CONFIG.get('DB_DATABASE') or 'VC-DataMigration_2.0'
 
 FOLDER_CLEANINGSTEP = '02_Cleaning'
 CLEANINGSTEP_PATH = os.path.join(SPECIFIC_PATH, FOLDER_CLEANINGSTEP)
