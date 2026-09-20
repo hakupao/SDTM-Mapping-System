@@ -1,3 +1,5 @@
+
+
 <div align="center">
 
 [English](README.md) | [中文](README_CN.md)
@@ -212,7 +214,7 @@ Each study is a folder `<STUDIES_ROOT_PATH>/<STUDY_ID>/` containing
 python run_pipeline.py --study DEMO
 ```
 
-Three fake subjects go through all 7 steps in about 10 seconds and produce DM, DS, SS
+Three fake subjects go through all 7 steps in about 10 seconds and produce DM, DS (+ SUPPDS), SS
 and an M5 package under `examples/studies/DEMO/`. See `examples/studies/DEMO/README.md`.
 
 ### Run
