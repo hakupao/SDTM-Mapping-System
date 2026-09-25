@@ -384,7 +384,6 @@ def getMapping(workbook, sheetSetting):
     colnum_parameter = mapping_sheetsetting[COL_PARAMETER]
     starting_row_num = mapping_sheetsetting[COL_STARTINGROW]
 
-    domain_key = ''
     mappingDict = {}
     definition_merge_rule = {}
     cycle_time = 1
@@ -483,8 +482,8 @@ def getMapping(workbook, sheetSetting):
                         )
                     file_name = current_definition_file
 
-            if domain_key != domain and PREFIX_SUPP + domain_key != domain:
-                domain_key = domain
+            # SUPPxx 归到主域 xx，只看前缀，不看前一行（ISSUES #62）
+            domain_key = domain[len(PREFIX_SUPP):] if domain.startswith(PREFIX_SUPP) else domain
 
             if domain_key not in STANDARD_FIELDS:
                 raise MappingConfigurationError(
