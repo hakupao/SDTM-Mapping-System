@@ -34,6 +34,11 @@ class MappingConfigurationError(Exception):
         self.original_exception = original_exception
 
 
+# PARAMETER 按 $$$ 切段的只有这两类（VC_BC06 opertype_FLG / opertype_IIF）；
+# 其余 OPERTYPE 的参数是单一字面值，逗号与换行必须原样保留（ISSUES #12）。
+MULTI_SEGMENT_OPERTYPES = (OPERTYPE_FLG, OPERTYPE_IIF)
+
+
 def getSheetSetting(workbook):
     """
     从工作簿中读取工作表设置配置
@@ -426,10 +431,11 @@ def getMapping(workbook, sheetSetting):
 
             oper_type = get_cell_value(row, colnum_oper_type)
             parameter = get_cell_value(row, colnum_parameter)
-            if MARK_LINEBREAK in parameter:
-                parameter = parameter.replace(MARK_LINEBREAK, MARK_DOLLAR)
-            elif MARK_COMMA in parameter and not parameter.endswith(MARK_COMMA):
-                parameter = parameter.replace(MARK_COMMA, MARK_DOLLAR)
+            if oper_type in MULTI_SEGMENT_OPERTYPES or re.match(PATTERN_CYCLE_PRA, parameter, re.S):
+                if MARK_LINEBREAK in parameter:
+                    parameter = parameter.replace(MARK_LINEBREAK, MARK_DOLLAR)
+                elif MARK_COMMA in parameter and not parameter.endswith(MARK_COMMA):
+                    parameter = parameter.replace(MARK_COMMA, MARK_DOLLAR)
 
             if not variable:
                 raise MappingConfigurationError(
