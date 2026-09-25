@@ -67,16 +67,39 @@ EXPLAIN_TIME_THRESHOLD = 5000             # 查询超过N毫秒时自动EXPLAIN�
 EMPTY_SCAN_ROW_THRESHOLD = 10000          # 结果集超过N行时跳过空列扫描
 
 
-def process_combine_files(workbook, sheetSetting, actual_format_path):
+def check_combine_overlays(combine_names, file_names, format_path):
+    """
+    找出与 Files（○ 行）同名的 Combine 文件 —— 这是「在 Files 产物上小改后覆盖」的用法
+    （加常量列、left join 一列等，ISSUES #65）。Combine 函数会读入主循环写出的 F-xx.csv，
+    所以它必须已经存在；不存在就报错，不静默产出不完整的结果。
+
+    返回: 同名文件名列表（按 combine_names 的顺序）
+    """
+    overlays = [name for name in combine_names if name in file_names]
+    for name in overlays:
+        path = os.path.join(format_path, f'{PREFIX_F}{name}{EXTENSION}')
+        if not os.path.exists(path):
+            raise RuntimeError(
+                f"Combine '{name}' 与 Files 同名（覆写用法），但 Files 产物 {path} 不存在："
+                f"Combine 必须在 Files 主循环之后执行，且 Files 中该文件须有输出字段。"
+            )
+    return overlays
+
+
+def process_combine_files(workbook, sheetSetting, actual_format_path, file_names):
     """
     处理组合文件，根据配置执行特定的组合函数
-    
+
     参数:
     - workbook: Excel工作簿对象
     - sheetSetting: 工作表设置字典
     - actual_format_path: 实际的格式化数据输出路径（带时间戳）
+    - file_names: Files 表中 ○ 的文件名集合（用于识别覆写）
     """
-    for file_name, function_name in getCombineInfo(workbook, sheetSetting).items():
+    combine_info = getCombineInfo(workbook, sheetSetting)
+    for name in check_combine_overlays(list(combine_info), file_names, actual_format_path):
+        print(f'{name} | Combine 在 Files 产物之上加工并覆盖 {PREFIX_F}{name}{EXTENSION}')
+    for file_name, function_name in combine_info.items():
         combine_start = time.perf_counter()
         # 安全调度：提取函数名并验证已导入，然后在受限命名空间中执行
         func_name = function_name.split('(')[0].strip()
@@ -450,7 +473,9 @@ def _run_format(db, total_start):
 
     progress.finish()
 
-    process_combine_files(workbook, sheetSetting, actual_format_path)
+    # 顺序是契约：Combine 必须在 Files 主循环之后执行 ——
+    # 与 Files 同名的 Combine 会读入主循环写出的 F-xx.csv，加工后覆盖它（ISSUES #65）
+    process_combine_files(workbook, sheetSetting, actual_format_path, set(fileDict))
 
     total_elapsed = time.perf_counter() - total_start
 
