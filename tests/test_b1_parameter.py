@@ -36,6 +36,12 @@ def test_def_in_cycle_still_converted(demo_wb):
     assert p == {"SSTESTCD": "CYCLE(A$$$B)"}
 
 
+def test_def_multiline_cycle_still_converted(demo_wb):
+    """CYCLE(...) 的判定正则要跨行匹配（re.S）：括号内带换行的 DEF 参数也要能识别成 CYCLE 场景并转换。"""
+    p = _params(demo_wb, [("G1", "SS", "SSTESTCD", None, "LSVDAT", None, "DEF", "CYCLE(A\nB)")])
+    assert p == {"SSTESTCD": "CYCLE(A$$$B)"}
+
+
 def test_flg_in_cycle_still_converted(demo_wb):
     p = _params(demo_wb, [("G1", "SS", "SSORRES", None, "LSVDAT", "LSVDAT", "FLG", "CYCLE(1:A,1:B)")])
     assert p == {"SSORRES": "CYCLE(1:A$$$1:B)"}
