@@ -26,3 +26,10 @@ def test_extraction_columns_non_contiguous_and_reordered(demo_wb):
     _, _, chk, ex_fields = fc.getProcess(demo_wb, fc.getSheetSetting(demo_wb))
     assert chk["RGST"] == {"EX_A": {"SubjectId": ""}, "EX_B": {"SubjectId": "", "SEXCD": ""}}
     assert ex_fields.get("RGST", []) == []
+
+
+def test_process_without_dataextraction_has_no_extraction(demo_wb):
+    """DEMO 原样没有 DATAEXTRACTION 标记：getProcess 不应该抽取任何列，但正常解析仍要工作。"""
+    _, transFields, chk, _ = fc.getProcess(demo_wb, fc.getSheetSetting(demo_wb))
+    assert chk == {}
+    assert "RGST" in transFields
