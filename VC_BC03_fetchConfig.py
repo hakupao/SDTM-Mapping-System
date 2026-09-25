@@ -97,6 +97,7 @@ def getCaseDict(workbook, sheetSetting):
     colnum_migration_flag = patients_sheetsetting[COL_MIGRATIONFLAG]
 
     caseDict = {}
+    seen_rows = {}
     current_row_num = patients_sheetsetting[COL_STARTINGROW]
     for row in workbook[CASELIST_SHEET_NAME].iter_rows(
         min_row=patients_sheetsetting[COL_STARTINGROW],
@@ -123,6 +124,15 @@ def getCaseDict(workbook, sheetSetting):
                 row=current_row_num
             )
 
+        # 同一 SUBJID 对应不同 USUBJID 是冲突；完全相同的重复行放行（ISSUES #66）
+        if subjid in caseDict and caseDict[subjid] != usubjid:
+            raise MappingConfigurationError(
+                f"第{current_row_num}行与第{seen_rows[subjid]}行的 SUBJID='{subjid}' 相同，"
+                f"但 USUBJID 不同：'{caseDict[subjid]}' / '{usubjid}'。",
+                sheet=CASELIST_SHEET_NAME,
+                row=current_row_num
+            )
+        seen_rows.setdefault(subjid, current_row_num)
         caseDict[subjid] = usubjid
         current_row_num += 1
 
@@ -330,6 +340,7 @@ def getCodeListInfo(workbook, sheetSetting):
 
     codeDict = {}
     codeList = []
+    seen_rows = {}
     current_row_num = codeList_sheetsetting[COL_STARTINGROW]
 
     for row in workbook[CODELIST_SHEET_NAME].iter_rows(min_row=codeList_sheetsetting[COL_STARTINGROW], min_col=1, max_col=codeList_sheetsetting[COL_MAXCOL], values_only=True):
@@ -357,6 +368,18 @@ def getCodeListInfo(workbook, sheetSetting):
         # 注意：已移除4OTHER功能，不再处理带有4OTHER后缀的代码表
         if codelist_name not in codeDict:
             codeDict[codelist_name] = {}
+        # 同一 (CODELISTNAME, VALUEEN) 对应不同 VALUESDTM 是冲突；同值是「多个 CODE → 同一个值」，合法。
+        # VALUEEN 为空的行不查：CIRCULATE COVAL 用它存自由文本（ISSUES #66）
+        key = (codelist_name, value_en)
+        if value_en and key in seen_rows and codeDict[codelist_name][value_en] != value_sdtm:
+            raise MappingConfigurationError(
+                f"第{current_row_num}行与第{seen_rows[key]}行的 CodelistName='{codelist_name}'、"
+                f"ValueEN='{value_en}' 相同，但 ValueSDTM 不同："
+                f"'{codeDict[codelist_name][value_en]}' / '{value_sdtm}'。",
+                sheet=CODELIST_SHEET_NAME,
+                row=current_row_num
+            )
+        seen_rows.setdefault(key, current_row_num)
         codeDict[codelist_name][value_en] = value_sdtm
         codeList.append([codelist_name,code,value_raw,value_en,value_sdtm])
         current_row_num += 1
