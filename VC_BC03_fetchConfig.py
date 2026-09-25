@@ -218,6 +218,7 @@ def getProcess(workbook, sheetSetting):
 
     # 从 SheetSetting 中识别 DataExtraction 文件名
     # 只有在 SheetSetting 中配置的列名才会被处理，空白列（如備考）会被忽略
+    process_row2_columns = {}
     if colnum_data_extraction > 0:
         # 获取 Process 工作表第2行的列名 -> 列位置映射
         process_row2_columns = {cell.value.strip(): cell.column 
@@ -232,6 +233,11 @@ def getProcess(workbook, sheetSetting):
 
     starting_row = sheetSetting[PROCESS_SHEET_NAME][COL_STARTINGROW]
     max_col = sheetSetting[PROCESS_SHEET_NAME][COL_MAXCOL]
+    # 抽取列按列名定位（ISSUES #63）：读取宽度要覆盖到最右边的抽取列，
+    # 中间夹着不在 SheetSetting 里的列（如備考）时 MAXCOL 不够宽
+    chk_file_cols = {name: process_row2_columns[name] - 1 for name in chk_file_names}
+    if chk_file_cols:
+        max_col = max(max_col, max(chk_file_cols.values()) + 1)
     current_row_num = starting_row
 
     for row in process_sheet.iter_rows(min_row=starting_row, min_col=1, max_col=max_col, values_only=True):
@@ -291,8 +297,8 @@ def getProcess(workbook, sheetSetting):
         if file_name not in ex_fieldsDict:
             ex_fieldsDict[file_name] = []
 
-        for i, chkfileName in enumerate(chk_file_names):
-            target_col_idx = colnum_data_extraction + i - 1
+        for chkfileName in chk_file_names:
+            target_col_idx = chk_file_cols[chkfileName]
             fileFieldflg = get_cell_value(row, target_col_idx)
             if fileFieldflg:
                 if file_name not in chkFileDict:
