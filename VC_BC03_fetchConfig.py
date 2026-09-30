@@ -39,6 +39,11 @@ class MappingConfigurationError(Exception):
 MULTI_SEGMENT_OPERTYPES = (OPERTYPE_FLG, OPERTYPE_IIF)
 
 
+def _has_guard_line(parameter):
+    """PARAMETER のいずれかの行が & で始まる（ガード条件 &FIELD:VALUE を含む）か。"""
+    return any(line.lstrip().startswith(MARK_GUARD) for line in parameter.split(MARK_LINEBREAK))
+
+
 def getSheetSetting(workbook):
     """
     从工作簿中读取工作表设置配置
@@ -464,6 +469,9 @@ def getMapping(workbook, sheetSetting):
                     parameter = parameter.replace(MARK_LINEBREAK, MARK_DOLLAR)
                 elif MARK_COMMA in parameter and not parameter.endswith(MARK_COMMA):
                     parameter = parameter.replace(MARK_COMMA, MARK_DOLLAR)
+            elif _has_guard_line(parameter):
+                # ガード条件（行頭 & の行）はどの OPERTYPE でも行区切り。改行だけを区切りにし、カンマは触らない
+                parameter = parameter.replace(MARK_LINEBREAK, MARK_DOLLAR)
 
             if not variable:
                 raise MappingConfigurationError(
