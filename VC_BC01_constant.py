@@ -188,6 +188,10 @@ OPERTYPE_COB = 'COB'
 OPERTYPE_CDL = 'CDL'
 OPERTYPE_SEL = 'SEL'
 OPERTYPE_PRF = 'PRF'
+OPERTYPE_TPL = 'TPL'   # テンプレート: PARAMETER の {} を元の値で置き換える（接頭辞・接尾辞・囲み）
+
+MARK_GUARD = '&'        # PARAMETER の行頭 & = ガード条件（&FIELD:VALUE）。全処理タイプ共通
+MARK_TEMPLATE = '{}'    # TPL のプレースホルダ
 
 EXTENSION = '.csv'
 

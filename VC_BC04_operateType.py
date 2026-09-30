@@ -17,7 +17,7 @@ import pandas as pd
 from VC_BC03_fetchConfig import *
 sys.path.append(SPECIFIC_PATH)
 from VC_BC05_studyFunctions import * # type: ignore
-from VC_BC06_operateTypeFunctions import get_opertype_function
+from VC_BC06_operateTypeFunctions import get_opertype_function, split_guards, guard_mask
 
 # 编译的正则表达式模式（优化性能）
 COMPILED_CYCLE_PATTERN = re.compile(PATTERN_CYCLE_PRA)
@@ -159,7 +159,10 @@ def precompute_mapping_rules(domain_param, definition_merge_rule):
                 
                 parameter_cycles.append(cycle_parameter)
                 
-                # 添加额外需要的列（用于条件判断）
+                # 添加额外需要的列（用于条件判断）。guard（&FIELD:VALUE）の列も読み込み対象にする
+                cycle_parameter_wo_guard, guards = split_guards(cycle_parameter)
+                needed_columns.update(f for f, _ in guards)
+                cycle_parameter = cycle_parameter_wo_guard
                 if opertype == OPERTYPE_IIF and cycle_parameter:
                     for param_record in cycle_parameter.split(MARK_DOLLAR):
                         if MARK_COLON in param_record:
@@ -279,6 +282,9 @@ def vectorized_field_mapping(result_df, be_converted_df, standard_field, field_r
 
     continue_flags = np.zeros(len(result_df), dtype=bool)
 
+    # guard 条件（&FIELD:VALUE）は全処理タイプ共通。処理後に、満たさない行の値を空にする
+    parameter_cycle, guards = split_guards(parameter_cycle)
+
     # DEF操作不需要fieldname，直接处理
     if not fieldname_cycle and opertype != OPERTYPE_DEF:
         return result_df, continue_flags
@@ -370,6 +376,12 @@ def vectorized_field_mapping(result_df, be_converted_df, standard_field, field_r
                 field=standard_field,
                 detail=f"操作类型 {opertype}, 参数 {parameter_cycle}"
             )
+
+    if guards and standard_field in result_df.columns:
+        keep = guard_mask(be_converted_df, guards)
+        result_df[standard_field] = np.where(keep, result_df[standard_field].values, MARK_BLANK)
+        if opertype == OPERTYPE_SEL:
+            continue_flags |= ~keep
 
     return result_df, continue_flags
 

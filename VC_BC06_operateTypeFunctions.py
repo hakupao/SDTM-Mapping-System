@@ -13,6 +13,12 @@ VAPORCONE 项目操作类型函数模块
 - CDL: 代码列表映射
 - PRF: 前缀添加
 - SEL: 选择性映射
+- TPL: 模板（PARAMETER 中的 {} 用源值替换；前缀/后缀/包围一次搞定）
+
+通用 guard 条件（所有操作类型）:
+  PARAMETER 中以 '&' 开头的行是附加条件 '&FIELD:VALUE'（VALUE 可为 null / !VALUE / not null，与 SEL 相同）。
+  全部满足的行才保留结果；不满足的行结果为空（NDKEY 变量为空则整行不输出）。SEL 时还会丢弃该行。
+  例: FLG  HT_YNCD  Y:HYPERTENSION  +  &COMP_YNCD:Y   → 既往歴あり かつ 高血圧あり のときだけ値を出す
 """
 
 import numpy as np
@@ -211,6 +217,61 @@ def opertype_PRF(result_df, be_converted_df, standard_field, fieldname_cycle, pa
     return result_df, continue_flags
 
 
+def opertype_TPL(result_df, be_converted_df, standard_field, fieldname_cycle, parameter_cycle, **kwargs):
+    """
+    TPL操作: 模板替换。PARAMETER 例: 'SCRT DISCONTINUED: {}'、'P{}Y'。
+    源值为空时结果为空。PARAMETER 中没有 {} 时视为前缀（与 PRF 相同）。
+    """
+    continue_flags = np.zeros(len(result_df), dtype=bool)
+
+    if fieldname_cycle and fieldname_cycle[0] in be_converted_df.columns:
+        template = parameter_cycle if MARK_TEMPLATE in parameter_cycle else parameter_cycle + MARK_TEMPLATE
+        source_values = be_converted_df[fieldname_cycle[0]]
+        result_df[standard_field] = [template.replace(MARK_TEMPLATE, str(x)) if x else '' for x in source_values]
+
+    return result_df, continue_flags
+
+
+def split_guards(parameter):
+    """
+    PARAMETER から guard 条件（'&FIELD:VALUE' の部分）を取り出す。
+    返回: (guard を除いた parameter, [(field, cond), ...])
+    """
+    if not parameter or MARK_GUARD not in parameter:
+        return parameter, []
+    rest, guards = [], []
+    for part in parameter.split(MARK_DOLLAR):
+        if part.startswith(MARK_GUARD) and MARK_COLON in part:
+            field, cond = part[len(MARK_GUARD):].split(MARK_COLON, 1)
+            guards.append((field.strip(), cond.strip()))
+        else:
+            rest.append(part)
+    return MARK_DOLLAR.join(rest), guards
+
+
+def guard_mask(be_converted_df, guards):
+    """
+    guard 条件をすべて満たす行を True にした numpy 配列を返す。条件の書き方は SEL と同じ:
+    VALUE（等しい）/ null（空）/ !VALUE（等しくない）/ not null（空でない）。
+    列が無い guard は満たさないものとして扱う（設定ミスを黙って通さない）。
+    """
+    mask = np.ones(len(be_converted_df), dtype=bool)
+    for field, cond in guards:
+        if field not in be_converted_df.columns:
+            mask[:] = False
+            continue
+        col = be_converted_df[field].fillna('').astype(str)
+        if cond.lower() == 'not null':
+            mask &= (col != '').values
+        elif cond.lower() == 'null':
+            mask &= (col == '').values
+        elif cond.startswith('!'):
+            mask &= (col != cond[1:]).values
+        else:
+            mask &= (col == cond).values
+    return mask
+
+
 def opertype_SEL(result_df, be_converted_df, standard_field, fieldname_cycle, parameter_cycle, **kwargs):
     """
     SEL操作: 选择性映射
@@ -258,6 +319,7 @@ OPERTYPE_FUNCTION_MAP = {
     OPERTYPE_CDL: opertype_CDL,
     OPERTYPE_PRF: opertype_PRF,
     OPERTYPE_SEL: opertype_SEL,
+    OPERTYPE_TPL: opertype_TPL,
 }
 
 

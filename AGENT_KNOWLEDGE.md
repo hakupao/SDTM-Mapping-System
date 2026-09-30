@@ -59,6 +59,8 @@ VC_BC01 (Constants) → VC_BC02 (Utils) + VC_BC03 (Config)
 - `CDL`: code-list lookup.  
 - `PRF`: add prefix.  
 - `SEL`: selective mapping.  
+- `TPL`: template — PARAMETER's `{}` is replaced by the source value (`SCRT DISCONTINUED: {}`, `P{}Y`); empty source → empty. Covers prefix/suffix/wrap without a study function.  
+- Guard lines (any op type): a PARAMETER line starting with `&` is an extra AND condition `&FIELD:VALUE` (VALUE may be `null`, `!VALUE`, `not null`, same grammar as SEL). Rows failing any guard get an empty value (an NDKEY variable then drops the row); on `SEL` the row is dropped too. Example: `FLG HT_YNCD` with `Y:HYPERTENSION` + `&COMP_YNCD:Y`. Unit tests: `python tests/test_opertypes.py`.  
 - Add a new type: implement `opertype_NEW(...)` in `VC_BC06_operateTypeFunctions.py`, register in `get_opertype_function()`, add constant in `VC_BC01_constant.py`, update Excel mapping.
 
 ## 7) Study-Specific Logic
