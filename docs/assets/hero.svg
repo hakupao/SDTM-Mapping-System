@@ -29,7 +29,7 @@
 
   <text x="88" y="118" fill="#93C5FD" font-family="Segoe UI, Arial, sans-serif" font-size="20" letter-spacing="3">CLINICAL DATA STANDARDIZATION ENGINE</text>
   <text x="88" y="188" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="54" font-weight="700">SDTM Mapping System</text>
-  <text x="88" y="236" fill="#D6E4FF" font-family="Segoe UI, Arial, sans-serif" font-size="24">Config-driven ETL for turning raw study exports into SDTM datasets and M5 packages.</text>
+  <text x="88" y="236" fill="#D6E4FF" font-family="Segoe UI, Arial, sans-serif" font-size="24">Config-driven ETL from raw exports to SDTM and M5.</text>
 
   <g opacity="0.95">
     <rect x="88" y="276" width="450" height="166" rx="22" fill="#0B1526" stroke="#1E3A5F"/>
@@ -41,12 +41,12 @@
 
   <g>
     <rect x="88" y="470" width="160" height="86" rx="18" fill="#0B1526" stroke="#1E3A5F"/>
-    <text x="112" y="505" fill="#7DD3FC" font-family="Segoe UI, Arial, sans-serif" font-size="16">STUDIES</text>
-    <text x="112" y="540" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">3</text>
+    <text x="112" y="505" fill="#7DD3FC" font-family="Segoe UI, Arial, sans-serif" font-size="16">PIPELINE STEPS</text>
+    <text x="112" y="540" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">7</text>
 
     <rect x="268" y="470" width="160" height="86" rx="18" fill="#0B1526" stroke="#1E3A5F"/>
     <text x="292" y="505" fill="#86EFAC" font-family="Segoe UI, Arial, sans-serif" font-size="16">OP TYPES</text>
-    <text x="292" y="540" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">8</text>
+    <text x="292" y="540" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">9</text>
 
     <rect x="448" y="470" width="220" height="86" rx="18" fill="#0B1526" stroke="#1E3A5F"/>
     <text x="472" y="505" fill="#C4B5FD" font-family="Segoe UI, Arial, sans-serif" font-size="16">OUTPUT STYLE</text>

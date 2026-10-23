@@ -17,8 +17,9 @@ server whose user may create databases (the pipeline creates everything itself).
   "DB_HOST": "127.0.0.1", "DB_USER": "root", "DB_PASSWORD": "root"
 }
 
-python run_pipeline.py --study DEMO      # all 7 steps, ~10 s
-# or: sdtm DEMO run all
+python run_pipeline.py --study DEMO      # all 7 steps, ~20 s
+# or: sdtm DEMO          (TUI, press a)
+#     sdtm DEMO run all
 ```
 
 Output lands in timestamped folders under this directory
@@ -69,13 +70,14 @@ DEMO-001,Male,M,54
 | **Files** | 4 raw files, subject id column `SubjectId`. `PROCESSINGLOGIC` may hold a Python expression over `row` to drop rows |
 | **Process** | Every field of every file. `○` keeps the field, `×` drops it (the label columns `SEX`, `REV_YN`, `REV_R` are dropped, the code columns kept). `DATATYPE` `Date` triggers date normalisation; `CODELISTNAME` links a field to CodeList |
 | **CodeList** | `CODE` is what the raw file contains, `VALUEEN` the formatted value, `VALUESDTM` the controlled term written by the `CDL` operation |
-| **Mapping** | One block per `DEFINITION`. Rows without a DEFINITION belong to the block above. `FILENAME` is a raw file or a Combine table; `OPERTYPE` `DEF` writes the constant in PARAMETER, `FIX` copies FIELDNAME, `CDL` looks FIELDNAME up in the code list named in PARAMETER. A record is kept only if at least one `NDKEY`-marked variable is non-blank |
+| **Mapping** | One block per `DEFINITION`. Rows without a DEFINITION belong to the block above. `FILENAME` is a raw file or a Combine table; `OPERTYPE` `DEF` writes the constant in PARAMETER, `FIX` copies FIELDNAME, `CDL` looks FIELDNAME up in the code list named in PARAMETER. A record is kept only if the `NDKEY` variable of its block is non-blank (only the first `〇` in a block counts) |
 | **Combine** | `REV_DS` filters REV to re-evaluation rows; `DM` joins RGST, LSVDAT and OC and derives `RFENDAT` / `DTHFLG`. Both are functions in `VC_BC05_studyFunctions.py` |
 | **DomainsSetting** | Sort keys per domain and the `--SEQ` variable to number records |
 | **Sites** | `SITEID` values written by Mapping are replaced by `SITECODE` in PS01 |
 
-Other operation types available in Mapping: `FLG`, `IIF`, `COB`, `SEL`, `PRF`
-(see `VC_BC06_operateTypeFunctions.py`).
+Other operation types available in Mapping: `FLG`, `IIF`, `COB`, `SEL`, `PRF`, `TPL`,
+plus `&FIELD:VALUE` guard lines on any type (see the main README and
+`VC_BC06_operateTypeFunctions.py`).
 
 ## study.json
 
