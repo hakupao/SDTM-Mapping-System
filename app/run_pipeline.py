@@ -2,12 +2,12 @@
 VAPORCONE 全流程一键运行脚本
 
 用法:
-    python run_pipeline.py                # 运行全部 7 步 (OP01 ~ PS02)
-    python run_pipeline.py 3              # 从第 3 步 (OP03) 开始运行
-    python run_pipeline.py 3 5            # 只运行第 3 ~ 5 步 (OP03 ~ OP05)
-    python run_pipeline.py --continue     # 某步失败后继续运行后续步骤
-    python run_pipeline.py --dry-run      # 只打印将要执行的步骤，不实际运行
-    python run_pipeline.py --study ENSEMBLE2 3 5   # 指定研究（否则按 SDTM_STUDY / DEFAULT_STUDY / 唯一研究）
+    python app/run_pipeline.py                # 运行全部 7 步 (OP01 ~ PS02)
+    python app/run_pipeline.py 3              # 从第 3 步 (OP03) 开始运行
+    python app/run_pipeline.py 3 5            # 只运行第 3 ~ 5 步 (OP03 ~ OP05)
+    python app/run_pipeline.py --continue     # 某步失败后继续运行后续步骤
+    python app/run_pipeline.py --dry-run      # 只打印将要执行的步骤，不实际运行
+    python app/run_pipeline.py --study ENSEMBLE2 3 5   # 指定研究（否则按 SDTM_STUDY / DEFAULT_STUDY / 唯一研究）
 """
 
 import subprocess
@@ -16,11 +16,12 @@ import os
 import time
 import argparse
 
-# 将项目根目录加入 sys.path 以便导入 VC_BC 模块
-_ROOT = os.path.dirname(os.path.abspath(__file__))
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
-from sdtm_study import STUDY_ENV, PIPELINE_ENV_KEY, StudyNotFoundError, format_available, resolve_study_id
+# 仓库根目录（本文件在 app/ 下）；将 pipeline/ 加入 sys.path 以便导入 VC_BC 模块
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_PIPELINE_DIR = os.path.join(_ROOT, 'pipeline')
+if _PIPELINE_DIR not in sys.path:
+    sys.path.insert(0, _PIPELINE_DIR)
+from sdtm_study import STUDY_ENV, PIPELINE_ENV_KEY, StudyNotFoundError, format_available, resolve_study_id, stage_script
 
 # 有序的步骤定义: (序号, 模块名, 步骤ID, 描述)
 STEPS = [
@@ -88,7 +89,7 @@ def run_pipeline(start=1, end=7, continue_on_error=False, dry_run=False, study_i
         if study_id:
             env[STUDY_ENV] = study_id
         proc = subprocess.Popen(
-            [sys.executable, '-u', f'{module}.py'],
+            [sys.executable, '-u', stage_script(module)],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             cwd=_ROOT, env=env,
         )
@@ -145,11 +146,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  python run_pipeline.py              运行全部 7 步
-  python run_pipeline.py 3            从第 3 步 (OP03) 开始
-  python run_pipeline.py 3 5          只运行第 3 ~ 5 步
-  python run_pipeline.py --continue   失败后继续
-  python run_pipeline.py --dry-run    仅预览不执行
+  python app/run_pipeline.py              运行全部 7 步
+  python app/run_pipeline.py 3            从第 3 步 (OP03) 开始
+  python app/run_pipeline.py 3 5          只运行第 3 ~ 5 步
+  python app/run_pipeline.py --continue   失败后继续
+  python app/run_pipeline.py --dry-run    仅预览不执行
 """,
     )
     parser.add_argument(

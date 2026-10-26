@@ -12,6 +12,7 @@ import pytest
 from openpyxl import load_workbook
 
 ROOT = Path(__file__).resolve().parent.parent
+PIPELINE = ROOT / "pipeline"
 STUDIES = ROOT / "examples" / "studies"
 DEMO_XLSX = STUDIES / "DEMO" / "DEMO_OperationConf.xlsx"
 
@@ -19,8 +20,8 @@ _cfg = Path(tempfile.mkdtemp(prefix="sdtm-tests-")) / "project.local.json"
 _cfg.write_text(json.dumps({"STUDIES_ROOT_PATH": str(STUDIES)}), encoding="utf-8")
 os.environ["PROJECT_CONFIG_PATH"] = str(_cfg)
 os.environ["SDTM_STUDY"] = "DEMO"
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+if str(PIPELINE) not in sys.path:
+    sys.path.insert(0, str(PIPELINE))
 
 
 # 注意：getMapping 会往模块级 STANDARD_FIELDS 里 append（A2 的全局状态问题，本次不改），

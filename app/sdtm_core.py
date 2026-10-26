@@ -19,6 +19,7 @@ from sdtm_study import (
     list_studies,
     load_project_config,
     resolve_study_id,
+    stage_script,
 )
 
 W = 70
@@ -171,7 +172,7 @@ def iter_pipeline_events(
         if study_id:
             env[STUDY_ENV] = study_id
         proc = subprocess.Popen(
-            [sys.executable, '-u', f'{module}.py'],
+            [sys.executable, '-u', stage_script(module)],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             cwd=base_dir,

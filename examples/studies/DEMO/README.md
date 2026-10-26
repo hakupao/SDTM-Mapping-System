@@ -17,9 +17,9 @@ server whose user may create databases (the pipeline creates everything itself).
   "DB_HOST": "127.0.0.1", "DB_USER": "root", "DB_PASSWORD": "root"
 }
 
-python run_pipeline.py --study DEMO      # all 7 steps, ~20 s
-# or: sdtm DEMO          (TUI, press a)
-#     sdtm DEMO run all
+python sdtm.py DEMO run all      # all 7 steps, ~20 s  (Windows: sdtm DEMO run all)
+# or: sdtm DEMO                  (TUI, press a)
+#     python app/run_pipeline.py --study DEMO
 ```
 
 Output lands in timestamped folders under this directory

@@ -7,7 +7,7 @@ import os, sys
 import numpy as np
 import pandas as pd
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, 'pipeline'))
 os.chdir(ROOT)
 from VC_BC06_operateTypeFunctions import *          # noqa
 from VC_BC04_operateType import vectorized_field_mapping  # noqa

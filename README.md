@@ -25,7 +25,7 @@
 
 <br/>
 
-[Features](#-features) · [Architecture](#-architecture) · [Quick Start](#-quick-start) · [Pipeline](#-pipeline-steps) · [TUI & CLI](#-tui--cli-reference) · [Configuration](#-configuration) · [Tests](#-tests)
+[Quick Start](#-quick-start) · [How It Fits Together](#-how-it-fits-together) · [Documentation](#-documentation) · [Tests](#-tests)
 
 </div>
 
@@ -33,441 +33,98 @@
 
 ## About
 
-**SDTM Mapping System** (codename **VAPORCONE**) is a production-grade ETL pipeline for clinical trial data standardization. Define your mapping rules in an Excel workbook, point the pipeline at your raw study exports, and receive CDISC SDTM-compliant datasets plus a ready-to-submit M5 regulatory package — no Python coding required.
+**SDTM Mapping System** (codename **VAPORCONE**) turns raw clinical study exports into CDISC SDTM
+datasets and an M5 submission package. The mapping rules live in an Excel workbook
+(`<STUDY>_OperationConf.xlsx`); a 7-step pipeline, backed by MySQL, does the rest. A new study
+needs a workbook and, only where Excel cannot express the logic, a few Python functions.
 
----
-
-## ✨ Features
-
-| | Feature | Description |
-|---|---------|-------------|
-| 📋 | **Excel-Driven Configuration** | Define entire mapping logic in `OperationConf.xlsx` — the workbook acts as a declarative DSL |
-| 🔗 | **7-Step Automated Pipeline** | OP01~OP05 (transformation) + PS01~PS02 (output generation), each independently runnable |
-| 🖥️ | **Terminal UI** | `sdtm <STUDY>` opens a Textual TUI: run all / selected / from selected, live step progress, latest stage outputs and a run log |
-| 💻 | **Command Console** | `sdtm <STUDY> shell` keeps the line console; `sdtm <STUDY> run 1 7` runs once and exits |
-| ⚡ | **Batch Runner** | `run_pipeline.py` for non-interactive execution with `--continue` and `--dry-run` flags |
-| 🗂️ | **Multi-Study Layout** | Studies live in their own folder (or private repo) and are picked at run time: `sdtm <STUDY>`, `--study`, `SDTM_STUDY` |
-| 🧩 | **9 Operation Types + Guards** | `DEF` `FIX` `FLG` `IIF` `COB` `CDL` `SEL` `PRF` `TPL`, plus `&FIELD:VALUE` guard lines usable on any of them |
-| 🧪 | **Runnable DEMO + Tests** | A fake 3-subject study runs all 7 steps; a pytest suite checks the parser and operation types without a database |
-| 🗄️ | **MySQL Transformation Hub** | Staging tables, auto-created indexes, and optimized views for high-performance processing |
-| 📦 | **M5 Submission Packaging** | Direct regulatory submission package creation (JSON + M5 directory structure) |
-| 🕐 | **Timestamped Versioning** | Every pipeline run creates a timestamped output folder for full traceability and audit |
-| 🌐 | **CJK-Aware Formatting** | Proper text alignment for Japanese / Chinese characters in console output |
-| 🚀 | **Performance Optimized** | Vectorized pandas/numpy, multiprocessing, precomputed caching, batch DB inserts |
-
----
-
-## 🏗️ Architecture
-
-<details open>
-<summary><b>Pipeline Flow (Mermaid)</b></summary>
-<br/>
-
-```mermaid
-graph LR
-    subgraph INPUT
-        A[("📄 Raw CSV<br/>01_RawData")]
-        J[("📊 OperationConf.xlsx<br/>Config DSL")]
-    end
-
-    subgraph TRANSFORM["Transformation (OP01 → OP05)"]
-        B["OP01<br/>Cleaning"]
-        C["OP02<br/>CodeList Insert"]
-        D["OP03<br/>Metadata Insert"]
-        E["OP04<br/>Format & Views"]
-        F["OP05<br/>SDTM Mapping"]
-    end
-
-    subgraph OUTPUT["Output Generation (PS01 → PS02)"]
-        G["PS01<br/>Input CSV"]
-        H["PS02<br/>M5 Packaging"]
-    end
-
-    subgraph DELIVER
-        I[("📦 M5 Package<br/>06_Inputpackage")]
-    end
-
-    K[("🗄️ MySQL DB")]
-
-    A --> B --> C --> D --> E --> F --> G --> H --> I
-    J -.->|config| B
-    J -.->|config| C
-    J -.->|config| E
-    J -.->|config| F
-    K <-->|staging| D
-    K <-->|views| E
-    K <-->|queries| F
-
-    style A fill:#e1f5ff,stroke:#38BDF8,color:#0c4a6e
-    style I fill:#d1fae5,stroke:#34D399,color:#064e3b
-    style J fill:#fef9c3,stroke:#FACC15,color:#713f12
-    style K fill:#fff7ed,stroke:#FB923C,color:#7c2d12
-```
-
-</details>
-
-<br/>
-
-<details>
-<summary><b>Repository Preview</b></summary>
-<br/>
-
-<div align="center">
-<img src="docs/assets/preview.svg" alt="Repository Preview" width="800"/>
-</div>
-
-</details>
-
-<br/>
-
-### Module Organization
-
-```
-SDTM-Mapping-System/
-│
-├── 🔧 Base Classes & Utilities (VC_BC_*)
-│   ├── VC_BC01_constant.py              # Project config, DB credentials, paths
-│   ├── VC_BC02_baseUtils.py             # Logger, console formatting, DatabaseManager
-│   ├── VC_BC03_fetchConfig.py           # Excel config parser & validation
-│   ├── VC_BC04_operateType.py           # Data operations, table joins, CSV caching
-│   └── VC_BC06_operateTypeFunctions.py  # Operation types (DEF / FIX / … / TPL) and guard lines
-│
-├── ⚙️ Transformation Pipeline (VC_OP_*)
-│   ├── VC_OP01_cleaning.py              # Step 1 — Raw data filtering & cleaning
-│   ├── VC_OP02_insertCodeList.py        # Step 2 — Code list DB insertion
-│   ├── VC_OP03_insertMetadata.py        # Step 3 — Metadata DB insertion
-│   ├── VC_OP04_format.py                # Step 4 — Data formatting & view creation
-│   └── VC_OP05_mapping.py               # Step 5 — SDTM domain mapping
-│
-├── 📦 Output Generation (VC_PS_*)
-│   ├── VC_PS01_makeInputCSV.py          # Step 6 — Input CSV generation
-│   └── VC_PS02_csv2json.py              # Step 7 — M5 package creation
-│
-├── 🚀 Pipeline Runners
-│   ├── sdtm.py                          # Entry point: TUI by default, `shell` for the line console
-│   ├── sdtm_tui.py                      # Textual TUI
-│   ├── sdtm_core.py                     # Step table, status, run events shared by TUI / console
-│   ├── sdtm_study.py                    # Study discovery and selection
-│   ├── sdtm.bat                         # Windows launcher (`sdtm ...`)
-│   └── run_pipeline.py                  # Batch pipeline executor
-│
-├── 📝 Configuration & Examples
-│   ├── project.local.json               # Machine settings: studies root, default study, DB (not committed)
-│   ├── examples/                        # project.local.json example + runnable DEMO study
-│   ├── requirements.txt                 # Runtime dependencies
-│   └── requirements-dev.txt             # pytest
-│
-├── 🧪 tests/                            # pytest suite (uses examples/studies/DEMO, no DB)
-├── 📚 AGENT_KNOWLEDGE.md                # Engine notes: modules, operation types, conventions
-│
-└── 📂 <STUDIES_ROOT_PATH>/              # Per-study configuration & data (NOT in this repo, see below)
-    └── <STUDY_ID>/
-        ├── <STUDY_ID>_OperationConf.xlsx # Master config workbook (DSL)
-        ├── VC_BC05_studyFunctions.py     # Study-specific custom logic (Combine functions)
-        ├── study.json                    # Optional per-study settings
-        ├── 01_RawData/                   # Raw CSV input files
-        ├── 02_Cleaning/                  # Step 1 output (timestamped)
-        ├── 03_Format/                    # Step 4 output (timestamped)
-        ├── 04_SDTM/                      # Step 5 output (timestamped)
-        ├── 05_Inputfile/                 # Step 6 output (timestamped)
-        └── 06_Inputpackage/              # Step 7 output (M5 package)
-```
-
-> **Studies live outside this repository.** Clinical documents and data never enter the
-> public history. Keep your studies in a separate (private) repository, for example a
-> sibling folder `SDTM-Studies/`, and point `STUDIES_ROOT_PATH` in `project.local.json`
-> at it. Without that key the default is `studySpecific/` inside this folder, which is
-> git-ignored.
-
-<p align="right">(<a href="#about">back to top</a>)</p>
+- **Excel as the DSL**: 9 sheets describe the raw files, code lists and one row per SDTM variable;
+  9 operation types (`DEF` `FIX` `FLG` `IIF` `COB` `CDL` `SEL` `PRF` `TPL`) plus `&FIELD:VALUE` guards
+- **7 independent steps**: OP01–OP05 transform, PS01–PS02 package; each run writes timestamped output
+- **Terminal UI and CLI**: `sdtm <STUDY>` with live progress; `sdtm <STUDY> run all` for one shot
+- **Studies live outside the repo**: clinical data stays in your private study folder
+- **Runnable DEMO + tests**: a fake 3-subject study runs end to end; pytest needs no database
 
 ---
 
 ## 🚀 Quick Start
 
-### Prerequisites
-
-- **Python 3.11+**
-- **MySQL** database server (running locally or remotely). The configured user needs `CREATE DATABASE` / `CREATE TABLE` / `CREATE VIEW` privileges: the pipeline creates the database and its tables itself
-- **pip**
-
-### Installation
+Needs Python 3.11+ and a MySQL server whose user may create databases.
 
 ```bash
-# Clone the repository
 git clone https://github.com/hakupao/SDTM-Mapping-System.git
 cd SDTM-Mapping-System
-
-# Install dependencies (includes textual for the TUI)
 pip install -r requirements.txt
-
-# Optional: test dependencies
-pip install -r requirements-dev.txt
 ```
 
-### Configuration
-
-Create `project.local.json` in the project root (see `examples/project.local.json.example`).
-It describes **this machine only**; study-specific settings live in each study folder.
+Create `project.local.json` in the repository root:
 
 ```json
-{
-  "STUDIES_ROOT_PATH": "C:\\path\\to\\SDTM-Studies",
-  "DEFAULT_STUDY": "MYSTUDY"
-}
+{ "STUDIES_ROOT_PATH": "examples/studies", "DEFAULT_STUDY": "DEMO",
+  "DB_HOST": "127.0.0.1", "DB_USER": "root", "DB_PASSWORD": "root" }
 ```
 
-A relative `STUDIES_ROOT_PATH` (e.g. `"examples/studies"`) is resolved against this folder.
-
-Each study is a folder `<STUDIES_ROOT_PATH>/<STUDY_ID>/` containing
-`<STUDY_ID>_OperationConf.xlsx`, `VC_BC05_studyFunctions.py` and an optional
-`study.json`. A complete runnable example is in `examples/studies/DEMO/`.
-
-### Try the bundled demo
+Run the bundled DEMO study through all 7 steps (about 20 seconds):
 
 ```bash
-# set "STUDIES_ROOT_PATH": "examples/studies" (see above), then
-python run_pipeline.py --study DEMO
+python sdtm.py DEMO run all      # Windows: sdtm DEMO run all
+python sdtm.py DEMO              # or open the Terminal UI and press a
 ```
 
-Three fake subjects go through all 7 steps in about 20 seconds and produce DM, DS (+ SUPPDS), SS
-and an M5 package under `examples/studies/DEMO/`. See `examples/studies/DEMO/README.md`.
-
-### Run
-
-```bash
-# Open the TUI for a study (Windows: `sdtm MYSTUDY` via sdtm.bat)
-python sdtm.py MYSTUDY
-
-# Or run the full pipeline directly
-python run_pipeline.py --study MYSTUDY
-```
-
-The study can also be chosen via the `SDTM_STUDY` environment variable or
-`DEFAULT_STUDY` in `project.local.json`; with a single study folder it is picked automatically.
-
-<p align="right">(<a href="#about">back to top</a>)</p>
-
----
-
-## 🔄 Pipeline Steps
-
-| # | Module | Step ID | Name | What It Does |
-|:-:|--------|:-------:|------|-------------|
-| 1 | `VC_OP01_cleaning` | OP01 | **Cleaning** | Filter raw CSV by case dict, remove unmapped columns and invalid rows |
-| 2 | `VC_OP02_insertCodeList` | OP02 | **InsertCodeList** | Insert code / terminology mappings into MySQL |
-| 3 | `VC_OP03_insertMetadata` | OP03 | **InsertMetadata** | Parse cleaned data, format values, insert field metadata into MySQL |
-| 4 | `VC_OP04_format` | OP04 | **Format** | Create optimized DB views with indexes, export formatted CSVs |
-| 5 | `VC_OP05_mapping` | OP05 | **Mapping** | Apply SDTM domain transformations (DM, AE, LB, VS, etc.) via multiprocessing |
-| 6 | `VC_PS01_makeInputCSV` | PS01 | **MakeInputCSV** | Split SDTM data into main domain CSVs + SUPP* companion files |
-| 7 | `VC_PS02_csv2json` | PS02 | **CSV2JSON** | Generate M5 submission package (JSON + directory structure) |
-
-<details>
-<summary><b>Data Flow Diagram</b></summary>
-
-```
-01_RawData/  (raw CSV files)
-    │  [OP01] Filter by case dict, clean columns
-    ▼
-02_Cleaning/cleaning_dataset-{YYYYMMDDHHMMSS}/
-    │  [OP02] Code list  ──▶  MySQL CODELIST table
-    │  [OP03] Metadata   ──▶  MySQL METADATA table
-    ▼
-MySQL: CODELIST + METADATA tables (with auto-created indexes)
-    │  [OP04] Create TRANSDATA view, export formatted CSV
-    ▼
-03_Format/format_dataset-{YYYYMMDDHHMMSS}/
-    │  [OP05] Apply SDTM domain mappings (parallel processing)
-    ▼
-04_SDTM/sdtm_dataset-{YYYYMMDDHHMMSS}/
-    │  [PS01] Split into main domains + SUPP* files
-    ▼
-05_Inputfile/inputfile_dataset-{YYYYMMDDHHMMSS}/
-    │  [PS02] Build M5 JSON package structure
-    ▼
-06_Inputpackage/inputpackage_dataset-{YYYYMMDDHHMMSS}/
-    └── m5/m5/datasets/{STUDY}/tabulations/sdtm/
-```
-
-</details>
-
-<p align="right">(<a href="#about">back to top</a>)</p>
-
----
-
-## 💻 TUI & CLI Reference
-
-### Entry point (`sdtm.py` / `sdtm.bat`)
-
-```bash
-sdtm <STUDY>                      # Open the TUI for a study (same as python sdtm.py <STUDY>)
-sdtm <STUDY> shell                # Line console instead of the TUI
-sdtm <STUDY> run all              # One-shot: run and exit
-sdtm <STUDY> status               # One-shot: show stage outputs
-sdtm studies                      # List studies under STUDIES_ROOT_PATH
-sdtm --study <STUDY> status       # Same as sdtm <STUDY> status
-```
-
-`<STUDY>` may be omitted when `SDTM_STUDY` / `DEFAULT_STUDY` is set or only one study exists.
-If `textual` is not installed, `sdtm` falls back to the line console.
-
-### Terminal UI
+The M5 package appears under `examples/studies/DEMO/06_Inputpackage/`. Next: set up your own
+study with [docs/getting-started.md](docs/getting-started.md).
 
 <div align="center">
 <img src="docs/assets/tui-screenshot.png" alt="SDTM Pipeline TUI after a DEMO run" width="800"/>
 </div>
 
-<br/>
+---
 
-Pick a step in **Pipeline Steps**, then run it alone or from there to the end. **Stage Outputs**
-shows the latest timestamped folder and version count of each stage; the log is also written
-to `logs/sdtm_tui_<timestamp>.log` under the folder you started `sdtm` from.
+## 🧭 How It Fits Together
 
-| Key | Action |
-|:---:|--------|
-| `a` | Run all 7 steps |
-| `r` | Run the selected step |
-| `f` | Run from the selected step to PS02 |
-| `s` | Stop the running pipeline |
-| `u` | Refresh stage outputs |
-| `c` | Toggle *Continue on error* |
-| `y` / `l` | Copy log / clear log |
-| `q` | Quit |
+```
+SDTM-Mapping-System/
+├── sdtm.py / sdtm.bat     ← start here: the one entry point (TUI, console, run, status)
+├── pipeline/              ← the core
+│   ├── VC_BC01 … BC06     base: settings, utilities, Excel parser, mapping engine
+│   ├── VC_OP01 … OP05     steps 1–5: cleaning → code list → metadata → format → SDTM mapping
+│   ├── VC_PS01 … PS02     steps 6–7: domain CSVs + SUPP-- → M5 package
+│   └── sdtm_study.py      which study to run, where its folder is
+├── app/                   TUI, shared step runner, batch runner
+├── examples/studies/DEMO/ a complete runnable study: workbook, raw CSV, study functions
+├── tests/                 pytest suite (DEMO workbook, no database)
+└── docs/                  getting started, architecture, configuration, CLI
 
-### Line Console (`sdtm <STUDY> shell`)
-
-<div align="center">
-<img src="docs/assets/cli-screenshot.png" alt="SDTM Pipeline Console" width="650"/>
-</div>
-
-<br/>
-
-| Command | Description |
-|---------|-------------|
-| `tui` | Switch to the TUI |
-| `run all` | Run all 7 steps (OP01 ~ PS02) |
-| `run <n>` | Run step n only |
-| `run <n> <m>` | Run steps n through m |
-| `run op03` | Run OP03 only (step IDs are case-insensitive) |
-| `run op03 ps01` | Run by step ID (case-insensitive) |
-| `run ... --continue` | Continue past failures |
-| `status` | Show latest output timestamps and version counts |
-| `studies` | List available studies |
-| `list` | List all pipeline steps |
-| `help` | Show available commands |
-| `exit` | Quit the console |
-
-### Batch Runner (`run_pipeline.py`)
-
-```bash
-python run_pipeline.py --study MYSTUDY        # Run all 7 steps for MYSTUDY
-python run_pipeline.py 3                      # From step 3 onward (study from env / DEFAULT_STUDY)
-python run_pipeline.py 3 5                    # Steps 3 to 5 only
-python run_pipeline.py --continue             # Continue past failures
-python run_pipeline.py --dry-run              # Preview execution plan without running
+<STUDIES_ROOT_PATH>/<STUDY_ID>/   ← your study, in a separate private folder or repo
+├── <STUDY_ID>_OperationConf.xlsx   mapping rules
+├── VC_BC05_studyFunctions.py       study-specific Python (Combine)
+├── 01_RawData/                     input
+└── 02_Cleaning/ … 06_Inputpackage/ output of each step, timestamped
 ```
 
-### Individual Steps
-
-Each step module can be run standalone:
-
-```bash
-python VC_OP01_cleaning.py
-python VC_OP05_mapping.py
-python VC_PS02_csv2json.py
+```mermaid
+graph LR
+    A[("Raw CSV")] --> B["OP01<br/>Cleaning"] --> C["OP02<br/>CodeList"] --> D["OP03<br/>Metadata"] --> E["OP04<br/>Format"] --> F["OP05<br/>Mapping"] --> G["PS01<br/>Input CSV"] --> H["PS02<br/>M5 Package"]
+    J[("OperationConf.xlsx")] -.-> B & C & E & F
+    K[("MySQL")] <-.-> D & E & F
 ```
 
-<p align="right">(<a href="#about">back to top</a>)</p>
+Reading the code? Start with `pipeline/VC_OP05_mapping.py` (applies the Mapping sheet), then
+`VC_BC03_fetchConfig.py` (how the workbook is parsed) and `VC_BC06_operateTypeFunctions.py`
+(the operation types).
 
 ---
 
-## 📋 Configuration
+## 📚 Documentation
 
-### Excel Config DSL — `OperationConf.xlsx`
-
-The master configuration workbook drives the entire pipeline. Each sheet controls a specific aspect:
-
-| Sheet | Columns (row 1 = header) | Purpose |
-|-------|--------------------------|---------|
-| **SheetSetting** | `SheetName`, `StartingRow`, then the column names of every other sheet | Index of the workbook: for each sheet, the first data row and the order of its columns. The parser reads all other sheets through this table |
-| **Patients** | `USUBJID`, `SUBJID`, `MIGRATIONFLAG` | Subjects to migrate and their `SUBJID` → `USUBJID` mapping |
-| **Files** | `FILENAME`, `MIGRATIONFLAG`, `TITLEROW`, `DATARROW`, `SUBJIDFIELDID`, `PROCESSINGLOGIC` | Raw CSV files in `01_RawData/`: header row, first data row, subject-id column |
-| **Process** | `FILENAME`, `FIELDNAME`, `LABEL`, `DATATYPE`, `CODELISTNAME`, `MIGRATIONFLAG`, `CHKTYPE`, `OTHERDETAILSPROCESS` | Every field of every raw file: label, data type, code list, whether to keep it, extra formatting rules |
-| **CodeList** | `CODELISTNAME`, `CODE`, `VALUERAW`, `VALUEEN`, `VALUESDTM` | Code / terminology value mappings (raw value → English → SDTM controlled term) |
-| **Mapping** | `DEFINITION`, `DOMAIN`, `VARIABLE`, `NDKEY`, `FILENAME`, `FIELDNAME`, `OPERTYPE`, `PARAMETER` | SDTM domain rules: one row per target variable, with source file/field and the operation applied |
-| **Combine** | `FILENAME`, `FUNCTION` | Derived tables built by a Python call in `VC_BC05_studyFunctions.py` (e.g. `DM()`), usable as `FILENAME` in Mapping. A Combine name equal to a Files name post-processes and overwrites that file's `F-` output |
-| **DomainsSetting** | `DOMAIN`, `SEQFIELD`, `SORTKEYS` | Per-domain sort keys and the `--SEQ` variable to number records with |
-| **Sites** | `SITENAME`, `SITECODE` | Site name → site code lookup used when building the M5 input CSVs |
-
-All nine sheets must exist. `examples/studies/DEMO/DEMO_OperationConf.xlsx` is a minimal working workbook; its README walks through every sheet.
-
-### Mapping Operation Types — `OPERTYPE`
-
-| Type | Result | `PARAMETER` example |
-|:----:|--------|---------------------|
-| `DEF` | A constant | `SURVIVAL STATUS` |
-| `FIX` | The source field value as is | – |
-| `FLG` | Map source values to output values (one `source:output` pair per line, or comma-separated) | `1:Y,0:N` |
-| `IIF` | Copy the source field only where a flag field has the given value (one pair per source field) | `FLAG_FIELD:Y` |
-| `COB` | Join the non-blank values of several source fields | `:/` (separator `/`) |
-| `CDL` | Look the value up in a CodeList (`VALUESDTM`) | `CL_SEX` |
-| `SEL` | Copy the source field and keep only rows meeting a condition | `FIELD:VALUE`, `FIELD:!VALUE`, `FIELD:not null` |
-| `PRF` | Add a prefix | `P` |
-| `TPL` | Fill a template; `{}` is the source value, empty stays empty | `SCRT DISCONTINUED: {}` |
-
-**Guard lines** work with every type: a `PARAMETER` line that starts with `&` is an extra AND
-condition `&FIELD:VALUE` (`VALUE` may also be `null`, `not null` or `!VALUE`). Rows that fail a
-guard get an empty value; on the `NDKEY` variable that drops the record, and on `SEL` the row is
-dropped too.
-
-**`NDKEY`** marks the one variable per `DEFINITION` block that decides whether a record is
-written: blank → no record. Only the first `〇` in a block counts, so put guard lines for a
-parent item on that row. More detail: [AGENT_KNOWLEDGE.md §6](AGENT_KNOWLEDGE.md).
-
-### Study-Specific Functions — `VC_BC05_studyFunctions.py`
-
-For domain logic that cannot be expressed in the Excel DSL, each study defines custom Python functions:
-
-```python
-def DM():
-    """Custom DM domain generation.
-
-    Sources: RGST (registration), LSVDAT (last survival), OC (outcome)
-    Computes: RFENDAT (end date), DTHFLG (death flag)
-    """
-    ...
-```
-
-### Project Settings — `project.local.json`
-
-Machine-level settings (not committed). All keys are optional.
-
-| Key | Description |
-|-----|-------------|
-| `STUDIES_ROOT_PATH` | Parent directory of the study folders. Default: `<project root>/studySpecific` |
-| `DEFAULT_STUDY` | Study used when none is given on the command line / `SDTM_STUDY` |
-| `DB_HOST` / `DB_USER` / `DB_PASSWORD` / `DB_DATABASE` | MySQL connection (defaults: `127.0.0.1` / `root` / `root` / `VC-DataMigration_2.0`) |
-
-**Study resolution order:** command-line argument → `SDTM_STUDY` env var → `DEFAULT_STUDY` →
-legacy `STUDY_ID` → the only study folder present → error listing available studies.
-
-### Study Settings — `<STUDY_ID>/study.json`
-
-Optional, lives inside the study folder. Everything is derived from the study id when absent.
-
-| Key | Default | Description |
-|-----|---------|-------------|
-| `M5_PROJECT_NAME` | `<STUDY_ID>` | Project name in M5 package output |
-| `RAW_DATA_DIR` | `01_RawData` | Raw CSV directory, relative to the study folder |
-| `RAW_DATA_ROOT_PATH` | – | Absolute raw CSV directory (overrides `RAW_DATA_DIR`) |
-| `CODELIST_TABLE_NAME` | `VC05_<STUDY_ID>_CODELIST` | MySQL table for code list data |
-| `METADATA_TABLE_NAME` | `VC05_<STUDY_ID>_METADATA` | MySQL table for metadata |
-| `TRANSDATA_VIEW_NAME` | `VC05_<STUDY_ID>_TRANSDATA` | MySQL view for formatted data |
-
-> **Legacy format:** a `project.local.json` that contains `STUDY_ID`, table names and
-> `RAW_DATA_ROOT_PATH` (pre-2026-09 layout) keeps working unchanged.
-
-<p align="right">(<a href="#about">back to top</a>)</p>
+| Document | Read it when you want to |
+|----------|--------------------------|
+| [Getting started](docs/getting-started.md) | install, run the DEMO, create your own study |
+| [Architecture](docs/architecture.md) | understand the 7 steps, the module numbering and the two-repo layout |
+| [Configuration](docs/configuration.md) | write an `OperationConf.xlsx`: sheets, operation types, guards, `study.json` |
+| [TUI & CLI](docs/cli.md) | look up a command or a TUI key |
+| [DEMO study](examples/studies/DEMO/README.md) | see a minimal workbook explained sheet by sheet |
+| [Engine notes](docs/AGENT_KNOWLEDGE.md) | change the engine (AI agents: see also [CLAUDE.md](CLAUDE.md)) |
 
 ---
 
@@ -475,63 +132,19 @@ Optional, lives inside the study folder. Everything is derived from the study id
 
 ```bash
 pip install -r requirements-dev.txt
-pytest -q                                   # whole suite, about 3 seconds
-pytest -q tests/test_opertypes.py           # one file
+pytest -q                        # about 3 seconds, no MySQL needed
 ```
 
-The tests read `examples/studies/DEMO/DEMO_OperationConf.xlsx` and call the parser and
-operation types directly, so they need neither MySQL nor a private study. Changes to the
-mapping engine should also be checked with a full DEMO run (`python run_pipeline.py --study DEMO`).
-
-<p align="right">(<a href="#about">back to top</a>)</p>
-
----
-
-## 🛠️ Tech Stack
-
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![pandas](https://img.shields.io/badge/pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
-![NumPy](https://img.shields.io/badge/NumPy-013243?style=for-the-badge&logo=numpy&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
-![Excel](https://img.shields.io/badge/Excel-217346?style=for-the-badge&logo=microsoftexcel&logoColor=white)
-![Textual](https://img.shields.io/badge/Textual-TUI-5A4FCF?style=for-the-badge)
-
-| Package | Version | Purpose |
-|---------|:-------:|---------|
-| **mysql-connector-python** | 9.4.0 | MySQL database connectivity |
-| **pandas** | 2.3.1 | Data manipulation & transformation |
-| **numpy** | 2.2.6 | Numerical operations |
-| **openpyxl** | 3.1.5 | Excel workbook reading |
-| **python-dateutil** | 2.9.0 | Date parsing & formatting |
-| **textual** | 8.2.5 | Terminal UI |
-| **pytest** *(dev)* | 8.3.3 | Test suite |
-
-```bash
-pip install -r requirements.txt
-```
-
-<p align="right">(<a href="#about">back to top</a>)</p>
+After changing the mapping engine, also run the DEMO end to end (`python sdtm.py DEMO run all`).
 
 ---
 
 ## 📄 License
 
-Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
-
----
-
-## 📬 Contact & Support
-
-- **Issues** — [GitHub Issues](https://github.com/hakupao/SDTM-Mapping-System/issues)
-- **Discussions** — [GitHub Discussions](https://github.com/hakupao/SDTM-Mapping-System/discussions)
-
----
+Distributed under the MIT License. See [LICENSE](LICENSE).
+Questions and bugs: [GitHub Issues](https://github.com/hakupao/SDTM-Mapping-System/issues).
 
 <div align="center">
-
-**[⬆ Back to Top](#about)**
-
-Made with care for clinical data professionals
 
 <a href="https://github.com/hakupao/SDTM-Mapping-System/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=hakupao/SDTM-Mapping-System" />

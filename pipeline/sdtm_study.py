@@ -6,7 +6,7 @@
 不再需要为每个研究修改 project.local.json。
 
 解析顺序（研究 ID）:
-    1. 显式参数（sdtm <STUDY> / run_pipeline.py --study <STUDY>）
+    1. 显式参数（sdtm <STUDY> / app/run_pipeline.py --study <STUDY>）
     2. 环境变量 SDTM_STUDY
     3. project.local.json 的 DEFAULT_STUDY
     4. project.local.json 的 STUDY_ID（旧格式，向后兼容）
@@ -61,9 +61,17 @@ class StudyNotFoundError(RuntimeError):
         self.available = list(available or [])
 
 
+PIPELINE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
 def program_root():
-    """程序目录（本文件所在目录）。"""
-    return os.path.dirname(os.path.abspath(__file__))
+    """程序目录（仓库根目录，即 pipeline/ 的上一级）。"""
+    return os.path.dirname(PIPELINE_DIR)
+
+
+def stage_script(module):
+    """阶段脚本的绝对路径（pipeline/<module>.py）。"""
+    return os.path.join(PIPELINE_DIR, f'{module}.py')
 
 
 def project_config_path(base_dir=None):
@@ -172,7 +180,7 @@ def resolve_study_id(explicit=None, base_dir=None, config=None):
             available,
         )
     raise StudyNotFoundError(
-        '未指定研究。请使用 sdtm <STUDY>、run_pipeline.py --study <STUDY>、'
+        '未指定研究。请使用 sdtm <STUDY>、app/run_pipeline.py --study <STUDY>、'
         f'环境变量 {STUDY_ENV}，或在 project.local.json 中设置 DEFAULT_STUDY',
         available,
     )

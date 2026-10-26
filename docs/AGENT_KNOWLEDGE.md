@@ -19,7 +19,7 @@ VC_BC01 (Constants) → VC_BC02 (Utils) + VC_BC03 (Config)
                                       ↓
                            VC_PS01-02 (Output Generation)
 ```
-- File naming: `VC_[MODULE][##]_[Function].py` (e.g., `VC_OP05_mapping.py`).
+- File naming: `VC_[MODULE][##]_[Function].py` (e.g., `VC_OP05_mapping.py`). All of them live flat in `pipeline/` (not a package); entry point `sdtm.py` in the root, runners in `app/`.
 
 ## 3) Key Modules & Responsibilities
 - `VC_BC01_constant.py`: Loads `project.local.json`; defines paths, DB params, SDTM constants, operation-type constants; `_load_project_config()`.
@@ -42,13 +42,13 @@ VC_BC01 (Constants) → VC_BC02 (Utils) + VC_BC03 (Config)
 - `VC_PS01_makeInputCSV.py`: Latest SDTM timestamp folder → `[Domain].csv`, `SUPP*.csv` in `05_Inputfile/inputfile_dataset-[ts]/`. Main CSV column order follows the source SDTM header; `SUPP*.csv` preserves empty-string `QVAL`.
 - `VC_PS02_csv2json.py`: Latest inputfile timestamp folder → `06_Inputpackage/inputpackage_dataset-[ts]/m5.zip`.
 - Full run (PowerShell):  
-`python VC_OP01_cleaning.py`  
-`python VC_OP02_insertCodeList.py`  
-`python VC_OP03_insertMetadata.py`  
-`python VC_OP04_format.py`  
-`python VC_OP05_mapping.py`  
-`python VC_PS01_makeInputCSV.py`  
-`python VC_PS02_csv2json.py`
+`python pipeline/VC_OP01_cleaning.py`  
+`python pipeline/VC_OP02_insertCodeList.py`  
+`python pipeline/VC_OP03_insertMetadata.py`  
+`python pipeline/VC_OP04_format.py`  
+`python pipeline/VC_OP05_mapping.py`  
+`python pipeline/VC_PS01_makeInputCSV.py`  
+`python pipeline/VC_PS02_csv2json.py`
 
 ## 6) Operation Types (BC06) Cheat Sheet
 - `DEF`: fixed value.  

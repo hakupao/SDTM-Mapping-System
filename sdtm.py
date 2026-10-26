@@ -19,8 +19,10 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 _CWD = os.getcwd()
 if _CWD not in sys.path:
     sys.path.insert(0, _CWD)
-if ROOT_DIR not in sys.path:
-    sys.path.append(ROOT_DIR)
+for _sub in ('pipeline', 'app'):
+    _dir = os.path.join(ROOT_DIR, _sub)
+    if _dir not in sys.path:
+        sys.path.append(_dir)
 
 
 for _stream in (sys.stdout, sys.stderr):
