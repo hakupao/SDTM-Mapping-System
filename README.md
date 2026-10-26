@@ -25,7 +25,7 @@
 
 <br/>
 
-[Quick Start](#-quick-start) · [How It Fits Together](#-how-it-fits-together) · [Documentation](#-documentation) · [Tests](#-tests)
+[Features](#-features) · [Quick Start](#-quick-start) · [How It Fits Together](#-how-it-fits-together) · [Documentation](#-documentation) · [Tests](#-tests) · [Tech Stack](#-tech-stack)
 
 </div>
 
@@ -38,12 +38,21 @@ datasets and an M5 submission package. The mapping rules live in an Excel workbo
 (`<STUDY>_OperationConf.xlsx`); a 7-step pipeline, backed by MySQL, does the rest. A new study
 needs a workbook and, only where Excel cannot express the logic, a few Python functions.
 
-- **Excel as the DSL**: 9 sheets describe the raw files, code lists and one row per SDTM variable;
-  9 operation types (`DEF` `FIX` `FLG` `IIF` `COB` `CDL` `SEL` `PRF` `TPL`) plus `&FIELD:VALUE` guards
-- **7 independent steps**: OP01–OP05 transform, PS01–PS02 package; each run writes timestamped output
-- **Terminal UI and CLI**: `sdtm <STUDY>` with live progress; `sdtm <STUDY> run all` for one shot
-- **Studies live outside the repo**: clinical data stays in your private study folder
-- **Runnable DEMO + tests**: a fake 3-subject study runs end to end; pytest needs no database
+## ✨ Features
+
+| | Feature | Description |
+|---|---------|-------------|
+| 📋 | **Excel as the DSL** | 9 sheets describe the raw files, code lists and one row per SDTM variable; no Python needed for ordinary mappings |
+| 🧩 | **9 operation types + guards** | `DEF` `FIX` `FLG` `IIF` `COB` `CDL` `SEL` `PRF` `TPL`, plus `&FIELD:VALUE` guard lines usable on any of them |
+| 🔗 | **7 independent steps** | OP01–OP05 transform, PS01–PS02 package; run all, one, or a range |
+| 🖥️ | **Terminal UI and CLI** | `sdtm <STUDY>` with live step progress and stage outputs; `sdtm <STUDY> run all` for one shot; a batch runner with `--continue` / `--dry-run` |
+| 🗂️ | **Studies live outside the repo** | Each study is a folder in your own private location, chosen at run time; clinical data never enters this history |
+| 🗄️ | **MySQL transformation hub** | Code lists and metadata are staged in MySQL with auto-created indexes and an optimised view |
+| 🕐 | **Timestamped, auditable output** | Every run writes a new `<stage>/<name>_dataset-YYYYMMDDHHMMSS/` folder; earlier runs are kept |
+| 📦 | **M5 packaging** | Domain CSVs, `SUPP--` files and the M5 directory structure, zipped for submission |
+| 🚀 | **Built for volume** | Vectorised pandas/numpy, per-domain multiprocessing, precomputed rules, CSV cache, batched DB loads |
+| 🌐 | **CJK-aware console** | Japanese / Chinese text lines up correctly in tables and progress output |
+| 🧪 | **Runnable DEMO + tests** | A fake 3-subject study runs end to end; the pytest suite needs no database |
 
 ---
 
@@ -139,10 +148,27 @@ After changing the mapping engine, also run the DEMO end to end (`python sdtm.py
 
 ---
 
+## 🧰 Tech Stack
+
+| Package | Version | Purpose |
+|---------|:-------:|---------|
+| Python | 3.11+ | Runtime |
+| mysql-connector-python | 9.4.0 | MySQL connectivity |
+| pandas | 2.3.1 | Data transformation |
+| numpy | 2.2.6 | Vectorised operations |
+| openpyxl | 3.1.5 | Reading `OperationConf.xlsx` |
+| python-dateutil | 2.9.0 | Date parsing |
+| textual | 8.2.5 | Terminal UI |
+| pytest *(dev)* | 8.3.3 | Test suite |
+
+MySQL 5.7 or 8.x is the database server.
+
+---
+
 ## 📄 License
 
 Distributed under the MIT License. See [LICENSE](LICENSE).
-Questions and bugs: [GitHub Issues](https://github.com/hakupao/SDTM-Mapping-System/issues).
+Questions and bugs: [GitHub Issues](https://github.com/hakupao/SDTM-Mapping-System/issues) · ideas and usage questions: [GitHub Discussions](https://github.com/hakupao/SDTM-Mapping-System/discussions).
 
 <div align="center">
 

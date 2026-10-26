@@ -25,7 +25,7 @@
 
 <br/>
 
-[快速开始](#-快速开始) · [项目结构](#-项目结构) · [文档](#-文档) · [测试](#-测试)
+[功能特性](#-功能特性) · [快速开始](#-快速开始) · [项目结构](#-项目结构) · [文档](#-文档) · [测试](#-测试) · [技术栈](#-技术栈)
 
 </div>
 
@@ -37,12 +37,21 @@
 M5 提交包。映射规则写在 Excel 工作簿（`<STUDY>_OperationConf.xlsx`）里，剩下的交给一条以 MySQL
 为中转的 7 步流水线。新建一个研究，只需要一份工作簿；Excel 写不出来的逻辑，再补几个 Python 函数。
 
-- **Excel 即 DSL**：9 张表描述原始文件、代码表，以及每个 SDTM 变量一行的映射规则；
-  9 种处理类型（`DEF` `FIX` `FLG` `IIF` `COB` `CDL` `SEL` `PRF` `TPL`），外加 `&FIELD:VALUE` 守卫条件
-- **7 个独立步骤**：OP01–OP05 做转换，PS01–PS02 做打包；每次运行都输出到带时间戳的文件夹
-- **终端界面和命令行**：`sdtm <STUDY>` 实时显示进度；`sdtm <STUDY> run all` 跑完即退出
-- **研究数据不进本仓库**：临床数据留在你自己的私有研究目录里
-- **可运行的 DEMO 和测试**：3 名虚构受试者的研究能从头跑到尾；pytest 不需要数据库
+## ✨ 功能特性
+
+| | 功能 | 说明 |
+|---|------|------|
+| 📋 | **Excel 即 DSL** | 9 张表描述原始文件、代码表，以及每个 SDTM 变量一行的映射规则；一般的映射不用写 Python |
+| 🧩 | **9 种处理类型 + 守卫条件** | `DEF` `FIX` `FLG` `IIF` `COB` `CDL` `SEL` `PRF` `TPL`，每种都可以加 `&FIELD:VALUE` 守卫行 |
+| 🔗 | **7 个独立步骤** | OP01–OP05 做转换，PS01–PS02 做打包；可以全跑、只跑一步，或跑一段 |
+| 🖥️ | **终端界面和命令行** | `sdtm <STUDY>` 实时显示步骤进度和各阶段输出；`sdtm <STUDY> run all` 跑完即退出；批量运行脚本支持 `--continue` / `--dry-run` |
+| 🗂️ | **研究数据不进本仓库** | 每个研究是你自己私有位置下的一个文件夹，运行时再选；临床数据不会进入本仓库的历史 |
+| 🗄️ | **MySQL 中转** | 代码表和元数据先导入 MySQL，自动建索引，再通过优化过的视图读取 |
+| 🕐 | **带时间戳、可追溯的输出** | 每次运行都新建 `<阶段>/<名称>_dataset-YYYYMMDDHHMMSS/`，以前的运行结果都保留 |
+| 📦 | **M5 打包** | 生成各域 CSV、`SUPP--` 文件和 M5 目录结构，并打成 zip |
+| 🚀 | **面向大数据量** | 向量化 pandas/numpy、按域多进程、预计算规则、CSV 缓存、批量导入数据库 |
+| 🌐 | **CJK 对齐** | 控制台表格和进度输出里的中日文字符能正确对齐 |
+| 🧪 | **可运行的 DEMO 和测试** | 3 名虚构受试者的研究能从头跑到尾；pytest 不需要数据库 |
 
 ---
 
@@ -139,10 +148,27 @@ pytest -q                        # 约 3 秒，不需要 MySQL
 
 ---
 
+## 🧰 技术栈
+
+| 包 | 版本 | 用途 |
+|----|:----:|------|
+| Python | 3.11+ | 运行环境 |
+| mysql-connector-python | 9.4.0 | 连接 MySQL |
+| pandas | 2.3.1 | 数据转换 |
+| numpy | 2.2.6 | 向量化运算 |
+| openpyxl | 3.1.5 | 读取 `OperationConf.xlsx` |
+| python-dateutil | 2.9.0 | 日期解析 |
+| textual | 8.2.5 | 终端界面 |
+| pytest（开发用） | 8.3.3 | 测试 |
+
+数据库服务器用 MySQL 5.7 或 8.x。
+
+---
+
 ## 📄 许可证
 
 基于 MIT 许可证分发，详见 [LICENSE](LICENSE)。
-问题反馈：[GitHub Issues](https://github.com/hakupao/SDTM-Mapping-System/issues)。
+问题反馈：[GitHub Issues](https://github.com/hakupao/SDTM-Mapping-System/issues) · 想法和使用上的问题：[GitHub Discussions](https://github.com/hakupao/SDTM-Mapping-System/discussions)。
 
 <div align="center">
 
