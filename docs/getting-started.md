@@ -5,7 +5,7 @@ From a fresh clone to a finished M5 package, then to your own study.
 ## 1. Prerequisites
 
 - **Python 3.11+**
-- **MySQL** (5.7 or 8.x), local or remote. The configured user needs `CREATE DATABASE` /
+- **MySQL** (tested with 5.7), local or remote. The configured user needs `CREATE DATABASE` /
   `CREATE TABLE` / `CREATE VIEW`: the pipeline creates its database, tables and views itself.
 
 ## 2. Install

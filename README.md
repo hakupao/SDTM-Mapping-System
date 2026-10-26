@@ -161,7 +161,7 @@ After changing the mapping engine, also run the DEMO end to end (`python sdtm.py
 | textual | 8.2.5 | Terminal UI |
 | pytest *(dev)* | 8.3.3 | Test suite |
 
-MySQL 5.7 or 8.x is the database server.
+The database server is MySQL; tested with MySQL 5.7 (5.7.44).
 
 ---
 
