@@ -15,9 +15,10 @@ Run everything from the repository root.
 pip install -r requirements.txt -r requirements-dev.txt
 
 pytest -q                                   # whole suite, ~3 s, no MySQL needed
-pytest -q tests/test_opertypes.py           # one file
-pytest -q tests/test_opertypes.py::<name>   # one test
+pytest -q tests/test_c6_duplicate_keys.py   # one file
+pytest -q tests/test_c6_duplicate_keys.py::<name>   # one test
 pytest -q -k guard                          # by keyword
+python tests/test_opertypes.py              # operation-type tests: a plain script, not collected by pytest
 
 python -m py_compile sdtm.py app/*.py pipeline/*.py
 
