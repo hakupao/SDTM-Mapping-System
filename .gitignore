@@ -111,7 +111,8 @@ experiment/combine_test/TEST_COMBINE/
 # 研究ディレクトリ（別リポジトリ SDTM-Studies で管理。ここには含めない）
 studySpecific/
 
-# agent 用一時スクリプト（ローカルのみ）
+# 補助ツールは非公開の SDTM-Studies/_tools/ に移した（2026-11-06）。研究固有の内容を含むので、
+# 公開リポジトリには入れない（誤って作っても追跡されないよう無視を残す）
 tools/
 
 # examples/studies/DEMO: 生の CSV はサンプルとして追跡し、パイプライン出力は除外
