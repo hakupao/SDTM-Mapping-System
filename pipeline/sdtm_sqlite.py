@@ -242,7 +242,7 @@ class SQLiteDatabaseManager:
         folder = os.path.dirname(os.path.abspath(self.path))
         os.makedirs(folder, exist_ok=True)
         self.connection = sqlite3.connect(self.path)
-        self.connection.execute('PRAGMA journal_mode=OFF')
+        self.connection.execute('PRAGMA journal_mode=MEMORY')
         self.connection.execute('PRAGMA synchronous=OFF')
         self.connection.create_function('ci_key', 1, mysql_ci_key, deterministic=True)
         self.cursor = self.connection.cursor()

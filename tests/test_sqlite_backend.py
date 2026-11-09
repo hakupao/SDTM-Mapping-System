@@ -77,7 +77,7 @@ def test_view_translates_case_and_space_insensitively(tmp_path):
 
 def test_metadata_values_round_trip(tmp_path):
     db = _db(tmp_path); db.create_metadata_table('MD')
-    odd = 'a\b "q", line1\nline2 \U0001F600'
+    odd = 'a\\b "q", line1\nline2 \U0001F600'
     assert db.load_metadata_rows('MD', [('F', 1, 'U1', 'S1', 'l', 'X', odd, odd, 0, '', '')]) == 1
     assert db.cursor.execute('SELECT No, METAVAL, FORMVAL, CHKFIELDID FROM MD').fetchall() == [(1, odd, odd, '')]
 
@@ -111,3 +111,27 @@ def test_no_mysql_import():
     pipe = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'pipeline')
     code = f"import sys; sys.path.insert(0, {pipe!r}); import sdtm_sqlite; assert 'mysql' not in sys.modules"
     assert subprocess.run([sys.executable, '-c', code]).returncode == 0
+
+
+def test_rollback_mid_load_leaves_db_consistent(tmp_path):
+    db = _db(tmp_path); db.create_metadata_table('MD')
+    db.load_metadata_rows('MD', [('F', 1, 'U1', 'S1', 'l', 'X', 'keep', 'keep', 0, '', '')])
+
+    def rows():
+        yield (2, 'F', 2, 'U1', 'S1', 'l', 'X', 'gone', 'gone', 0, '', '', None, 'G', 'G')
+        raise RuntimeError('boom')
+
+    sql = ('INSERT INTO MD (No, FILENAME, ROWNUM, USUBJID, SUBJID, FIELDLBL, FIELDID, METAVAL, FORMVAL, '
+           'DATETYPE, CODELISTID, CHKFIELDID, CODELISTID_K, FORMVAL_K, METAVAL_K) '
+           'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+    try:
+        db.connection.executemany(sql, rows())
+    except RuntimeError:
+        pass
+    db.connection.rollback()
+    assert db.connection.execute('PRAGMA integrity_check').fetchone() == ('ok',)
+    assert db.connection.execute('SELECT METAVAL FROM MD').fetchall() == [('keep',)]
+    db.connection.execute(sql, (3, 'F', 3, 'U1', 'S1', 'l', 'X', 'x', 'x', 0, '', '', None, 'X', 'X'))
+    db.connection.rollback()
+    assert db.connection.execute('SELECT COUNT(*) FROM MD').fetchone() == (1,)
+    db.disconnect()
