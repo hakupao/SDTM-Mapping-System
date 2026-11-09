@@ -33,7 +33,10 @@ def _zip_members(path):
 
 
 def compare_dirs(dir_a, dir_b):
-    """返回差异描述列表（空列表 = 完全一致）。"""
+    """返回差异描述列表（空列表 = 完全一致）。路径不是已存在的目录也算差异。"""
+    missing = [f'{d}: not an existing directory' for d in (dir_a, dir_b) if not Path(d).is_dir()]
+    if missing:
+        return missing
     a, b = _collect(Path(dir_a)), _collect(Path(dir_b))
     diffs = []
     for rel in sorted(set(a) | set(b)):
@@ -78,8 +81,25 @@ def _latest_two(stage_dir):
     return [d for _, d in found[-2:]]
 
 
+_HELP = """Compare the output folders of two pipeline runs (stdlib only).
+
+usage:
+    python tests/compare_runs.py <dirA> <dirB>
+    python tests/compare_runs.py --study <STUDY> [--root <STUDIES_ROOT>]
+
+*.csv byte-for-byte; *.zip by member names and member contents (zip timestamps
+ignored); *.log ignored. Exit 0 when all identical, else list the differences, exit 1.
+"""
+
+
 def main(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    # cp932 等控制台打印非 ASCII 路径时不报 UnicodeEncodeError
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors='replace')
+        except (AttributeError, ValueError):
+            pass
+    ap = argparse.ArgumentParser(description=_HELP, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('dirs', nargs='*', help='dirA dirB')
     ap.add_argument('--study')
     ap.add_argument('--root')
