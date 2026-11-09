@@ -851,8 +851,8 @@ class DatabaseManager:
             `m`.`FIELDID` AS `FIELDID`,
             `m`.`METAVAL` AS `METAVAL`,
             `m`.`FORMVAL` AS `FORMVAL`,
-            IF(ISNULL(`c`.`VALUE_EN`), `m`.`FORMVAL`, `c`.`VALUE_EN`) AS `TRANSVAL`,
-            IF(ISNULL(`c`.`VALUE_SDTM`),'',`c`.`VALUE_SDTM`) AS `SDTMVAL`,
+            CASE WHEN `c`.`VALUE_EN` IS NULL THEN `m`.`FORMVAL` ELSE `c`.`VALUE_EN` END AS `TRANSVAL`,
+            COALESCE(`c`.`VALUE_SDTM`, '') AS `SDTMVAL`,
             `m`.`CHKFIELDID` AS `CHKFIELDID`
         FROM 
             {metadata_table_name} `m` 

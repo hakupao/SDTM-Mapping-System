@@ -137,7 +137,7 @@ def build_optimized_chk_query(db, fileName, select_fieldIDs, chk_fieldIDs, case_
         other_join_parts = []
         for other_field, other_details_field in other_fields.items():
             join_sql = f'''LEFT JOIN (
-                SELECT `ROWNUM`, max(if(({filename_condition}`FIELDID` = '{other_field}'),`TRANSVAL`,NULL)) AS `{other_field}`
+                SELECT `ROWNUM`, max(CASE WHEN {filename_condition}`FIELDID` = '{other_field}' THEN `TRANSVAL` END) AS `{other_field}`
                 FROM {transdata_source} 
                 GROUP BY {group_by_filename}`ROWNUM`,`SUBJID` 
                 HAVING `{other_field}` IS NOT NULL
@@ -369,7 +369,7 @@ def _run_format(db, total_start):
                     else:
                         select_fieldIDs.append(f'tt.`{_chkFieldID}`')
                         max_fieldIDs.append(f'''
-                                            max(if((`FIELDID` = '{_chkFieldID}'),`TRANSVAL`,NULL)) AS `{_chkFieldID}`
+                                            max(CASE WHEN `FIELDID` = '{_chkFieldID}' THEN `TRANSVAL` END) AS `{_chkFieldID}`
                                             '''.strip())
                         having_fieldIDs.append(f'{_chkFieldID} IS NOT null')
 
@@ -415,7 +415,7 @@ def _run_format(db, total_start):
                     file_chk_rows += rows_cnt
                     print(f'  [CHK:{chkfileName}] {rows_cnt} rows')
                 
-        fields = ['max(if((FIELDID = \'' + fieldID + '\'),TRANSVAL,NULL)) AS `' + fieldID  + '`' 
+        fields = ['max(CASE WHEN FIELDID = \'' + fieldID + '\' THEN TRANSVAL END) AS `' + fieldID  + '`' 
                   for fieldID in file_param.keys() 
                   if fieldID != fileDict[fileName][COL_SUBJIDFIELDID]
                   ]
