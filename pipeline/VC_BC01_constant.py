@@ -70,8 +70,8 @@ DB_USER = _PROJECT_CONFIG.get('DB_USER') or 'root'
 DB_PASSWORD = _PROJECT_CONFIG.get('DB_PASSWORD') or 'root'
 DB_DATABASE = _PROJECT_CONFIG.get('DB_DATABASE') or 'VC-DataMigration_2.0'
 
-# 数据库后端: mysql（默认）或 sqlite。sqlite 时无需 MySQL 服务。
-DB_BACKEND = str(_PROJECT_CONFIG.get('DB_BACKEND') or 'mysql').lower()
+# 数据库后端: sqlite（默认，无需数据库服务）或 mysql（可选，需 requirements-mysql.txt）。
+DB_BACKEND = str(_PROJECT_CONFIG.get('DB_BACKEND') or 'sqlite').lower()
 if DB_BACKEND not in ('mysql', 'sqlite'):
     sys.stderr.write(
         f"[VC_BC01_constant] DB_BACKEND 取值无效: {DB_BACKEND!r}（应为 'mysql' 或 'sqlite'）\n"

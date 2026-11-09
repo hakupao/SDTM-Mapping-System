@@ -13,7 +13,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![pandas](https://img.shields.io/badge/pandas-2.3.1-150458?style=for-the-badge&logo=pandas&logoColor=white)](https://pandas.pydata.org)
 [![NumPy](https://img.shields.io/badge/NumPy-2.2.6-013243?style=for-the-badge&logo=numpy&logoColor=white)](https://numpy.org)
-[![MySQL](https://img.shields.io/badge/MySQL-Connector-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://dev.mysql.com/doc/connector-python/en/)
+[![SQLite](https://img.shields.io/badge/SQLite-built--in-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org)
 [![CDISC](https://img.shields.io/badge/CDISC-SDTM-00A0D0?style=for-the-badge)](https://www.cdisc.org/standards/foundational/sdtm)
 [![License](https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Active-34D399?style=for-the-badge)]()
@@ -34,7 +34,7 @@
 ## 关于
 
 **SDTM Mapping System**（代码名 **VAPORCONE**）把临床研究的原始导出数据转换成 CDISC SDTM 数据集和
-M5 提交包。映射规则写在 Excel 工作簿（`<STUDY>_OperationConf.xlsx`）里，剩下的交给一条以 MySQL
+M5 提交包。映射规则写在 Excel 工作簿（`<STUDY>_OperationConf.xlsx`）里，剩下的交给一条以 SQLite
 为中转的 7 步流水线。新建一个研究，只需要一份工作簿；Excel 写不出来的逻辑，再补几个 Python 函数。
 
 ## ✨ 功能特性
@@ -46,7 +46,7 @@ M5 提交包。映射规则写在 Excel 工作簿（`<STUDY>_OperationConf.xlsx`
 | 🔗 | **7 个独立步骤** | OP01–OP05 做转换，PS01–PS02 做打包；可以全跑、只跑一步，或跑一段 |
 | 🖥️ | **终端界面和命令行** | `sdtm <STUDY>` 实时显示步骤进度和各阶段输出；`sdtm <STUDY> run all` 跑完即退出；批量运行脚本支持 `--continue` / `--dry-run` |
 | 🗂️ | **研究数据不进本仓库** | 每个研究是你自己私有位置下的一个文件夹，运行时再选；临床数据不会进入本仓库的历史 |
-| 🗄️ | **MySQL 中转** | 代码表和元数据先导入 MySQL，自动建索引，再通过优化过的视图读取 |
+| 🗄️ | **SQLite 中转** | 代码表和元数据先导入 SQLite 文件（无需安装数据库服务），自动建索引，再通过优化过的视图读取；MySQL 为可选后端 |
 | 🕐 | **带时间戳、可追溯的输出** | 每次运行都新建 `<阶段>/<名称>_dataset-YYYYMMDDHHMMSS/`，以前的运行结果都保留 |
 | 📦 | **M5 打包** | 生成各域 CSV、`SUPP--` 文件和 M5 目录结构，并打成 zip |
 | 🚀 | **面向大数据量** | 向量化 pandas/numpy、按域多进程、预计算规则、CSV 缓存、批量导入数据库 |
@@ -57,7 +57,8 @@ M5 提交包。映射规则写在 Excel 工作簿（`<STUDY>_OperationConf.xlsx`
 
 ## 🚀 快速开始
 
-需要 Python 3.11+，以及一个账号有建库权限的 MySQL。
+需要 Python 3.11+。不需要数据库服务：中转数据库是一个 SQLite 文件（Python 内置的 `sqlite3`）。
+仍可选用 MySQL 后端，见 [docs/configuration.md](docs/configuration.md#database-backend)。
 
 ```bash
 git clone https://github.com/hakupao/SDTM-Mapping-System.git
@@ -68,8 +69,7 @@ pip install -r requirements.txt
 在仓库根目录新建 `project.local.json`：
 
 ```json
-{ "STUDIES_ROOT_PATH": "examples/studies", "DEFAULT_STUDY": "DEMO",
-  "DB_HOST": "127.0.0.1", "DB_USER": "root", "DB_PASSWORD": "root" }
+{ "STUDIES_ROOT_PATH": "examples/studies", "DEFAULT_STUDY": "DEMO" }
 ```
 
 用自带的 DEMO 研究跑完 7 步（约 20 秒）：
@@ -114,7 +114,7 @@ SDTM-Mapping-System/
 graph LR
     A[("原始 CSV")] --> B["OP01<br/>清洗"] --> C["OP02<br/>代码表"] --> D["OP03<br/>元数据"] --> E["OP04<br/>格式化"] --> F["OP05<br/>映射"] --> G["PS01<br/>输入 CSV"] --> H["PS02<br/>M5 打包"]
     J[("OperationConf.xlsx")] -.-> B & C & E & F
-    K[("MySQL")] <-.-> D & E & F
+    K[("SQLite")] <-.-> C & D & E
 ```
 
 想读代码的话，先看 `pipeline/VC_OP05_mapping.py`（执行 Mapping 表），再看 `VC_BC03_fetchConfig.py`
@@ -141,7 +141,7 @@ graph LR
 
 ```bash
 pip install -r requirements-dev.txt
-pytest -q                        # 约 3 秒，不需要 MySQL
+pytest -q                        # 约 3 秒，不需要数据库
 ```
 
 改动映射引擎后，还要把 DEMO 完整跑一遍（`python sdtm.py DEMO run all`）。
@@ -153,7 +153,8 @@ pytest -q                        # 约 3 秒，不需要 MySQL
 | 包 | 版本 | 用途 |
 |----|:----:|------|
 | Python | 3.11+ | 运行环境 |
-| mysql-connector-python | 9.4.0 | 连接 MySQL |
+| sqlite3 | 标准库 | 中转数据库（默认） |
+| mysql-connector-python（可选） | 9.4.0 | MySQL 后端，见 `requirements-mysql.txt` |
 | pandas | 2.3.1 | 数据转换 |
 | numpy | 2.2.6 | 向量化运算 |
 | openpyxl | 3.1.5 | 读取 `OperationConf.xlsx` |
@@ -161,7 +162,7 @@ pytest -q                        # 约 3 秒，不需要 MySQL
 | textual | 8.2.5 | 终端界面 |
 | pytest（开发用） | 8.3.3 | 测试 |
 
-数据库服务器用 MySQL，已在 MySQL 5.7（5.7.44）上验证。
+默认数据库是 SQLite（已在 SQLite 3.50.4 上验证），大型研究上 OP03/OP04 比 MySQL 快数倍。可选的 MySQL 后端已在 MySQL 5.7（5.7.44）上验证。两种后端的输出完全一致。
 
 ---
 

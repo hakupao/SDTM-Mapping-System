@@ -66,7 +66,27 @@ Machine-level settings (not committed). All keys are optional.
 |-----|-------------|
 | `STUDIES_ROOT_PATH` | Parent directory of the study folders. Default: `<project root>/studySpecific` |
 | `DEFAULT_STUDY` | Study used when none is given on the command line / `SDTM_STUDY` |
-| `DB_HOST` / `DB_USER` / `DB_PASSWORD` / `DB_DATABASE` | MySQL connection (defaults: `127.0.0.1` / `root` / `root` / `VC-DataMigration_2.0`) |
+| `DB_BACKEND` | `sqlite` (default) or `mysql`, see [Database backend](#database-backend) |
+| `SQLITE_PATH` | SQLite work file. Default: `<study folder>/<STUDY_ID>_work.sqlite`. A relative path resolves against the repository root |
+| `DB_HOST` / `DB_USER` / `DB_PASSWORD` / `DB_DATABASE` | MySQL connection, only with `DB_BACKEND=mysql` (defaults: `127.0.0.1` / `root` / `root` / `VC-DataMigration_2.0`) |
+
+### Database backend
+
+OP02, OP03 and OP04 pass data to each other through a work database (OP05 and later never touch it).
+
+- **SQLite (default).** Python's built-in `sqlite3` (tested with SQLite 3.50.4); no server and no extra
+  package. The work file is `<STUDY_PATH>/<STUDY_ID>_work.sqlite` (git-ignored via `*.sqlite`), or
+  `SQLITE_PATH`. It is overwritten on every run (tables dropped and recreated); the step outputs are
+  still timestamped folders. On the largest study tested (about 1.3M metadata rows) OP03 went from
+  135.7 s to 33.5 s and OP04 from 185.3 s to 43.7 s (single run).
+- **MySQL (optional).** `pip install -r requirements-mysql.txt`, then set `"DB_BACKEND": "mysql"` and
+  `DB_HOST` / `DB_USER` / `DB_PASSWORD` / `DB_DATABASE` in `project.local.json`. The user must be able to
+  create the database, tables and views. Tested with MySQL 5.7.44.
+
+Both backends must match like MySQL's `utf8mb4_general_ci`: code-list matching ignores case and trailing
+spaces, and CHK ordering ignores case. The SQLite side does this with `mysql_ci_key` in
+`pipeline/sdtm_sqlite.py` (a table of MySQL 5.7.44 collation weights). `tests/parity_mysql_ci.py`
+re-checks it against a live MySQL, and `tests/compare_runs.py` diffs the output folders of two runs.
 
 **Study resolution order:** command-line argument → `SDTM_STUDY` env var → `DEFAULT_STUDY` →
 legacy `STUDY_ID` → the only study folder present → error listing available studies.
@@ -80,9 +100,9 @@ Optional, lives inside the study folder. Everything is derived from the study id
 | `M5_PROJECT_NAME` | `<STUDY_ID>` | Project name in M5 package output |
 | `RAW_DATA_DIR` | `01_RawData` | Raw CSV directory, relative to the study folder |
 | `RAW_DATA_ROOT_PATH` | – | Absolute raw CSV directory (overrides `RAW_DATA_DIR`) |
-| `CODELIST_TABLE_NAME` | `VC05_<STUDY_ID>_CODELIST` | MySQL table for code list data |
-| `METADATA_TABLE_NAME` | `VC05_<STUDY_ID>_METADATA` | MySQL table for metadata |
-| `TRANSDATA_VIEW_NAME` | `VC05_<STUDY_ID>_TRANSDATA` | MySQL view for formatted data |
+| `CODELIST_TABLE_NAME` | `VC05_<STUDY_ID>_CODELIST` | Work-database table for code list data |
+| `METADATA_TABLE_NAME` | `VC05_<STUDY_ID>_METADATA` | Work-database table for metadata |
+| `TRANSDATA_VIEW_NAME` | `VC05_<STUDY_ID>_TRANSDATA` | Work-database view for formatted data |
 
 > **Legacy format:** a `project.local.json` that contains `STUDY_ID`, table names and
 > `RAW_DATA_ROOT_PATH` (pre-2026-09 layout) keeps working unchanged.

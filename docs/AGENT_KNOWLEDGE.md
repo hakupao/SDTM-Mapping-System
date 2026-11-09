@@ -3,7 +3,7 @@
 ## 1) What This System Does
 - Purpose: Convert raw clinical trial data into CDISC SDTM datasets and produce an M5 submission package.
 - Core pipeline: Raw CSV → Cleaning → CodeList → Metadata → Formatting → Mapping → SDTM CSV → JSON → m5.zip.
-- Tech stack: Python 3.11, MySQL (mysql-connector-python 9.4.0), pandas 2.3.1, numpy 2.2.6, openpyxl 3.1.5, dateutil 2.9.0.
+- Tech stack: Python 3.11, SQLite via stdlib `sqlite3` (default; optional MySQL backend with mysql-connector-python 9.4.0, `requirements-mysql.txt`), pandas 2.3.1, numpy 2.2.6, openpyxl 3.1.5, dateutil 2.9.0.
 
 ## 2) Architecture & Naming
 - Module prefixes: `BC` (Base Components), `OP` (Operations), `PS` (Post-Processing).
