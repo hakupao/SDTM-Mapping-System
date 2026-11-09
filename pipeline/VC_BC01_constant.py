@@ -77,6 +77,13 @@ if DB_BACKEND not in ('mysql', 'sqlite'):
         f"[VC_BC01_constant] DB_BACKEND 取值无效: {DB_BACKEND!r}（应为 'mysql' 或 'sqlite'）\n"
     )
     raise SystemExit(2)
+# 老配置（只有 MySQL 连接项、没写 DB_BACKEND）升级后会静默改用 SQLite：
+# DatabaseManager() 据此在 stderr 提示一行（只出现在用数据库的 OP02..OP04 里）
+DB_BACKEND_NOTICE = ''
+if not _PROJECT_CONFIG.get('DB_BACKEND') and any(
+        _PROJECT_CONFIG.get(k) for k in ('DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_DATABASE')):
+    DB_BACKEND_NOTICE = ('Notice: the default database backend is now SQLite; '
+                         'set "DB_BACKEND": "mysql" in project.local.json to keep using MySQL.')
 SQLITE_PATH = _PROJECT_CONFIG.get('SQLITE_PATH') or os.path.join(
     SPECIFIC_PATH, f'{STUDY_ID}_work.sqlite'
 )

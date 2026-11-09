@@ -710,7 +710,7 @@ class MySQLDatabaseManager:
                 allow_local_infile=True  # 启用LOCAL INFILE支持
             )
             self.cursor = self.connection.cursor()
-            print('Connected to the database.')
+            print(f'Connected to MySQL {self.host}/{self.database}')
         except mysql.connector.Error as err:
             if err.errno == errorcode.ER_BAD_DB_ERROR:
                 print(f'Database {self.database} does not exist. Attempting to create it...')
@@ -753,7 +753,7 @@ class MySQLDatabaseManager:
                         allow_local_infile=True
                     )
                     self.cursor = self.connection.cursor()
-                    print('Connected to the database after creation.')
+                    print(f'Connected to MySQL {self.host}/{self.database} after creation.')
                     
                 except mysql.connector.Error as create_err:
                     print(f'Error creating database: {create_err}')
@@ -1255,6 +1255,9 @@ class MySQLDatabaseManager:
 
 def DatabaseManager():
     """按 DB_BACKEND 返回数据库管理器实例（OP 脚本调用方式不变）。"""
+    if DB_BACKEND_NOTICE:
+        _sys.stderr.write(DB_BACKEND_NOTICE + '\n')
+        _sys.stderr.flush()
     if DB_BACKEND == 'sqlite':
         from sdtm_sqlite import SQLiteDatabaseManager
         return SQLiteDatabaseManager(SQLITE_PATH, ENABLE_WORK_TABLE_PERSISTENCE)

@@ -280,8 +280,25 @@ def main():
         db.disconnect()
 
 
+def missing_input_tables_message(db):
+    """OP02/OP03 的表不在当前后端时返回提示文字，都在则返回 None。
+
+    典型场景：刚切换后端（如升级到默认 SQLite）就单独执行 run 4。
+    """
+    missing = [t for t in (CODELIST_TABLE_NAME, METADATA_TABLE_NAME) if not db.table_exists(t)]
+    if not missing:
+        return None
+    where = f'SQLite work file {getattr(db, "path", SQLITE_PATH)}' if DB_BACKEND == 'sqlite' else f'MySQL {DB_HOST}/{DB_DATABASE}'
+    return (f'✗ OP04: table(s) {", ".join(missing)} not found in {DB_BACKEND} backend ({where}).\n'
+            f'  Run OP02 and OP03 first on this backend (e.g. `sdtm {STUDY_ID} run 2 4`).')
+
+
 def _run_format(db, total_start):
     """格式化处理的实际逻辑（由 main 包裹 try/finally）"""
+    message = missing_input_tables_message(db)
+    if message:
+        print(message)
+        sys.exit(1)
     db.create_transdata_view(TRANSDATA_VIEW_NAME, METADATA_TABLE_NAME, CODELIST_TABLE_NAME)
 
     # 创建性能优化索引

@@ -242,11 +242,13 @@ class SQLiteDatabaseManager:
         folder = os.path.dirname(os.path.abspath(self.path))
         os.makedirs(folder, exist_ok=True)
         self.connection = sqlite3.connect(self.path)
-        self.connection.execute('PRAGMA journal_mode=MEMORY')
+        # 回滚日志写在磁盘上（TRUNCATE）：runner 取消步骤时 terminate() 直接杀进程，
+        # MEMORY 日志会随进程丢失、把库文件写坏；磁盘日志下次打开时自动回滚。
+        self.connection.execute('PRAGMA journal_mode=TRUNCATE')
         self.connection.execute('PRAGMA synchronous=OFF')
         self.connection.create_function('ci_key', 1, mysql_ci_key, deterministic=True)
         self.cursor = self.connection.cursor()
-        print('Connected to the database.')
+        print(f'Connected to SQLite work file {self.path}')
 
     def is_connected(self):
         return self.connection is not None
