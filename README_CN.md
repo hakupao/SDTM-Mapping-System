@@ -60,6 +60,11 @@ M5 提交包。映射规则写在 Excel 工作簿（`<STUDY>_OperationConf.xlsx`
 需要 Python 3.11+。不需要数据库服务：中转数据库是一个 SQLite 文件（Python 内置的 `sqlite3`）。
 仍可选用 MySQL 后端，见 [docs/configuration.md](docs/configuration.md#database-backend)。
 
+> **从 MySQL 环境升级：** 默认后端已改为 SQLite，即使 `project.local.json` 里仍写着 `DB_HOST` / `DB_USER`。
+> 要继续用 MySQL，设 `"DB_BACKEND": "mysql"` 并执行 `pip install -r requirements-mysql.txt`。
+> 切换后端后，先完整跑一次 OP02 和 OP03，再单独运行后面的步骤。
+> 如果运行时报 “database disk image is malformed”，删除中转文件（`<STUDY_ID>_work.sqlite` 或 `SQLITE_PATH`），从 OP02 重新运行。
+
 ```bash
 git clone https://github.com/hakupao/SDTM-Mapping-System.git
 cd SDTM-Mapping-System

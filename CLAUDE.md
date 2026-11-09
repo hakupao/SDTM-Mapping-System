@@ -99,9 +99,11 @@ Engine detail (sheet semantics, `NDKEY`, Combine overlay, guards): `docs/AGENT_K
 - Never hardcode study ids or paths; derive them from `project.local.json`, `study.json` and BC01
   constants. Keep the timestamped-folder pattern; don't overwrite earlier runs.
 - Preserve output prefix contracts (`C-`, `DC-`, `DR-`, `F-`, `SUPP`) and `utf-8-sig` CSV encoding.
-- Use `DatabaseManager` for DB lifecycle; keep table/view names config-driven; batched loads via staging +
-  `LOAD DATA LOCAL INFILE`; both backends must keep utf8mb4_general_ci matching
-  semantics (see `sdtm_sqlite.mysql_ci_key`); MySQL 5.7 stays supported as the optional backend.
+- Use `DatabaseManager` for DB lifecycle; keep table/view names config-driven; batched loads (SQLite:
+  `executemany` with the `*_K` keys precomputed by `mysql_ci_key`; MySQL: staging + `LOAD DATA LOCAL
+  INFILE`); both backends must keep utf8mb4_general_ci matching semantics (see `sdtm_sqlite.mysql_ci_key`);
+  MySQL 5.7 stays supported as the optional backend. The SQLite work file keeps an on-disk rollback
+  journal (`journal_mode=TRUNCATE`) because the runner cancels steps by killing the process.
 - Performance-sensitive: prefer vectorised pandas over row loops; keep `ultra_fast_sequence_generation`
   deterministic; keep the performance instrumentation in OP04/OP05; don't change OP05's multiprocessing
   strategy without validating.

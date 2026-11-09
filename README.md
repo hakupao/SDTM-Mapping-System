@@ -61,6 +61,10 @@ needs a workbook and, only where Excel cannot express the logic, a few Python fu
 Needs Python 3.11+. No database server is required: the work database is a SQLite file (Python's built-in `sqlite3`).
 MySQL is still available as an optional backend, see [docs/configuration.md](docs/configuration.md#database-backend).
 
+> **Upgrading from a MySQL setup:** the default backend is now SQLite, even if `project.local.json` still has
+> `DB_HOST` / `DB_USER`. To keep MySQL, set `"DB_BACKEND": "mysql"` and `pip install -r requirements-mysql.txt`.
+> After switching backends, run OP02 and OP03 once before running later steps on their own.
+
 ```bash
 git clone https://github.com/hakupao/SDTM-Mapping-System.git
 cd SDTM-Mapping-System

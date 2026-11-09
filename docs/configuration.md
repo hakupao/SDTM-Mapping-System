@@ -78,10 +78,15 @@ OP02, OP03 and OP04 pass data to each other through a work database (OP05 and la
   package. The work file is `<STUDY_PATH>/<STUDY_ID>_work.sqlite` (git-ignored via `*.sqlite`), or
   `SQLITE_PATH`. It is overwritten on every run (tables dropped and recreated); the step outputs are
   still timestamped folders. On the largest study tested (about 1.3M metadata rows) OP03 went from
-  135.7 s to 33.5 s and OP04 from 185.3 s to 43.7 s (single run).
+  135.7 s to 33.5 s and OP04 from 185.3 s to 43.7 s (single run). If a run reports "database disk
+  image is malformed", delete the work file (`<STUDY_ID>_work.sqlite`, or `SQLITE_PATH`) and re-run from OP02.
 - **MySQL (optional).** `pip install -r requirements-mysql.txt`, then set `"DB_BACKEND": "mysql"` and
   `DB_HOST` / `DB_USER` / `DB_PASSWORD` / `DB_DATABASE` in `project.local.json`. The user must be able to
   create the database, tables and views. Tested with MySQL 5.7.44.
+
+Each step prints which backend it connected to (`Connected to SQLite work file <path>` or
+`Connected to MySQL <host>/<database>`). The backends do not share data: after switching, run OP02 and
+OP03 once before running OP04 on its own (OP04 stops with a message if their tables are missing).
 
 Both backends must match like MySQL's `utf8mb4_general_ci`: code-list matching ignores case and trailing
 spaces, and CHK ordering ignores case. The SQLite side does this with `mysql_ci_key` in
