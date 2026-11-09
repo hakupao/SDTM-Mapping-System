@@ -178,3 +178,26 @@ def test_main_query_sorted_without_order_by(tmp_path):
     fields = ["max(CASE WHEN FIELDID = 'X' THEN TRANSVAL END) AS `X`"]
     q = op04.build_optimized_main_query(db, 'F', fields, 'TV', enable_order_by=False)
     assert [r[1] for r in db.cursor.execute(q).fetchall()] == ['a', 'b', 'c']
+
+
+def test_main_query_order_by_text_follows_dialect(tmp_path):
+    import VC_OP04_format as op04
+    db = _db(tmp_path)
+    fields = ["max(CASE WHEN FIELDID = 'X' THEN TRANSVAL END) AS `X`"]
+
+    class MySQLLike:
+        implicit_group_order = True
+        ci_col = staticmethod(lambda n: n)
+        ci = staticmethod(lambda e: e)
+
+    def norm(q):
+        return ' '.join(q.split())
+
+    q = norm(op04.build_optimized_main_query(db, 'F', fields, 'TV', enable_order_by=False))
+    assert 'GROUP BY `FILENAME`,`ROWNUM`,`SUBJID` ORDER BY `FILENAME`,`ROWNUM`,`SUBJID`;' in q
+    q = norm(op04.build_optimized_main_query(db, 'F', fields, 'work_f', enable_order_by=False))
+    assert 'GROUP BY `ROWNUM`,`SUBJID` ORDER BY `ROWNUM`,`SUBJID`;' in q
+    q = norm(op04.build_optimized_main_query(MySQLLike(), 'F', fields, 'TV', enable_order_by=False))
+    assert 'ORDER BY' not in q
+    q = norm(op04.build_optimized_main_query(MySQLLike(), 'F', fields, 'TV', enable_order_by=True))
+    assert q.endswith('ORDER BY `ROWNUM`;')
