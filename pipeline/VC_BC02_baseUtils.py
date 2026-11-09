@@ -840,7 +840,7 @@ class DatabaseManager:
     def create_transdata_view(self, view_name, metadata_table_name, codelist_table_name):
         # 使用 CREATE OR REPLACE VIEW 强制更新视图，防止因底层表结构变更导致的 Error 1356
         query = f'''
-        CREATE OR REPLACE ALGORITHM = UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW {view_name} AS 
+        CREATE OR REPLACE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW {view_name} AS
         SELECT 
             `m`.`No` AS `No`,
             `m`.`FILENAME` AS `FILENAME`,

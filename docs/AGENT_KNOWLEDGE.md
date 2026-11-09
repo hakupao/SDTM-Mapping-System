@@ -61,7 +61,7 @@ VC_BC01 (Constants) → VC_BC02 (Utils) + VC_BC03 (Config)
 - `SEL`: selective mapping.  
 - `TPL`: template — PARAMETER's `{}` is replaced by the source value (`SCRT DISCONTINUED: {}`, `P{}Y`); empty source → empty. Covers prefix/suffix/wrap without a study function.  
 - Guard lines (any op type): a PARAMETER line starting with `&` is an extra AND condition `&FIELD:VALUE` (VALUE may be `null`, `!VALUE`, `not null`, same grammar as SEL). Rows failing any guard get an empty value (an NDKEY variable then drops the row); on `SEL` the row is dropped too. Example: `FLG HT_YNCD` with `Y:HYPERTENSION` + `&COMP_YNCD:Y`. Unit tests: `python tests/test_opertypes.py`.  
-- NDKEY is a single variable per block: only the first row marked `〇` acts as the key; a second `〇` in the same block has no effect. Put the parent-item guard (`&PARENT:Y`) on that NDKEY row so hidden-field residues are dropped (ENSEMBLE2 FA 4-2 / TU 4-4, 2026-10-07).  
+- NDKEY may be marked on several rows. The program checks all `〇` columns with OR (`VC_OP05_mapping.py:136-143`): a row is kept if any of them has a value, and dropped only when all are empty. Put the parent-item guard (`&PARENT:Y`) on the NDKEY row so hidden-field residues are dropped (ENSEMBLE2 FA 4-2 / TU 4-4, 2026-10-07).  
 - Guard lines work on `COB` too (and on every other op type): a `&FIELD:VALUE` line in a COB PARAMETER is applied before the concatenation.  
 - Add a new type: implement `opertype_NEW(...)` in `VC_BC06_operateTypeFunctions.py`, register in `get_opertype_function()`, add constant in `VC_BC01_constant.py`, update Excel mapping.
 
