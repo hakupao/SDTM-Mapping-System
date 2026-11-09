@@ -135,3 +135,46 @@ def test_rollback_mid_load_leaves_db_consistent(tmp_path):
     db.connection.rollback()
     assert db.connection.execute('SELECT COUNT(*) FROM MD').fetchone() == (1,)
     db.disconnect()
+
+
+# ---------------------------------------------------------------------------
+# OP04 query builders use the dialect hooks
+# ---------------------------------------------------------------------------
+def _op04_db(tmp_path, rows):
+    db = _db(tmp_path); db.create_codelist_table('CL'); db.create_metadata_table('MD')
+    db.load_metadata_rows('MD', rows)
+    db.create_transdata_view('TV', 'MD', 'CL')
+    return db
+
+
+def _m(rownum, fieldid, val):
+    return ('F', rownum, 'U1', 'S1', 'lbl', fieldid, val, val, 0, '', '')
+
+
+def test_chk_order_case_insensitive(tmp_path):
+    import VC_OP04_format as op04
+    db = _op04_db(tmp_path, [_m(1, 'A', 'Grade II'), _m(1, 'B', 'chylous ascites')])
+    q = op04.build_optimized_chk_query(
+        db, 'F', ['t.`CHKTYPE`', 't.`CHKVALUE`'], ["'A'", "'B'"], {'T': ['A', 'B']},
+        [], [], {}, {}, {}, 'TV')
+    rows = db.cursor.execute(q).fetchall()
+    assert [r[2] for r in rows] == ['chylous ascites', 'Grade II']
+
+
+def test_otherdetails_metaval_case_insensitive(tmp_path):
+    import VC_OP04_format as op04
+    db = _op04_db(tmp_path, [_m(1, 'SEL', 'OTHER'), _m(1, 'TXT', 'free text')])
+    q = op04.build_optimized_chk_query(
+        db, 'F', ['t.`CHKTYPE`', 't.`CHKVALUE`'], ["'SEL'"], {'T': ['SEL']},
+        [], [], {'TXT': 'SEL'}, {'SEL': 'Other'}, {}, 'TV')
+    rows = db.cursor.execute(q).fetchall()
+    header = [d[0] for d in db.cursor.description]
+    assert rows and rows[0][header.index('OTHERDETAILS')] == 'free text'
+
+
+def test_main_query_sorted_without_order_by(tmp_path):
+    import VC_OP04_format as op04
+    db = _op04_db(tmp_path, [_m(3, 'X', 'c'), _m(1, 'X', 'a'), _m(2, 'X', 'b')])
+    fields = ["max(CASE WHEN FIELDID = 'X' THEN TRANSVAL END) AS `X`"]
+    q = op04.build_optimized_main_query(db, 'F', fields, 'TV', enable_order_by=False)
+    assert [r[1] for r in db.cursor.execute(q).fetchall()] == ['a', 'b', 'c']

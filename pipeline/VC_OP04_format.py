@@ -141,12 +141,15 @@ def build_optimized_chk_query(db, fileName, select_fieldIDs, chk_fieldIDs, case_
                 FROM {transdata_source} 
                 GROUP BY {group_by_filename}`ROWNUM`,`SUBJID` 
                 HAVING `{other_field}` IS NOT NULL
-            ) t{other_field} ON t.`ROWNUM` = t{other_field}.`ROWNUM` AND t.`FIELDID` = '{other_details_field}' AND t.`METAVAL` = '{fieldID_otherVal[other_details_field]}'
+            ) t{other_field} ON t.`ROWNUM` = t{other_field}.`ROWNUM` AND t.`FIELDID` = '{other_details_field}' AND {db.ci('t.`METAVAL`')} = {db.ci_literal(fieldID_otherVal[other_details_field])}
             '''
             other_join_parts.append(join_sql)
         other_join_sql = ' '.join(other_join_parts)
         
-        other_fields_sql = 'COALESCE(' + ','.join([f't{other_field}.`{other_field}`' for other_field in other_fields.keys()]) + ') `OTHERDETAILS`'
+        other_cols = [f't{other_field}.`{other_field}`' for other_field in other_fields.keys()]
+        # SQLite 的 COALESCE 至少需要 2 个参数；单列时直接取该列（与 MySQL 结果相同）
+        other_expr = other_cols[0] if len(other_cols) == 1 else 'COALESCE(' + ','.join(other_cols) + ')'
+        other_fields_sql = f'{other_expr} `OTHERDETAILS`'
         # OTHERDETAILS 字段将在查询构建时插入到正确位置，这里不添加到 select_fieldIDs
 
     # 优化max_fieldIDs查询，前置WHERE条件
@@ -159,7 +162,7 @@ def build_optimized_chk_query(db, fileName, select_fieldIDs, chk_fieldIDs, case_
         max_fieldIDs_sql = f'''LEFT JOIN (
             SELECT `ROWNUM`, {', '.join(max_fieldIDs)}
             FROM {transdata_source}
-            WHERE {filename_condition}`TRANSVAL` IS NOT NULL AND `TRANSVAL` <> ''
+            WHERE {filename_condition}`TRANSVAL` IS NOT NULL AND {db.ci_col('TRANSVAL')} <> ''
             GROUP BY {group_by_filename}`ROWNUM`,`SUBJID`
             HAVING {' OR '.join(having_fieldIDs)}
         ) tt ON t.`ROWNUM` = tt.`ROWNUM` '''
@@ -197,10 +200,10 @@ def build_optimized_chk_query(db, fileName, select_fieldIDs, chk_fieldIDs, case_
             ELSE '' END AS `CHKTYPE`,`TRANSVAL` AS `CHKVALUE`,`METAVAL`
             FROM {transdata_source}
             WHERE {filename_condition}`FIELDID` IN ({', '.join(chk_fieldIDs)})
-            AND `TRANSVAL` IS NOT NULL AND `TRANSVAL` <> ''
+            AND `TRANSVAL` IS NOT NULL AND {db.ci_col('TRANSVAL')} <> ''
         ) t {max_fieldIDs_sql}
         {other_join_sql}
-        ORDER BY t.`ROWNUM`,t.`CHKTYPE`,t.`CHKVALUE`;
+        ORDER BY t.`ROWNUM`,{db.ci('t.`CHKTYPE`')},{db.ci('t.`CHKVALUE`')};
     '''
     
     return query
@@ -231,12 +234,10 @@ def should_scan_empty_columns(rows_count):
     # 大结果集跳过空列扫描
     return rows_count < EMPTY_SCAN_ROW_THRESHOLD
 
-def build_optimized_main_query(fileName, fields, transdata_source, enable_order_by=True):
+def build_optimized_main_query(db, fileName, fields, transdata_source, enable_order_by=True):
     """
     构建优化的主查询，前置WHERE条件并可选择性禁用ORDER BY
     """
-    order_clause = "ORDER BY `ROWNUM`" if enable_order_by else ""
-    
     # 检查是否使用工作表（已预过滤FILENAME）
     if transdata_source.startswith('work_'):
         filename_condition = ""
@@ -244,12 +245,21 @@ def build_optimized_main_query(fileName, fields, transdata_source, enable_order_
     else:
         filename_condition = f"`FILENAME` = '{fileName}' AND "
         group_by_filename = "`FILENAME`,"
-    
+
+    group_cols = f"{group_by_filename}`ROWNUM`,`SUBJID`"
+    if enable_order_by:
+        order_clause = "ORDER BY `ROWNUM`"
+    elif not db.implicit_group_order:
+        # MySQL 5.7 的 GROUP BY 隐式排序；其他后端需显式排序以保持输出一致
+        order_clause = f"ORDER BY {group_cols}"
+    else:
+        order_clause = ""
+
     query = f'''
         SELECT `SUBJID`, {', '.join(fields)}
         FROM {transdata_source}
-        WHERE {filename_condition}`FORMVAL` IS NOT NULL AND `FORMVAL` <> ''
-        GROUP BY {group_by_filename}`ROWNUM`,`SUBJID`
+        WHERE {filename_condition}`FORMVAL` IS NOT NULL AND {db.ci_col('FORMVAL')} <> ''
+        GROUP BY {group_cols}
         {order_clause};
     '''
     
@@ -421,7 +431,7 @@ def _run_format(db, total_start):
                   ]
         if fields:
             # 使用优化的主查询构建函数
-            query = build_optimized_main_query(fileName, fields, transdata_source, ENABLE_ORDER_BY)
+            query = build_optimized_main_query(db, fileName, fields, transdata_source, ENABLE_ORDER_BY)
             
             logger.info(query.replace('            ',MARK_BLANK))
 
