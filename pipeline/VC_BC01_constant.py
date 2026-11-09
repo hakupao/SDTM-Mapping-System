@@ -37,6 +37,7 @@ from sdtm_study import (  # noqa: E402
     format_available,
     load_project_config,
     load_study_settings,
+    program_root,
     resolve_study_id,
 )
 
@@ -79,6 +80,9 @@ if DB_BACKEND not in ('mysql', 'sqlite'):
 SQLITE_PATH = _PROJECT_CONFIG.get('SQLITE_PATH') or os.path.join(
     SPECIFIC_PATH, f'{STUDY_ID}_work.sqlite'
 )
+if not os.path.isabs(SQLITE_PATH):
+    # 相对路径按程序目录（仓库根目录）解析，与 STUDIES_ROOT_PATH 一致
+    SQLITE_PATH = os.path.join(program_root(), SQLITE_PATH)
 
 FOLDER_CLEANINGSTEP = '02_Cleaning'
 CLEANINGSTEP_PATH = os.path.join(SPECIFIC_PATH, FOLDER_CLEANINGSTEP)

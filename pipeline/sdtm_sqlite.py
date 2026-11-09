@@ -3,7 +3,9 @@
 mysql_ci_key: 在 Python 侧复现 MySQL 5.7 ``utf8mb4_general_ci`` 的比较语义，
 供 SQLite 自定义排序规则 / 分组键使用。
 """
+import os
 import re
+import sqlite3
 
 _NON_BMP = re.compile('[\U00010000-\U0010FFFF]')
 
@@ -216,3 +218,263 @@ _GENERAL_CI_WEIGHTS = {
     0xFF51: 0xFF31, 0xFF52: 0xFF32, 0xFF53: 0xFF33, 0xFF54: 0xFF34, 0xFF55: 0xFF35, 0xFF56: 0xFF36,
     0xFF57: 0xFF37, 0xFF58: 0xFF38, 0xFF59: 0xFF39, 0xFF5A: 0xFF3A,
 }
+
+
+class SQLiteDatabaseManager:
+    """SQLite 版数据库管理器，接口与 VC_BC02_baseUtils.MySQLDatabaseManager 一致。
+
+    MySQL 的 utf8mb4_general_ci 匹配通过预先计算的 ``*_K`` 键列复现：
+    装载数据时在 Python 里用 mysql_ci_key 算好，OP04 按 ci_col / ci 比较。
+    库文件在运行结束后保留（OP02 -> OP03 -> OP04 是三个进程，靠它传递数据）。
+    """
+
+    # SQLite 的 GROUP BY 不保证按分组键排序
+    implicit_group_order = False
+
+    def __init__(self, path, keep_work_tables=False):
+        self.path = path
+        self.keep_work_tables = keep_work_tables
+        self.connection = None
+        self.cursor = None
+
+    # -- 连接 --------------------------------------------------------------
+    def connect(self):
+        folder = os.path.dirname(os.path.abspath(self.path))
+        os.makedirs(folder, exist_ok=True)
+        self.connection = sqlite3.connect(self.path)
+        self.connection.execute('PRAGMA journal_mode=OFF')
+        self.connection.execute('PRAGMA synchronous=OFF')
+        self.connection.create_function('ci_key', 1, mysql_ci_key, deterministic=True)
+        self.cursor = self.connection.cursor()
+        print('Connected to the database.')
+
+    def is_connected(self):
+        return self.connection is not None
+
+    def disconnect(self):
+        if self.cursor:
+            try:
+                self.cursor.close()
+            except Exception:
+                pass
+            self.cursor = None
+        if self.connection:
+            self.connection.close()
+            self.connection = None
+            print('Disconnected from the database.')
+
+    def execute_query(self, query, values=None):
+        """与 MySQL 版一致：出错只打印不抛出（仅索引、工作表等容错场景使用）。"""
+        cursor = self.connection.cursor()
+        try:
+            if values:
+                cursor.execute(query, values)
+            else:
+                cursor.execute(query)
+            self.connection.commit()
+        except sqlite3.Error as err:
+            print(f'Error: {err}')
+        finally:
+            cursor.close()
+
+    # -- 内部辅助 ----------------------------------------------------------
+    def _exists(self, kind, name):
+        row = self.connection.execute(
+            'SELECT 1 FROM sqlite_master WHERE type = ? AND name = ? COLLATE NOCASE',
+            (kind, name)).fetchone()
+        return row is not None
+
+    def table_exists(self, table_name):
+        return self._exists('table', table_name)
+
+    def index_exists(self, table_name, index_name):
+        return self._exists('index', index_name)
+
+    def delete_table_if_exists(self, table_name):
+        if self.table_exists(table_name):
+            print(f'Table {table_name} already exists.')
+            self.connection.execute(f'DROP TABLE {table_name}')
+            print(f'Table {table_name} has been deleted.')
+
+    # -- 表与视图 ----------------------------------------------------------
+    def create_codelist_table(self, table_name):
+        self.delete_table_if_exists(table_name)
+        self.connection.execute(f'''CREATE TABLE {table_name} (
+            CODELISTID TEXT NOT NULL,
+            CODE TEXT NOT NULL,
+            VALUE_RAW TEXT NOT NULL,
+            VALUE_EN TEXT NOT NULL,
+            VALUE_SDTM TEXT NOT NULL,
+            CODELISTID_K TEXT NOT NULL,
+            CODE_K TEXT NOT NULL,
+            VALUE_EN_K TEXT NOT NULL,
+            UNIQUE (CODELISTID_K, CODE_K)
+        )''')
+        self.connection.commit()
+        print(f'Table {table_name} created.')
+
+    def create_metadata_table(self, table_name):
+        self.delete_table_if_exists(table_name)
+        self.connection.execute(f'''CREATE TABLE {table_name} (
+            No INTEGER,
+            FILENAME TEXT NOT NULL DEFAULT '',
+            ROWNUM INTEGER NOT NULL DEFAULT 0,
+            USUBJID TEXT NOT NULL,
+            SUBJID TEXT,
+            FIELDLBL TEXT,
+            FIELDID TEXT NOT NULL,
+            METAVAL TEXT NOT NULL,
+            FORMVAL TEXT,
+            DATETYPE INTEGER,
+            CODELISTID TEXT,
+            CHKFIELDID TEXT,
+            CODELISTID_K TEXT,
+            FORMVAL_K TEXT,
+            METAVAL_K TEXT
+        )''')
+        self.connection.commit()
+        print(f'Table {table_name} created.')
+
+    def create_transdata_view(self, view_name, metadata_table_name, codelist_table_name):
+        self.connection.execute(f'DROP VIEW IF EXISTS {view_name}')
+        self.connection.execute(f'''
+        CREATE VIEW {view_name} AS
+        SELECT
+            m.No AS No,
+            m.FILENAME AS FILENAME,
+            m.ROWNUM AS ROWNUM,
+            m.USUBJID AS USUBJID,
+            m.SUBJID AS SUBJID,
+            m.FIELDLBL AS FIELDLBL,
+            m.FIELDID AS FIELDID,
+            m.METAVAL AS METAVAL,
+            m.FORMVAL AS FORMVAL,
+            CASE WHEN c.VALUE_EN IS NULL THEN m.FORMVAL ELSE c.VALUE_EN END AS TRANSVAL,
+            COALESCE(c.VALUE_SDTM, '') AS SDTMVAL,
+            m.CHKFIELDID AS CHKFIELDID,
+            m.FORMVAL_K AS FORMVAL_K,
+            m.METAVAL_K AS METAVAL_K,
+            CASE WHEN c.VALUE_EN IS NULL THEN m.FORMVAL_K ELSE c.VALUE_EN_K END AS TRANSVAL_K
+        FROM {metadata_table_name} m
+        LEFT JOIN {codelist_table_name} c
+            ON m.CODELISTID_K = c.CODELISTID_K AND m.FORMVAL_K = c.CODE_K
+        ''')
+        self.connection.commit()
+        print(f'View {view_name} updated (recreated).')
+
+    # -- 索引 / 工作表 -----------------------------------------------------
+    def create_performance_indexes(self, metadata_table_name):
+        t = metadata_table_name
+        indexes = [
+            (f'idx_{t}_filename_fieldid', '(FILENAME, FIELDID)', '支持 WHERE FILENAME + IN FIELDID 过滤'),
+            (f'idx_{t}_filename_rownum_subjid', '(FILENAME, ROWNUM, SUBJID)', '支持 GROUP BY 和 ORDER BY ROWNUM'),
+            (f'idx_{t}_rownum', '(ROWNUM)', '支持排序优化'),
+        ]
+        created = 0
+        for name, cols, desc in indexes:
+            if self.index_exists(t, name):
+                continue
+            try:
+                self.connection.execute(f'CREATE INDEX {name} ON {t} {cols}')
+                self.connection.commit()
+                print(f'✓ 创建索引 {name}: {desc}')
+                created += 1
+            except sqlite3.Error as e:
+                print(f'✗ 创建索引 {name} 失败: {e}')
+        return created
+
+    def create_temp_table_for_file(self, view_name, filename):
+        work_table_name = f"work_{filename.lower().replace('-', '_')}"
+
+        if self.keep_work_tables and self.table_exists(work_table_name):
+            print(f'  → 复用现有工作表: {work_table_name}')
+            return work_table_name
+
+        self.execute_query(f'DROP TABLE IF EXISTS {work_table_name}')
+        safe_name = filename.replace("'", "''")
+        try:
+            self.connection.execute(
+                f"CREATE TABLE {work_table_name} AS SELECT * FROM {view_name} "
+                f"WHERE FILENAME = '{safe_name}' AND FORMVAL IS NOT NULL")
+            self.connection.commit()
+        except sqlite3.Error as e:
+            print(f'✗ 创建工作表失败: {e}')
+            return None
+
+        for suffix, cols in (('fieldid', 'FIELDID'),
+                             ('rownum_subjid', 'ROWNUM, SUBJID'),
+                             ('rownum', 'ROWNUM')):
+            self.execute_query(f'CREATE INDEX idx_{work_table_name}_{suffix} ON {work_table_name} ({cols})')
+
+        if self.keep_work_tables:
+            print(f'  → 创建持久工作表: {work_table_name}')
+        else:
+            print(f'✓ 为文件 {filename} 创建优化工作表: {work_table_name}')
+        return work_table_name
+
+    def cleanup_work_tables(self):
+        if self.keep_work_tables:
+            print('✓ 工作表已保留以供下次使用')
+            return
+        rows = self.connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'work\\_%' ESCAPE '\\'"
+        ).fetchall()
+        for (name,) in rows:
+            self.execute_query(f'DROP TABLE IF EXISTS {name}')
+            print(f'✓ 清理工作表: {name}')
+
+    # -- 后端无关接口 ------------------------------------------------------
+    def ci_col(self, name):
+        return f'{name}_K'
+
+    def ci(self, expr):
+        return f'ci_key({expr})'
+
+    def ci_literal(self, value):
+        key = mysql_ci_key(None if value is None else str(value))
+        if key is None:
+            return 'NULL'
+        return "'" + key.replace("'", "''") + "'"
+
+    def insert_codelist_rows(self, table_name, rows):
+        """逐行 INSERT OR IGNORE（复刻 MySQL 主键在不区分大小写时的冲突）；返回 (inserted, duplicates)。"""
+        sql = (f'INSERT OR IGNORE INTO {table_name} '
+               f'(CODELISTID, CODE, VALUE_RAW, VALUE_EN, VALUE_SDTM, CODELISTID_K, CODE_K, VALUE_EN_K) '
+               f'VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        inserted = duplicates = 0
+        cur = self.connection.cursor()
+        try:
+            for row in rows:
+                cl, code, raw, en, sdtm = row[0], row[1], row[2], row[3], row[4]
+                cur.execute(sql, (cl, code, raw, en, sdtm,
+                                  mysql_ci_key(cl), mysql_ci_key(code), mysql_ci_key(en)))
+                if cur.rowcount > 0:
+                    inserted += 1
+                else:
+                    duplicates += 1
+        finally:
+            cur.close()
+        self.connection.commit()
+        return inserted, duplicates
+
+    def load_metadata_rows(self, table_name, rows):
+        """批量导入元数据；No 按顺序分配 1..n，返回最终行数。
+
+        rows 为 11 元组 (FILENAME, ROWNUM, USUBJID, SUBJID, FIELDLBL, FIELDID,
+        METAVAL, FORMVAL, DATETYPE, CODELISTID, CHKFIELDID)。
+        """
+        def gen():
+            for no, r in enumerate(rows, 1):
+                yield (no, r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7],
+                       1 if r[8] else 0, r[9], r[10],
+                       mysql_ci_key(r[9]), mysql_ci_key(r[7]), mysql_ci_key(r[6]))
+
+        self.connection.execute(f'DELETE FROM {table_name}')
+        self.connection.executemany(
+            f'INSERT INTO {table_name} (No, FILENAME, ROWNUM, USUBJID, SUBJID, FIELDLBL, FIELDID, '
+            f'METAVAL, FORMVAL, DATETYPE, CODELISTID, CHKFIELDID, CODELISTID_K, FORMVAL_K, METAVAL_K) '
+            f'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', gen())
+        self.connection.commit()
+        final_count = self.connection.execute(f'SELECT COUNT(*) FROM {table_name}').fetchone()[0]
+        print(f'数据导入完成: {final_count} 条记录')
+        return final_count

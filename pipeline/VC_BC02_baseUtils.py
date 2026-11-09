@@ -765,6 +765,9 @@ class MySQLDatabaseManager:
                 print(f'Error: {err}')
                 raise
 
+    def is_connected(self):
+        return bool(self.connection and self.connection.is_connected())
+
     def disconnect(self):
         if self.cursor:
             try:
@@ -1253,5 +1256,6 @@ class MySQLDatabaseManager:
 def DatabaseManager():
     """按 DB_BACKEND 返回数据库管理器实例（OP 脚本调用方式不变）。"""
     if DB_BACKEND == 'sqlite':
-        raise NotImplementedError('SQLite backend is not implemented yet (Task 4)')
+        from sdtm_sqlite import SQLiteDatabaseManager
+        return SQLiteDatabaseManager(SQLITE_PATH, ENABLE_WORK_TABLE_PERSISTENCE)
     return MySQLDatabaseManager()

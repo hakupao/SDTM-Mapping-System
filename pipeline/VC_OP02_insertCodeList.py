@@ -80,13 +80,13 @@ def main():
     except Exception as e:
         log_and_print(logger, 'ERROR', f'CodeList插入失败: {e}')
         traceback.print_exc()
-        if db.connection and db.connection.is_connected():
+        if db.is_connected():
             db.connection.rollback()
             print('Transaction rolled back.')
     finally:
         if db.cursor:
             db.cursor.close()
-        if db.connection and db.connection.is_connected():
+        if db.is_connected():
             db.disconnect()
 
 

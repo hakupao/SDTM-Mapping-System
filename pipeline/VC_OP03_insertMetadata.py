@@ -178,7 +178,7 @@ def main():
     finally:
         if db.cursor:
             db.cursor.close()
-        if db.connection and db.connection.is_connected():
+        if db.is_connected():
             db.disconnect()
 
 if __name__ == '__main__':
