@@ -17,11 +17,9 @@ import re
 import shutil
 import sys
 
-import mysql.connector
 import numpy
 import pandas
 from openpyxl import load_workbook
-from mysql.connector import errorcode
 from dateutil import parser
 from datetime import datetime
 
@@ -70,6 +68,17 @@ DB_HOST = _PROJECT_CONFIG.get('DB_HOST') or '127.0.0.1'
 DB_USER = _PROJECT_CONFIG.get('DB_USER') or 'root'
 DB_PASSWORD = _PROJECT_CONFIG.get('DB_PASSWORD') or 'root'
 DB_DATABASE = _PROJECT_CONFIG.get('DB_DATABASE') or 'VC-DataMigration_2.0'
+
+# 数据库后端: mysql（默认）或 sqlite。sqlite 时无需 MySQL 服务。
+DB_BACKEND = str(_PROJECT_CONFIG.get('DB_BACKEND') or 'mysql').lower()
+if DB_BACKEND not in ('mysql', 'sqlite'):
+    sys.stderr.write(
+        f"[VC_BC01_constant] DB_BACKEND 取值无效: {DB_BACKEND!r}（应为 'mysql' 或 'sqlite'）\n"
+    )
+    raise SystemExit(2)
+SQLITE_PATH = _PROJECT_CONFIG.get('SQLITE_PATH') or os.path.join(
+    SPECIFIC_PATH, f'{STUDY_ID}_work.sqlite'
+)
 
 FOLDER_CLEANINGSTEP = '02_Cleaning'
 CLEANINGSTEP_PATH = os.path.join(SPECIFIC_PATH, FOLDER_CLEANINGSTEP)
