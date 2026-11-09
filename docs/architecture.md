@@ -83,7 +83,7 @@ graph LR
         H["PS02<br/>M5 Packaging"]
     end
     I[("M5 Package<br/>06_Inputpackage")]
-    K[("MySQL")]
+    K[("SQLite")]
 
     A --> B --> C --> D --> E --> F --> G --> H --> I
     J -.->|config| B
@@ -98,8 +98,8 @@ graph LR
 | # | Module | Step ID | What it does |
 |:-:|--------|:-------:|--------------|
 | 1 | `VC_OP01_cleaning` | OP01 | Filter raw CSV by the Patients sheet, drop unmapped columns and invalid rows |
-| 2 | `VC_OP02_insertCodeList` | OP02 | Insert the CodeList sheet into MySQL |
-| 3 | `VC_OP03_insertMetadata` | OP03 | Normalise values (dates to ISO 8601, …) and load the cleaned data into MySQL |
+| 2 | `VC_OP02_insertCodeList` | OP02 | Insert the CodeList sheet into the work database (SQLite) |
+| 3 | `VC_OP03_insertMetadata` | OP03 | Normalise values (dates to ISO 8601, …) and load the cleaned data into the work database (SQLite) |
 | 4 | `VC_OP04_format` | OP04 | Build the indexed TRANSDATA view, export formatted CSVs, run Combine functions |
 | 5 | `VC_OP05_mapping` | OP05 | Apply the Mapping sheet per SDTM domain (multiprocessing), number `--SEQ` |
 | 6 | `VC_PS01_makeInputCSV` | PS01 | Split into main domain CSVs and `SUPP--` files |
@@ -111,8 +111,8 @@ graph LR
 01_RawData/                                   raw CSV files
     │  [OP01]
 02_Cleaning/cleaning_dataset-<timestamp>/
-    │  [OP02] CodeList  ─▶ MySQL CODELIST table
-    │  [OP03] Metadata  ─▶ MySQL METADATA table
+    │  [OP02] CodeList  ─▶ CODELIST table (SQLite)
+    │  [OP03] Metadata  ─▶ METADATA table (SQLite)
     │  [OP04] TRANSDATA view ─▶
 03_Format/format_dataset-<timestamp>/          F- files, Combine output
     │  [OP05]

@@ -57,30 +57,7 @@ def main():
     db.connect()
     try:
         db.create_codelist_table(CODELIST_TABLE_NAME)
-        count_inserted = 0
-        count_duplicate = 0
-        progress = ProgressReporter(total=len(codeList), desc='CodeList')
-
-        query_insert = (
-            f'INSERT IGNORE INTO {CODELIST_TABLE_NAME} '
-            f'(`CODELISTID`, `CODE`, `VALUE_RAW`, `VALUE_EN`, `VALUE_SDTM`) '
-            f'VALUES (%s, %s, %s, %s, %s);'
-        )
-        for row in codeList:
-            values_insert = [row[0], row[1], row[2], row[3], row[4]]
-            db.cursor.execute(query_insert, values_insert)
-            if db.cursor.rowcount > 0:
-                count_inserted += 1
-            else:
-                count_duplicate += 1
-
-            total = count_inserted + count_duplicate
-            if total % 1000 == 0:
-                db.connection.commit()
-            progress.update()
-
-        db.connection.commit()
-        progress.finish()
+        count_inserted, count_duplicate = db.insert_codelist_rows(CODELIST_TABLE_NAME, codeList)
 
         # 处理摘要
         TW = [28, 8]
@@ -103,13 +80,13 @@ def main():
     except Exception as e:
         log_and_print(logger, 'ERROR', f'CodeList插入失败: {e}')
         traceback.print_exc()
-        if db.connection and db.connection.is_connected():
+        if db.is_connected():
             db.connection.rollback()
             print('Transaction rolled back.')
     finally:
         if db.cursor:
             db.cursor.close()
-        if db.connection and db.connection.is_connected():
+        if db.is_connected():
             db.disconnect()
 
 

@@ -35,6 +35,7 @@ batch_ai_summary.md
 
 # 数据库
 *.sqlite
+*.sqlite-journal
 *.db
 
 # 环境配置文件

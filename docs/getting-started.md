@@ -5,8 +5,9 @@ From a fresh clone to a finished M5 package, then to your own study.
 ## 1. Prerequisites
 
 - **Python 3.11+**
-- **MySQL** (tested with 5.7), local or remote. The configured user needs `CREATE DATABASE` /
-  `CREATE TABLE` / `CREATE VIEW`: the pipeline creates its database, tables and views itself.
+- No database server is needed: the pipeline keeps its work tables in a SQLite file
+  (Python's built-in `sqlite3`). MySQL is an optional backend, see
+  [configuration.md](configuration.md#database-backend).
 
 ## 2. Install
 
@@ -30,8 +31,7 @@ Create `project.local.json` in the repository root (copy
 ```json
 {
   "STUDIES_ROOT_PATH": "examples/studies",
-  "DEFAULT_STUDY": "DEMO",
-  "DB_HOST": "127.0.0.1", "DB_USER": "root", "DB_PASSWORD": "root"
+  "DEFAULT_STUDY": "DEMO"
 }
 ```
 
@@ -49,7 +49,7 @@ timestamped folders under `examples/studies/DEMO/` (`02_Cleaning/` … `06_Input
 the final `06_Inputpackage/…/m5.zip` is the M5 package. What each output should contain is
 listed in [`examples/studies/DEMO/README.md`](../examples/studies/DEMO/README.md).
 
-To check the code without MySQL:
+To check the code without running the pipeline:
 
 ```bash
 pytest -q        # about 3 seconds, reads the DEMO workbook only

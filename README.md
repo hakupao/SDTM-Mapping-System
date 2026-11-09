@@ -13,7 +13,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![pandas](https://img.shields.io/badge/pandas-2.3.1-150458?style=for-the-badge&logo=pandas&logoColor=white)](https://pandas.pydata.org)
 [![NumPy](https://img.shields.io/badge/NumPy-2.2.6-013243?style=for-the-badge&logo=numpy&logoColor=white)](https://numpy.org)
-[![MySQL](https://img.shields.io/badge/MySQL-Connector-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://dev.mysql.com/doc/connector-python/en/)
+[![SQLite](https://img.shields.io/badge/SQLite-built--in-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org)
 [![CDISC](https://img.shields.io/badge/CDISC-SDTM-00A0D0?style=for-the-badge)](https://www.cdisc.org/standards/foundational/sdtm)
 [![License](https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Active-34D399?style=for-the-badge)]()
@@ -35,7 +35,7 @@
 
 **SDTM Mapping System** (codename **VAPORCONE**) turns raw clinical study exports into CDISC SDTM
 datasets and an M5 submission package. The mapping rules live in an Excel workbook
-(`<STUDY>_OperationConf.xlsx`); a 7-step pipeline, backed by MySQL, does the rest. A new study
+(`<STUDY>_OperationConf.xlsx`); a 7-step pipeline, backed by SQLite, does the rest. A new study
 needs a workbook and, only where Excel cannot express the logic, a few Python functions.
 
 ## ✨ Features
@@ -47,7 +47,7 @@ needs a workbook and, only where Excel cannot express the logic, a few Python fu
 | 🔗 | **7 independent steps** | OP01–OP05 transform, PS01–PS02 package; run all, one, or a range |
 | 🖥️ | **Terminal UI and CLI** | `sdtm <STUDY>` with live step progress and stage outputs; `sdtm <STUDY> run all` for one shot; a batch runner with `--continue` / `--dry-run` |
 | 🗂️ | **Studies live outside the repo** | Each study is a folder in your own private location, chosen at run time; clinical data never enters this history |
-| 🗄️ | **MySQL transformation hub** | Code lists and metadata are staged in MySQL with auto-created indexes and an optimised view |
+| 🗄️ | **SQLite transformation hub** | Code lists and metadata are staged in a SQLite file (no server to install) with auto-created indexes and an optimised view; MySQL is an optional backend |
 | 🕐 | **Timestamped, auditable output** | Every run writes a new `<stage>/<name>_dataset-YYYYMMDDHHMMSS/` folder; earlier runs are kept |
 | 📦 | **M5 packaging** | Domain CSVs, `SUPP--` files and the M5 directory structure, zipped for submission |
 | 🚀 | **Built for volume** | Vectorised pandas/numpy, per-domain multiprocessing, precomputed rules, CSV cache, batched DB loads |
@@ -58,7 +58,12 @@ needs a workbook and, only where Excel cannot express the logic, a few Python fu
 
 ## 🚀 Quick Start
 
-Needs Python 3.11+ and a MySQL server whose user may create databases.
+Needs Python 3.11+. No database server is required: the work database is a SQLite file (Python's built-in `sqlite3`).
+MySQL is still available as an optional backend, see [docs/configuration.md](docs/configuration.md#database-backend).
+
+> **Upgrading from a MySQL setup:** the default backend is now SQLite, even if `project.local.json` still has
+> `DB_HOST` / `DB_USER`. To keep MySQL, set `"DB_BACKEND": "mysql"` and `pip install -r requirements-mysql.txt`.
+> After switching backends, run OP02 and OP03 once before running later steps on their own.
 
 ```bash
 git clone https://github.com/hakupao/SDTM-Mapping-System.git
@@ -69,8 +74,7 @@ pip install -r requirements.txt
 Create `project.local.json` in the repository root:
 
 ```json
-{ "STUDIES_ROOT_PATH": "examples/studies", "DEFAULT_STUDY": "DEMO",
-  "DB_HOST": "127.0.0.1", "DB_USER": "root", "DB_PASSWORD": "root" }
+{ "STUDIES_ROOT_PATH": "examples/studies", "DEFAULT_STUDY": "DEMO" }
 ```
 
 Run the bundled DEMO study through all 7 steps (about 20 seconds):
@@ -115,7 +119,7 @@ SDTM-Mapping-System/
 graph LR
     A[("Raw CSV")] --> B["OP01<br/>Cleaning"] --> C["OP02<br/>CodeList"] --> D["OP03<br/>Metadata"] --> E["OP04<br/>Format"] --> F["OP05<br/>Mapping"] --> G["PS01<br/>Input CSV"] --> H["PS02<br/>M5 Package"]
     J[("OperationConf.xlsx")] -.-> B & C & E & F
-    K[("MySQL")] <-.-> D & E & F
+    K[("SQLite")] <-.-> C & D & E
 ```
 
 Reading the code? Start with `pipeline/VC_OP05_mapping.py` (applies the Mapping sheet), then
@@ -141,7 +145,7 @@ Reading the code? Start with `pipeline/VC_OP05_mapping.py` (applies the Mapping 
 
 ```bash
 pip install -r requirements-dev.txt
-pytest -q                        # about 3 seconds, no MySQL needed
+pytest -q                        # about 3 seconds, no database needed
 ```
 
 After changing the mapping engine, also run the DEMO end to end (`python sdtm.py DEMO run all`).
@@ -153,7 +157,8 @@ After changing the mapping engine, also run the DEMO end to end (`python sdtm.py
 | Package | Version | Purpose |
 |---------|:-------:|---------|
 | Python | 3.11+ | Runtime |
-| mysql-connector-python | 9.4.0 | MySQL connectivity |
+| sqlite3 | stdlib | Work database (default) |
+| mysql-connector-python *(optional)* | 9.4.0 | MySQL backend, `requirements-mysql.txt` |
 | pandas | 2.3.1 | Data transformation |
 | numpy | 2.2.6 | Vectorised operations |
 | openpyxl | 3.1.5 | Reading `OperationConf.xlsx` |
@@ -161,7 +166,7 @@ After changing the mapping engine, also run the DEMO end to end (`python sdtm.py
 | textual | 8.2.5 | Terminal UI |
 | pytest *(dev)* | 8.3.3 | Test suite |
 
-The database server is MySQL; tested with MySQL 5.7 (5.7.44).
+The default database is SQLite (tested with SQLite 3.50.4); on large studies OP03/OP04 run several times faster than on MySQL. The optional MySQL backend is tested with MySQL 5.7 (5.7.44). Both backends give identical outputs.
 
 ---
 

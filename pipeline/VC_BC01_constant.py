@@ -17,11 +17,9 @@ import re
 import shutil
 import sys
 
-import mysql.connector
 import numpy
 import pandas
 from openpyxl import load_workbook
-from mysql.connector import errorcode
 from dateutil import parser
 from datetime import datetime
 
@@ -39,6 +37,7 @@ from sdtm_study import (  # noqa: E402
     format_available,
     load_project_config,
     load_study_settings,
+    program_root,
     resolve_study_id,
 )
 
@@ -70,6 +69,27 @@ DB_HOST = _PROJECT_CONFIG.get('DB_HOST') or '127.0.0.1'
 DB_USER = _PROJECT_CONFIG.get('DB_USER') or 'root'
 DB_PASSWORD = _PROJECT_CONFIG.get('DB_PASSWORD') or 'root'
 DB_DATABASE = _PROJECT_CONFIG.get('DB_DATABASE') or 'VC-DataMigration_2.0'
+
+# 数据库后端: sqlite（默认，无需数据库服务）或 mysql（可选，需 requirements-mysql.txt）。
+DB_BACKEND = str(_PROJECT_CONFIG.get('DB_BACKEND') or 'sqlite').lower()
+if DB_BACKEND not in ('mysql', 'sqlite'):
+    sys.stderr.write(
+        f"[VC_BC01_constant] DB_BACKEND 取值无效: {DB_BACKEND!r}（应为 'mysql' 或 'sqlite'）\n"
+    )
+    raise SystemExit(2)
+# 老配置（只有 MySQL 连接项、没写 DB_BACKEND）升级后会静默改用 SQLite：
+# DatabaseManager() 据此在 stderr 提示一行（只出现在用数据库的 OP02..OP04 里）
+DB_BACKEND_NOTICE = ''
+if not _PROJECT_CONFIG.get('DB_BACKEND') and any(
+        _PROJECT_CONFIG.get(k) for k in ('DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_DATABASE')):
+    DB_BACKEND_NOTICE = ('Notice: the default database backend is now SQLite; '
+                         'set "DB_BACKEND": "mysql" in project.local.json to keep using MySQL.')
+SQLITE_PATH = _PROJECT_CONFIG.get('SQLITE_PATH') or os.path.join(
+    SPECIFIC_PATH, f'{STUDY_ID}_work.sqlite'
+)
+if not os.path.isabs(SQLITE_PATH):
+    # 相对路径按程序目录（仓库根目录）解析，与 STUDIES_ROOT_PATH 一致
+    SQLITE_PATH = os.path.join(program_root(), SQLITE_PATH)
 
 FOLDER_CLEANINGSTEP = '02_Cleaning'
 CLEANINGSTEP_PATH = os.path.join(SPECIFIC_PATH, FOLDER_CLEANINGSTEP)

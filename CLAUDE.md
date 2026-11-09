@@ -3,8 +3,8 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 Config-driven ETL: raw clinical CSV exports → CDISC SDTM datasets → M5 submission package. Mapping rules
-live in a per-study Excel workbook (`<STUDY_ID>_OperationConf.xlsx`); a 7-step pipeline backed by MySQL
-executes them. Python 3.11+, pandas/numpy/openpyxl/mysql-connector, Textual for the TUI. No package
+live in a per-study Excel workbook (`<STUDY_ID>_OperationConf.xlsx`); a 7-step pipeline backed by SQLite
+(MySQL optional) executes them. Python 3.11+, pandas/numpy/openpyxl, Textual for the TUI. No package
 build (`pyproject.toml` / `setup.py` absent): syntax checks + tests + a DEMO run are the build.
 
 ## Commands
@@ -14,7 +14,7 @@ Run everything from the repository root.
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
 
-pytest -q                                   # whole suite, ~3 s, no MySQL needed
+pytest -q                                   # whole suite, ~3 s, no database needed
 pytest -q tests/test_c6_duplicate_keys.py   # one file
 pytest -q tests/test_c6_duplicate_keys.py::<name>   # one test
 pytest -q -k guard                          # by keyword
@@ -31,7 +31,7 @@ python pipeline/VC_OP05_mapping.py          # one stage on its own (study from S
 ```
 
 End-to-end check after engine changes: run the bundled DEMO study (`python sdtm.py DEMO run all`, ~20 s).
-It needs a running MySQL and a `project.local.json` with `"STUDIES_ROOT_PATH": "examples/studies"`, or
+The default SQLite backend needs no database server; it needs a `project.local.json` with `"STUDIES_ROOT_PATH": "examples/studies"`, or
 point `PROJECT_CONFIG_PATH` at a temp config containing that. Expected outputs are listed in
 `examples/studies/DEMO/README.md`. When a change should not alter results, diff the new timestamped
 output folders against the previous run (`m5.zip` differs only in zip timestamps; compare its members).
@@ -81,7 +81,7 @@ Table/view names derive from the study id (`VC05_<STUDY_ID>_CODELIST` …) unles
 Each step is a **separate process**: the runner launches `python -u pipeline/<module>.py` (path from
 `sdtm_study.stage_script()`), passing the study through `SDTM_STUDY` and setting `PIPELINE_ENV_KEY`.
 Stage scripts emit progress lines prefixed with `PROGRESS_MARKER`, which the runner turns into
-events for the TUI/CLI. Stages communicate only through files and MySQL: every step writes a new
+events for the TUI/CLI. Stages communicate only through files and the work database (SQLite by default): every step writes a new
 timestamped folder (`<stage>/<name>_dataset-YYYYMMDDHHMMSS/`) and reads the latest folder of the step
 before it. OP02/OP03 load the CODELIST/METADATA tables, OP04 builds the TRANSDATA view.
 
@@ -99,8 +99,11 @@ Engine detail (sheet semantics, `NDKEY`, Combine overlay, guards): `docs/AGENT_K
 - Never hardcode study ids or paths; derive them from `project.local.json`, `study.json` and BC01
   constants. Keep the timestamped-folder pattern; don't overwrite earlier runs.
 - Preserve output prefix contracts (`C-`, `DC-`, `DR-`, `F-`, `SUPP`) and `utf-8-sig` CSV encoding.
-- Use `DatabaseManager` for DB lifecycle; keep table/view names config-driven; batched loads via staging +
-  `LOAD DATA LOCAL INFILE`; MySQL 5.7 compatibility.
+- Use `DatabaseManager` for DB lifecycle; keep table/view names config-driven; batched loads (SQLite:
+  `executemany` with the `*_K` keys precomputed by `mysql_ci_key`; MySQL: staging + `LOAD DATA LOCAL
+  INFILE`); both backends must keep utf8mb4_general_ci matching semantics (see `sdtm_sqlite.mysql_ci_key`);
+  MySQL 5.7 stays supported as the optional backend. The SQLite work file keeps an on-disk rollback
+  journal (`journal_mode=TRUNCATE`) because the runner cancels steps by killing the process.
 - Performance-sensitive: prefer vectorised pandas over row loops; keep `ultra_fast_sequence_generation`
   deterministic; keep the performance instrumentation in OP04/OP05; don't change OP05's multiprocessing
   strategy without validating.

@@ -1,0 +1,2 @@
+# Optional: MySQL backend (set "DB_BACKEND": "mysql" in project.local.json)
+mysql-connector-python==9.4.0

@@ -9,6 +9,12 @@ VAPORCONE 项目基础工具模块
 """
 
 from VC_BC01_constant import *
+try:
+    import mysql.connector
+    from mysql.connector import errorcode
+except ImportError:  # sqlite 后端不需要 mysql-connector-python
+    mysql = None
+    errorcode = None
 import traceback
 import unicodedata
 import time as _time
@@ -666,10 +672,13 @@ def make_format_value(tMETAVAL, isDateType):
         # 注意：已移除4OTHER功能，不再处理"其他"选项的详细信息映射
         return tMETAVAL
 
-class DatabaseManager:
+class MySQLDatabaseManager:
     """
     数据库管理类，提供MySQL数据库的连接和操作功能
     """
+
+    # GROUP BY 在 MySQL 5.7 下隐式按分组键排序
+    implicit_group_order = True
     
     def __init__(self):
         """
@@ -686,6 +695,9 @@ class DatabaseManager:
         """
         连接到MySQL数据库
         """
+        if mysql is None:
+            print('未安装 mysql-connector-python，或在 project.local.json 设 DB_BACKEND=sqlite')
+            sys.exit(2)
         try:
             self.connection = mysql.connector.connect(
                 host=self.host,
@@ -698,7 +710,7 @@ class DatabaseManager:
                 allow_local_infile=True  # 启用LOCAL INFILE支持
             )
             self.cursor = self.connection.cursor()
-            print('Connected to the database.')
+            print(f'Connected to MySQL {self.host}/{self.database}')
         except mysql.connector.Error as err:
             if err.errno == errorcode.ER_BAD_DB_ERROR:
                 print(f'Database {self.database} does not exist. Attempting to create it...')
@@ -741,7 +753,7 @@ class DatabaseManager:
                         allow_local_infile=True
                     )
                     self.cursor = self.connection.cursor()
-                    print('Connected to the database after creation.')
+                    print(f'Connected to MySQL {self.host}/{self.database} after creation.')
                     
                 except mysql.connector.Error as create_err:
                     print(f'Error creating database: {create_err}')
@@ -752,6 +764,9 @@ class DatabaseManager:
             else:
                 print(f'Error: {err}')
                 raise
+
+    def is_connected(self):
+        return bool(self.connection and self.connection.is_connected())
 
     def disconnect(self):
         if self.cursor:
@@ -851,8 +866,8 @@ class DatabaseManager:
             `m`.`FIELDID` AS `FIELDID`,
             `m`.`METAVAL` AS `METAVAL`,
             `m`.`FORMVAL` AS `FORMVAL`,
-            IF(ISNULL(`c`.`VALUE_EN`), `m`.`FORMVAL`, `c`.`VALUE_EN`) AS `TRANSVAL`,
-            IF(ISNULL(`c`.`VALUE_SDTM`),'',`c`.`VALUE_SDTM`) AS `SDTMVAL`,
+            CASE WHEN `c`.`VALUE_EN` IS NULL THEN `m`.`FORMVAL` ELSE `c`.`VALUE_EN` END AS `TRANSVAL`,
+            COALESCE(`c`.`VALUE_SDTM`, '') AS `SDTMVAL`,
             `m`.`CHKFIELDID` AS `CHKFIELDID`
         FROM 
             {metadata_table_name} `m` 
@@ -1049,3 +1064,201 @@ class DatabaseManager:
                     pass
         else:
             print("✓ 工作表已保留以供下次使用")
+
+    # ------------------------------------------------------------------
+    # 后端无关的接口（OP 脚本只使用这些）
+    # ------------------------------------------------------------------
+    def ci_col(self, name):
+        """视图中带预算键的列（TRANSVAL / FORMVAL）比较时使用的列名。MySQL 原样返回。"""
+        return name
+
+    def ci(self, expr):
+        """不区分大小写比较或排序时对表达式的包装。MySQL（general_ci 排序规则）原样返回。"""
+        return expr
+
+    def ci_literal(self, value):
+        """生成与 ci(...) 比较用的 SQL 字面量（单引号翻倍转义）。"""
+        return "'" + str(value).replace("'", "''") + "'"
+
+    def insert_codelist_rows(self, table_name, rows):
+        """逐行 INSERT IGNORE；返回 (inserted, duplicates)。"""
+        count_inserted = 0
+        count_duplicate = 0
+        progress = ProgressReporter(total=len(rows), desc='CodeList')
+
+        query_insert = (
+            f'INSERT IGNORE INTO {table_name} '
+            f'(`CODELISTID`, `CODE`, `VALUE_RAW`, `VALUE_EN`, `VALUE_SDTM`) '
+            f'VALUES (%s, %s, %s, %s, %s);'
+        )
+        for row in rows:
+            values_insert = [row[0], row[1], row[2], row[3], row[4]]
+            self.cursor.execute(query_insert, values_insert)
+            if self.cursor.rowcount > 0:
+                count_inserted += 1
+            else:
+                count_duplicate += 1
+
+            total = count_inserted + count_duplicate
+            if total % 1000 == 0:
+                self.connection.commit()
+            progress.update()
+
+        self.connection.commit()
+        progress.finish()
+        return count_inserted, count_duplicate
+
+    def load_metadata_rows(self, table_name, rows):
+        """
+        经暂存表 + LOAD DATA 批量导入元数据；No 按顺序分配 1..n，返回最终行数。
+        rows 为 11 元组 (FILENAME, ROWNUM, USUBJID, SUBJID, FIELDLBL, FIELDID,
+        METAVAL, FORMVAL, DATETYPE, CODELISTID, CHKFIELDID)。
+        """
+        cursor = self.cursor
+        connection = self.connection
+
+        # 创建暂存表（使用AUTO_INCREMENT主键，无二级索引）
+        staging_table_name = f"{table_name}_STAGING"
+        staging_sql = f"""
+        CREATE TABLE IF NOT EXISTS {staging_table_name} (
+            No INT AUTO_INCREMENT PRIMARY KEY,
+            FILENAME VARCHAR(100),
+            ROWNUM INT,
+            USUBJID VARCHAR(50),
+            SUBJID VARCHAR(50),
+            FIELDLBL VARCHAR(200),
+            FIELDID VARCHAR(100),
+            METAVAL TEXT,
+            FORMVAL TEXT,
+            DATETYPE BOOLEAN,
+            CODELISTID VARCHAR(100),
+            CHKFIELDID VARCHAR(100)
+        ) ENGINE=InnoDB
+        """
+        cursor.execute(f"DROP TABLE IF EXISTS {staging_table_name}")
+        cursor.execute(staging_sql)
+
+        # 生成CSV文件用于LOAD DATA
+        csv_file_path = os.path.join(SPECIFIC_PATH, f"{table_name}_staging.csv")
+        with open(csv_file_path, 'w', newline='', encoding='utf-8') as csvfile:
+            csv_writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
+            # 不写入表头，直接写入数据行（对应暂存表除了AUTO_INCREMENT主键外的所有列）
+            for row in rows:
+                # 转换DATETYPE为1/0（MySQL BOOLEAN）
+                row_list = list(row)
+                row_list[8] = 1 if row_list[8] else 0  # DATETYPE列
+                csv_writer.writerow(row_list)
+
+        # 使用LOAD DATA进行批量导入
+        load_data_start = _time.perf_counter()
+
+        # 性能优化设置（导入窗口内临时使用）
+        optimization_settings = [
+            "SET SESSION foreign_key_checks = 0",
+            "SET SESSION unique_checks = 0",
+            "SET SESSION sql_log_bin = 0",  # 如果不需要复制到从库
+        ]
+
+        for setting in optimization_settings:
+            try:
+                cursor.execute(setting)
+            except Exception as e:
+                print(f"⚠ 设置跳过: {setting}, 错误: {e}")
+
+        # 执行LOAD DATA INFILE
+        # 使用绝对路径并处理Windows路径分隔符
+        csv_file_path_normalized = csv_file_path.replace('\\', '/')
+        load_data_sql = f"""
+        LOAD DATA LOCAL INFILE '{csv_file_path_normalized}'
+        INTO TABLE {staging_table_name}
+        FIELDS TERMINATED BY ','
+        OPTIONALLY ENCLOSED BY '"'
+        LINES TERMINATED BY '\\n'
+        (FILENAME, ROWNUM, USUBJID, SUBJID, FIELDLBL, FIELDID, METAVAL, FORMVAL, DATETYPE, CODELISTID, CHKFIELDID)
+        """
+
+        cursor.execute(load_data_sql)
+        connection.commit()
+
+        # 检查导入结果
+        cursor.execute(f"SELECT COUNT(*) FROM {staging_table_name}")
+        imported_count = cursor.fetchone()[0]
+        load_data_elapsed = _time.perf_counter() - load_data_start
+
+        print(f"LOAD DATA完成: {imported_count} 条记录, 耗时: {load_data_elapsed:.3f}s")
+
+        # 从暂存表转移数据到正式表（保持原有表结构和索引）
+        transfer_start = _time.perf_counter()
+        print("从暂存表转移数据到正式表...")
+
+        # 清空正式表（如果需要）
+        cursor.execute(f"TRUNCATE TABLE {table_name}")
+
+        # 使用INSERT INTO ... SELECT 转移数据，手动分配顺序主键No
+        # 分批转移数据以显示进度（同时手动分配No）
+        cursor.execute(f"SELECT COUNT(*) FROM {staging_table_name}")
+        total_staging_records = cursor.fetchone()[0]
+        batch_size = 50000
+        current_no = 1
+
+        total_batches = (total_staging_records + batch_size - 1) // batch_size
+        progress_transfer = ProgressReporter(total=total_batches, desc='Transfer')
+
+        for offset in range(0, total_staging_records, batch_size):
+            batch_sql = f"""
+            INSERT INTO {table_name}
+            (No, FILENAME, ROWNUM, USUBJID, SUBJID, FIELDLBL, FIELDID, METAVAL, FORMVAL, DATETYPE, CODELISTID, CHKFIELDID)
+            SELECT
+            @row_number := @row_number + 1 as No,
+            FILENAME, ROWNUM, USUBJID, SUBJID, FIELDLBL, FIELDID, METAVAL, FORMVAL, DATETYPE, CODELISTID, CHKFIELDID
+            FROM (SELECT @row_number := {current_no - 1}) r,
+            (SELECT * FROM {staging_table_name} ORDER BY No LIMIT {batch_size} OFFSET {offset}) s
+            """
+
+            cursor.execute(batch_sql)
+            current_no += batch_size
+            progress_transfer.update()
+
+        progress_transfer.finish()
+
+        connection.commit()
+
+        # 验证转移结果
+        cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+        final_count = cursor.fetchone()[0]
+        transfer_elapsed = _time.perf_counter() - transfer_start
+
+        print(f"数据转移完成: {final_count} 条记录, 耗时: {transfer_elapsed:.3f}s")
+
+        # 清理暂存表和CSV文件
+        try:
+            cursor.execute(f"DROP TABLE {staging_table_name}")
+            os.remove(csv_file_path)
+        except Exception as e:
+            print(f"⚠ 清理时出现警告: {e}")
+
+        # 恢复优化设置
+        restore_settings = [
+            "SET SESSION foreign_key_checks = 1",
+            "SET SESSION unique_checks = 1",
+            "SET SESSION sql_log_bin = 1",
+        ]
+
+        for setting in restore_settings:
+            try:
+                cursor.execute(setting)
+            except Exception as e:
+                print(f"⚠ 恢复设置跳过: {setting}, 错误: {e}")
+
+        return final_count
+
+
+def DatabaseManager():
+    """按 DB_BACKEND 返回数据库管理器实例（OP 脚本调用方式不变）。"""
+    if DB_BACKEND_NOTICE:
+        _sys.stderr.write(DB_BACKEND_NOTICE + '\n')
+        _sys.stderr.flush()
+    if DB_BACKEND == 'sqlite':
+        from sdtm_sqlite import SQLiteDatabaseManager
+        return SQLiteDatabaseManager(SQLITE_PATH, ENABLE_WORK_TABLE_PERSISTENCE)
+    return MySQLDatabaseManager()

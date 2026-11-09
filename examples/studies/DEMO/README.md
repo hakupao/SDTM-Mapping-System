@@ -6,15 +6,14 @@ and SS. Use it to check your setup and as the template for a real study.
 
 ## Run it
 
-Prerequisites: Python 3.11+, `pip install -r requirements.txt`, and a MySQL
-server whose user may create databases (the pipeline creates everything itself).
+Prerequisites: Python 3.11+ and `pip install -r requirements.txt`. No database server is
+needed (the default SQLite backend writes `DEMO_work.sqlite` next to the study).
 
 ```bash
 # project.local.json in the repository root
 {
   "STUDIES_ROOT_PATH": "examples/studies",
-  "DEFAULT_STUDY": "DEMO",
-  "DB_HOST": "127.0.0.1", "DB_USER": "root", "DB_PASSWORD": "root"
+  "DEFAULT_STUDY": "DEMO"
 }
 
 python sdtm.py DEMO run all      # all 7 steps, ~20 s  (Windows: sdtm DEMO run all)
@@ -88,9 +87,9 @@ All keys are optional; defaults derive from the study id.
 | `M5_PROJECT_NAME` | `<STUDY_ID>` | Project name written into the M5 package |
 | `RAW_DATA_DIR` | `01_RawData` | Raw CSV directory, relative to the study folder |
 | `RAW_DATA_ROOT_PATH` | – | Absolute raw CSV directory (overrides `RAW_DATA_DIR`) |
-| `CODELIST_TABLE_NAME` | `VC05_<STUDY_ID>_CODELIST` | MySQL table for code lists |
-| `METADATA_TABLE_NAME` | `VC05_<STUDY_ID>_METADATA` | MySQL table for metadata |
-| `TRANSDATA_VIEW_NAME` | `VC05_<STUDY_ID>_TRANSDATA` | MySQL view for formatted data |
+| `CODELIST_TABLE_NAME` | `VC05_<STUDY_ID>_CODELIST` | Work-database table for code lists |
+| `METADATA_TABLE_NAME` | `VC05_<STUDY_ID>_METADATA` | Work-database table for metadata |
+| `TRANSDATA_VIEW_NAME` | `VC05_<STUDY_ID>_TRANSDATA` | Work-database view for formatted data |
 
 ## Starting a real study from this one
 
