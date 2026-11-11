@@ -26,22 +26,23 @@ VC_BC01 (Constants) → VC_BC02 (Utils) + VC_BC03 (Config)
 - `VC_BC02_baseUtils.py`: Logging (`create_logger()`), directories with timestamps, date formatting (`make_format_value()`), latest-path finder, `DatabaseManager` (connect, create tables/views, `create_performance_indexes()`).
 - `VC_BC03_fetchConfig.py`: Reads Excel config; `getSheetSetting()`, `getCaseDict()`, `getFileDict()`, `getProcess()`, `getCodeListInfo()`, `getMapping()`, `getDomainsSetting()`, `getSites()`, `getFormatDataset()`. Raises `MappingConfigurationError`.
 - `VC_BC04_operateType.py`: Dispatch/optimization; `singleTable()`, `tableJoinType1()`, `precompute_mapping_rules()`, `ultra_fast_sequence_generation()`, `vectorized_field_mapping()`, `get_cached_csv()`.
-- `VC_BC05_studyFunctions.py` (per study under `studySpecific/[STUDY_ID]/`): Study-specific joins/merges (e.g., `leftjoin()`, `tableMerge()`).
+- `VC_BC05_studyFunctions.py` (one per study, in `<STUDIES_ROOT_PATH>/<STUDY_ID>/`): the study's Combine functions, i.e. the Python functions named in the Combine sheet (e.g. `DM()`).
 - `VC_BC06_operateTypeFunctions.py`: Implements op types `DEF/FIX/FLG/IIF/COB/CDL/PRF/SEL`; lookup via `get_opertype_function()`.
 
 ## 4) Config Sources
-- `project.local.json` (example keys): `STUDY_ID`, `ROOT_PATH`, `RAW_DATA_ROOT_PATH`, `CODELIST_TABLE_NAME`, `METADATA_TABLE_NAME`, `TRANSDATA_VIEW_NAME`, `M5_PROJECT_NAME`. Optional `PROJECT_CONFIG_PATH` env var.
-- Excel `studySpecific/[STUDY_ID]/[STUDY_ID]_OperationConf.xlsx` sheets: SheetSetting, Patients, Files, Process, CodeList, Mapping, DomainsSetting, Sites, Refactoring (optional), Combine (optional).
+- `project.local.json` (machine-level, git-ignored; all keys optional): `STUDIES_ROOT_PATH`, `DEFAULT_STUDY`, `DB_BACKEND`, `SQLITE_PATH`, and `DB_HOST` / `DB_USER` / `DB_PASSWORD` / `DB_DATABASE` for the MySQL backend. The `PROJECT_CONFIG_PATH` env var points at another config file. A pre-2026-09 file with `STUDY_ID`, table names and `RAW_DATA_ROOT_PATH` keeps working.
+- `<STUDIES_ROOT_PATH>/<STUDY_ID>/study.json` (optional, per study): `M5_PROJECT_NAME`, `RAW_DATA_DIR`, `RAW_DATA_ROOT_PATH`, `CODELIST_TABLE_NAME`, `METADATA_TABLE_NAME`, `TRANSDATA_VIEW_NAME`. Details: `docs/configuration.md`.
+- Excel `<STUDIES_ROOT_PATH>/<STUDY_ID>/<STUDY_ID>_OperationConf.xlsx`, nine sheets, all required: SheetSetting, Patients, Files, Process, CodeList, Mapping, Combine, DomainsSetting, Sites.
 
 ## 5) Processing Stages (inputs → outputs)
-- `VC_OP01_cleaning.py`: Raw → `C_*` cleaned, `DC_*` removed cols, `DR_*` removed rows under `02_Cleaning/cleaning_dataset-[ts]/`.
+- `VC_OP01_cleaning.py`: Raw → `C-*` cleaned, `DC-*` removed cols, `DR-*` removed rows under `02_Cleaning/cleaning_dataset-[ts]/`.
 - `VC_OP02_insertCodeList.py`: Config → `CODELIST_TABLE_NAME`.
 - `VC_OP03_insertMetadata.py`: Config → `METADATA_TABLE_NAME`.
-- `VC_OP04_format.py`: Views + type/format handling → `F_*` in `03_Format/format_dataset-[ts]/`.
+- `VC_OP04_format.py`: Views + type/format handling → `F-*` in `03_Format/format_dataset-[ts]/`.
 - `VC_OP05_mapping.py`: Formatted → SDTM domains (`04_SDTM/sdtm_dataset-[ts]/`); uses op types and sequence generation.
 - `VC_PS01_makeInputCSV.py`: Latest SDTM timestamp folder → `[Domain].csv`, `SUPP*.csv` in `05_Inputfile/inputfile_dataset-[ts]/`. Main CSV column order follows the source SDTM header; `SUPP*.csv` preserves empty-string `QVAL`.
 - `VC_PS02_csv2json.py`: Latest inputfile timestamp folder → `06_Inputpackage/inputpackage_dataset-[ts]/m5.zip`.
-- Full run (PowerShell):  
+- Full run: `python sdtm.py <STUDY> run all` (`run 3 5` = OP03..OP05). One stage on its own (study from `SDTM_STUDY` / `DEFAULT_STUDY`):  
 `python pipeline/VC_OP01_cleaning.py`  
 `python pipeline/VC_OP02_insertCodeList.py`  
 `python pipeline/VC_OP03_insertMetadata.py`  
@@ -66,14 +67,14 @@ VC_BC01 (Constants) → VC_BC02 (Utils) + VC_BC03 (Config)
 - Add a new type: implement `opertype_NEW(...)` in `VC_BC06_operateTypeFunctions.py`, register in `get_opertype_function()`, add constant in `VC_BC01_constant.py`, update Excel mapping.
 
 ## 7) Study-Specific Logic
-- Location: `studySpecific/[STUDY_ID]/VC_BC05_studyFunctions.py`.
-- Add functions (joins/merges) and reference them in Excel Refactoring/Mapping.
-- Create new study: add directory, create `[STUDY_ID]_OperationConf.xlsx`, implement study functions, update `project.local.json`, place raw data.
+- Location: `<STUDIES_ROOT_PATH>/<STUDY_ID>/VC_BC05_studyFunctions.py` (the studies live outside this repository; `examples/studies/DEMO` is the only one in it).
+- Add a function, register it in the Combine sheet (`FILENAME`, `FUNCTION`), then use that `FILENAME` in Mapping.
+- Create new study: add a folder `<STUDY_ID>` under `STUDIES_ROOT_PATH` with `<STUDY_ID>_OperationConf.xlsx`, `VC_BC05_studyFunctions.py`, the raw CSVs in `01_RawData/` and, if needed, `study.json`. `project.local.json` does not change.
 
 ## 8) Data & Formatting Conventions
 - Treat data as strings until final formatting; fill nulls with empty strings (`.fillna('')`).
 - Key IDs: `SUBJID`, `USUBJID` (via `getCaseDict()`).
-- Standard prefixes: `C_` (cleaned), `DC_` (removed cols), `DR_` (removed rows), `F_` (formatted), `SUPP` (supplemental).
+- Standard prefixes: `C-` (cleaned), `DC-` (removed cols), `DR-` (removed rows), `F-` (formatted), `SUPP` (supplemental).
 - Timestamped outputs (e.g., `cleaning_dataset-YYYYMMDDhhmmss`) to keep multiple runs.
 - Database view: `TRANSDATA_VIEW_NAME` joins metadata + codelist, exposes `TRANSVAL`/`SDTMVAL`.
 
@@ -83,15 +84,15 @@ VC_BC01 (Constants) → VC_BC02 (Utils) + VC_BC03 (Config)
 - `precompute_mapping_rules()` for mapping speed.
 - Parallel domain processing in `VC_OP05_mapping.py` (ProcessPoolExecutor).
 - DB: create indexes via `DatabaseManager.create_performance_indexes()`.
-- Optional flags in `VC_OP04_format.py`: `ENABLE_PERFORMANCE_MONITORING`, `ENABLE_EXPLAIN_ANALYSIS`, `USE_TEMP_TABLES`, `ENABLE_WORK_TABLE_PERSISTENCE`.
+- Optional flags in `VC_OP04_format.py`: `ENABLE_PERFORMANCE_INDEXES`, `USE_TEMP_TABLES`, `ENABLE_ORDER_BY`, `MERGE_OTHERDETAILS_QUERIES`, `ENABLE_EMPTY_COLUMN_SCAN`, `ENABLE_WORK_TABLE_PERSISTENCE`.
 
 ## 10) Common Tasks
 - Add operation type: see §6.
 - Add study: see §7.
-- Debug performance: enable monitoring/EXPLAIN, ensure indexes, review query plans.
+- Debug performance: read the per-step timings that OP04 / OP05 print, check that the indexes are created (`ENABLE_PERFORMANCE_INDEXES`), and compare warm runs only (OP04 timings swing with the disk cache).
 - Troubleshoot:
 - `MappingConfigurationError`: fix Excel mapping sheet.
-- DB connection issues: verify host/user/pass/db.
+- DB issues: with the default SQLite backend there is no connection to set up; if a run reports "database disk image is malformed", delete the work file (`<STUDY_ID>_work.sqlite`, or `SQLITE_PATH`) and re-run from OP02. With `DB_BACKEND=mysql`, verify host/user/pass/db.
 - Path errors: verify `project.local.json`.
 - Mapping errors: check field names/op types in Excel.
 
@@ -99,7 +100,7 @@ VC_BC01 (Constants) → VC_BC02 (Utils) + VC_BC03 (Config)
 - Paths/vars: `ROOT_PATH`, `SPECIFIC_PATH`, `CLEANINGSTEP_PATH`, `FORMAT_PATH`, `SDTMDATASET_PATH`, `INPUTFILE_PATH`, `INPUTFILE_DATASET_PATH`, `INPUTPACKAGE_PATH`, `INPUTPACKAGE_DATASET_PATH`.
 - Key classes/functions: `DatabaseManager`, `create_logger()`, `getSheetSetting()/getProcess()/getMapping()/getCodeListInfo()`, `vectorized_field_mapping()`, `ultra_fast_sequence_generation()`, `get_opertype_function()`.
 - Outputs: `05_Inputfile/inputfile_dataset-[ts]/*.csv`, `06_Inputpackage/inputpackage_dataset-[ts]/m5.zip`.
-- Logs: `studySpecific/[STUDY]/log_file.log`.
+- Logs: `<STUDIES_ROOT_PATH>/<STUDY_ID>/log_file.log`.
 
 ## 12) How to Work Safely as an AI Agent
 - Follow config-driven design; never hardcode study IDs/paths—read from `project.local.json` and Excel.

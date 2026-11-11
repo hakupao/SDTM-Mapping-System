@@ -40,9 +40,9 @@ condition `&FIELD:VALUE` (`VALUE` may also be `null`, `not null` or `!VALUE`). R
 guard get an empty value; on the `NDKEY` variable that drops the record, and on `SEL` the row is
 dropped too.
 
-**`NDKEY`** marks the one variable per `DEFINITION` block that decides whether a record is
-written: blank → no record. Only the first `〇` in a block counts, so put guard lines for a
-parent item on that row. More detail: [AGENT_KNOWLEDGE.md §6](AGENT_KNOWLEDGE.md).
+**`NDKEY`** marks the variable(s) of a `DEFINITION` block that decide whether a record is
+written. Several rows may carry `〇`; they are checked with OR, so the record is dropped only when
+all of them are blank. Put guard lines for a parent item on the `NDKEY` row. More detail: [AGENT_KNOWLEDGE.md §6](AGENT_KNOWLEDGE.md).
 
 ## Study-Specific Functions — `VC_BC05_studyFunctions.py`
 
