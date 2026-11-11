@@ -12,7 +12,8 @@ sdtm --study <STUDY> status       # Same as sdtm <STUDY> status
 ```
 
 `<STUDY>` may be omitted when `SDTM_STUDY` / `DEFAULT_STUDY` is set or only one study exists.
-A one-shot `run` exits with code 1 when a step fails or a step argument is not recognised, 0 otherwise.
+A one-shot command exits with code 1 when a `run` step fails, a step argument is not recognised, or the
+command is unknown; 0 otherwise.
 If `textual` is not installed, `sdtm` falls back to the line console.
 
 ## Terminal UI

@@ -31,6 +31,12 @@ def test_run_exits_nonzero_on_unrecognised_step(tmp_path):
     assert r.returncode == 1, r.stdout + r.stderr
 
 
+def test_unknown_command_exits_nonzero(tmp_path):
+    # 首个参数是研究 ID，其后的未知词才会走到 dispatch
+    r = _sdtm(tmp_path, 'runn', '4')
+    assert r.returncode == 1, r.stdout + r.stderr
+
+
 def test_status_exits_zero(tmp_path):
     r = _sdtm(tmp_path, 'status')
     assert r.returncode == 0, r.stdout + r.stderr

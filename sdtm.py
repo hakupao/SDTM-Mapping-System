@@ -270,7 +270,7 @@ def run_shell(study_id):
 
 
 def dispatch(line, study_id):
-    """执行一条命令。只有 run 失败时返回 False，其余返回 True。"""
+    """执行一条命令。run 失败或命令未知时返回 False，其余返回 True。"""
     parts = line.split()
     cmd = parts[0].lower()
 
@@ -291,6 +291,7 @@ def dispatch(line, study_id):
         return cmd_run(parts[1:], study_id)
     else:
         print(f'  未知命令: {cmd}  (输入 help 查看可用命令)')
+        return False
     return True
 
 
@@ -350,7 +351,7 @@ def main():
         if first in ('shell', 'cli', '--shell', '--cli'):
             run_shell(study_id)
             return
-        # 一次性命令：run 有步骤失败时以 1 退出，脚本 / CI 才能据此判断
+        # 一次性命令：run 有步骤失败或命令未知时以 1 退出，脚本 / CI 才能据此判断
         if not dispatch(' '.join(argv), study_id):
             sys.exit(1)
         return
