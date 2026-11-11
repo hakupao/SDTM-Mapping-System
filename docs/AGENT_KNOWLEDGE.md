@@ -40,7 +40,7 @@ VC_BC01 (Constants) → VC_BC02 (Utils) + VC_BC03 (Config)
 - `VC_OP03_insertMetadata.py`: Config → `METADATA_TABLE_NAME`.
 - `VC_OP04_format.py`: Views + type/format handling → `F-*` in `03_Format/format_dataset-[ts]/`.
 - `VC_OP05_mapping.py`: Formatted → SDTM domains (`04_SDTM/sdtm_dataset-[ts]/`); uses op types and sequence generation.
-- `VC_PS01_makeInputCSV.py`: Latest SDTM timestamp folder → `[Domain].csv`, `SUPP*.csv` in `05_Inputfile/inputfile_dataset-[ts]/`. Main CSV column order follows the source SDTM header; `SUPP*.csv` preserves empty-string `QVAL`.
+- `VC_PS01_makeInputCSV.py`: Latest SDTM timestamp folder → `[Domain].csv`, `SUPP*.csv` in `05_Inputfile/inputfile_dataset-[ts]/`. Main CSV column order follows the source SDTM header; `SUPP*.csv` preserves empty-string `QVAL`. **This output is the input format of a downstream system, not SDTM submission format: keep `IDVAR = PAGEID`, empty `QLABEL`, `QORIG = CRF`, the `PAGEID` / `RECORDID` columns and the SUPP rows with empty `QVAL` exactly as they are** (the empty rows are placeholders the receiving system requires). Do not "correct" them toward SDTMIG.
 - `VC_PS02_csv2json.py`: Latest inputfile timestamp folder → `06_Inputpackage/inputpackage_dataset-[ts]/m5.zip`.
 - Full run: `python sdtm.py <STUDY> run all` (`run 3 5` = OP03..OP05). One stage on its own (study from `SDTM_STUDY` / `DEFAULT_STUDY`):  
 `python pipeline/VC_OP01_cleaning.py`  
