@@ -55,7 +55,6 @@ ENABLE_ORDER_BY = True                 # 是否启用ORDER BY（关闭可提升�
 MERGE_OTHERDETAILS_QUERIES = True      # 是否合并OTHERDETAILS子查询
 
 # 调试与监控
-ENABLE_EXPLAIN_ANALYSIS = False        # 是否启用EXPLAIN分析（调试用）
 ENABLE_EMPTY_COLUMN_SCAN = True        # 是否扫描空列（可关闭以提升性能）
 EMPTY_SCAN_THRESHOLD = 10000           # 仅对行数小于此值的结果进行空列扫描
 ENABLE_WORK_TABLE_PERSISTENCE = False   # 是否保留工作表以供下次使用（节省创建时间）
@@ -63,7 +62,6 @@ ENABLE_WORK_TABLE_PERSISTENCE = False   # 是否保留工作表以供下次使�
 # 动态优化策略配置
 ADAPTIVE_OPTIMIZATION = True              # 是否启用自适应优化
 TEMP_TABLE_THRESHOLD = 1                  # 文件有>=N个CHK分支时使用临时表
-EXPLAIN_TIME_THRESHOLD = 5000             # 查询超过N毫秒时自动EXPLAIN分析
 EMPTY_SCAN_ROW_THRESHOLD = 10000          # 结果集超过N行时跳过空列扫描
 
 
