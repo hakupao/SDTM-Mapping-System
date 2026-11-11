@@ -45,13 +45,13 @@ from sdtm_core import (
 
 
 def run_steps(start, end, continue_on_error=False, study_id=None):
-    """以传统 CLI 方式执行流水线步骤。"""
+    """以传统 CLI 方式执行流水线步骤。全部步骤成功返回 True，否则 False。"""
     from VC_BC02_baseUtils import PipelineProgress  # 延迟导入：需要研究已确定
 
     selected = [s for s in STEPS if start <= s[0] <= end]
     if not selected:
         print(f'  [ERROR] 无效范围: {start}~{end}')
-        return
+        return False
 
     print()
     for seq, module, step_id, name, desc in selected:
@@ -93,12 +93,13 @@ def run_steps(start, end, continue_on_error=False, study_id=None):
                         print('  流程中断。')
             elif kind == 'error':
                 print(f"  [ERROR] {event['message']}")
-                return
+                return False
     finally:
         pp.cleanup()
 
     total = time.time() - total_start
     print_run_summary(results, total)
+    return bool(results) and all(r['status'] == 'OK' for r in results)
 
 
 def print_run_summary(results, total):
@@ -215,10 +216,11 @@ def cmd_status(study_id):
 
 
 def cmd_run(parts, study_id=None):
+    """执行 run 子命令。全部步骤成功返回 True；参数无法识别或有步骤失败返回 False。"""
     start, end, cont = parse_run_args(parts)
     if start is None:
-        return
-    run_steps(start, end, continue_on_error=cont, study_id=study_id)
+        return False
+    return run_steps(start, end, continue_on_error=cont, study_id=study_id)
 
 
 def print_banner(study_id):
@@ -268,6 +270,7 @@ def run_shell(study_id):
 
 
 def dispatch(line, study_id):
+    """执行一条命令。只有 run 失败时返回 False，其余返回 True。"""
     parts = line.split()
     cmd = parts[0].lower()
 
@@ -285,9 +288,10 @@ def dispatch(line, study_id):
     elif cmd == 'status':
         cmd_status(study_id)
     elif cmd == 'run':
-        cmd_run(parts[1:], study_id)
+        return cmd_run(parts[1:], study_id)
     else:
         print(f'  未知命令: {cmd}  (输入 help 查看可用命令)')
+    return True
 
 
 KNOWN_COMMANDS = {
@@ -346,7 +350,9 @@ def main():
         if first in ('shell', 'cli', '--shell', '--cli'):
             run_shell(study_id)
             return
-        dispatch(' '.join(argv), study_id)
+        # 一次性命令：run 有步骤失败时以 1 退出，脚本 / CI 才能据此判断
+        if not dispatch(' '.join(argv), study_id):
+            sys.exit(1)
         return
 
     if not launch_tui():
