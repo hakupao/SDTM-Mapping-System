@@ -64,6 +64,7 @@ MySQL is still available as an optional backend, see [docs/configuration.md](doc
 > **Upgrading from a MySQL setup:** the default backend is now SQLite, even if `project.local.json` still has
 > `DB_HOST` / `DB_USER`. To keep MySQL, set `"DB_BACKEND": "mysql"` and `pip install -r requirements-mysql.txt`.
 > After switching backends, run OP02 and OP03 once before running later steps on their own.
+> If a run reports "database disk image is malformed", delete the work file (`<STUDY_ID>_work.sqlite`, or `SQLITE_PATH`) and re-run from OP02.
 
 ```bash
 git clone https://github.com/hakupao/SDTM-Mapping-System.git

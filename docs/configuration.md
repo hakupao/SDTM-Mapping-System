@@ -67,7 +67,7 @@ Machine-level settings (not committed). All keys are optional.
 | `STUDIES_ROOT_PATH` | Parent directory of the study folders. Default: `<project root>/studySpecific` |
 | `DEFAULT_STUDY` | Study used when none is given on the command line / `SDTM_STUDY` |
 | `DB_BACKEND` | `sqlite` (default) or `mysql`, see [Database backend](#database-backend) |
-| `SQLITE_PATH` | SQLite work file. Default: `<study folder>/<STUDY_ID>_work.sqlite`. A relative path resolves against the repository root |
+| `SQLITE_PATH` | SQLite work file. Default: `<study folder>/<STUDY_ID>_work.sqlite`. A relative path resolves against the repository root. When set, every study uses this one file, so do not run two studies at the same time |
 | `DB_HOST` / `DB_USER` / `DB_PASSWORD` / `DB_DATABASE` | MySQL connection, only with `DB_BACKEND=mysql` (defaults: `127.0.0.1` / `root` / `root` / `VC-DataMigration_2.0`) |
 
 ### Database backend
