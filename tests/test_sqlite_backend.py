@@ -178,22 +178,23 @@ def test_chk_order_and_otherdetails_exact_rows(tmp_path):
     import VC_OP04_format as op04
     db = _op04_db(tmp_path, [
         _m(2, 'A', 'x'),
-        _m(1, 'B', 'banana'), _m(1, 'A', 'cherry'), _m(1, 'B', 'Apple '), _m(1, 'A', 'apricot'),
+        _m(1, 'B', 'Banana'), _m(1, 'A', 'cherry'), _m(1, 'B', 'apple '), _m(1, 'A', 'Apricot'),
         _m(1, 'C', 'Zed'), _m(1, 'SEL', 'OTHER'), _m(1, 'TXT', 'free text'),
     ])
+    # 键和值的大小写特意选成：按原始码位排序会得到不同的次序（Zeta < beta，Apricot < apple）
     q = op04.build_optimized_chk_query(
         db, 'F', ['t.`CHKTYPE`', 't.`CHKVALUE`'], ["'A'", "'B'", "'C'", "'SEL'"],
-        {'beta': ['A', 'B'], 'Alpha': ['C'], 'sel': ['SEL']},
+        {'beta': ['A', 'B'], 'Alpha': ['C'], 'Zeta': ['SEL']},
         [], [], {'TXT': 'SEL'}, {'SEL': 'Other '}, {}, 'TV')
     rows = db.cursor.execute(q).fetchall()
     assert [d[0] for d in db.cursor.description] == ['SUBJID', 'CHKTYPE', 'CHKVALUE', 'OTHERDETAILS']
     assert rows == [
         ('S1', 'Alpha', 'Zed', None),
-        ('S1', 'beta', 'Apple ', None),
-        ('S1', 'beta', 'apricot', None),
-        ('S1', 'beta', 'banana', None),
+        ('S1', 'beta', 'apple ', None),
+        ('S1', 'beta', 'Apricot', None),
+        ('S1', 'beta', 'Banana', None),
         ('S1', 'beta', 'cherry', None),
-        ('S1', 'sel', 'OTHER', 'free text'),
+        ('S1', 'Zeta', 'OTHER', 'free text'),
         ('S1', 'beta', 'x', None),
     ]
 

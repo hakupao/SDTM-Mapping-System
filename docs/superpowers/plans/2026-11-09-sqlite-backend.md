@@ -271,6 +271,7 @@ git commit -m "feat(db): SQLiteDatabaseManager replicating utf8mb4_general_ci ma
 - `` `TRANSVAL` <> '' `` → `` {db.ci_col('TRANSVAL')} <> '' ``；`` `FORMVAL` <> '' `` → `` {db.ci_col('FORMVAL')} <> '' ``
 - OTHERDETAILS 连接里的 `` t.`METAVAL` = '<otherVal>' `` → `` {db.ci('t.`METAVAL`')} = {db.ci_literal(otherVal)} ``
 - CHK 的 `ORDER BY t.ROWNUM, t.CHKTYPE, t.CHKVALUE` → `` ORDER BY t.`ROWNUM`, {db.ci('t.`CHKTYPE`')}, {db.ci('t.`CHKVALUE`')} ``
+- （2026-11-11 之后）上面两条在 SQLite 上已改为预算键列：子查询 `t` 带出 `CHKTYPE_K` / `CHKVALUE_K` / `METAVAL_K`，连接和排序用 `` t.`{db.ci_col(...)}` ``，OP04 不再调用 `db.ci`；MySQL 的查询文本不变
 - 主查询：`enable_order_by` 为真 → `` ORDER BY `ROWNUM` ``；为假且 `not db.implicit_group_order` → `ORDER BY` 与 GROUP BY 相同的列；为假且是 MySQL → 不加
 - `FIELDID = '<x>'` 不包装：两边都来自同一个工作簿的键，审计中没有只差大小写的 FIELDID
 
