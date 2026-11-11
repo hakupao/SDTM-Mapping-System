@@ -173,6 +173,54 @@ def test_otherdetails_metaval_case_insensitive(tmp_path):
     assert rows and rows[0][header.index('OTHERDETAILS')] == 'free text'
 
 
+def test_chk_order_and_otherdetails_exact_rows(tmp_path):
+    """CHK 排序（ROWNUM, CHKTYPE, CHKVALUE 均不区分大小写、忽略末尾空格）与 OTHERDETAILS 的完整结果。"""
+    import VC_OP04_format as op04
+    db = _op04_db(tmp_path, [
+        _m(2, 'A', 'x'),
+        _m(1, 'B', 'banana'), _m(1, 'A', 'cherry'), _m(1, 'B', 'Apple '), _m(1, 'A', 'apricot'),
+        _m(1, 'C', 'Zed'), _m(1, 'SEL', 'OTHER'), _m(1, 'TXT', 'free text'),
+    ])
+    q = op04.build_optimized_chk_query(
+        db, 'F', ['t.`CHKTYPE`', 't.`CHKVALUE`'], ["'A'", "'B'", "'C'", "'SEL'"],
+        {'beta': ['A', 'B'], 'Alpha': ['C'], 'sel': ['SEL']},
+        [], [], {'TXT': 'SEL'}, {'SEL': 'Other '}, {}, 'TV')
+    rows = db.cursor.execute(q).fetchall()
+    assert [d[0] for d in db.cursor.description] == ['SUBJID', 'CHKTYPE', 'CHKVALUE', 'OTHERDETAILS']
+    assert rows == [
+        ('S1', 'Alpha', 'Zed', None),
+        ('S1', 'beta', 'Apple ', None),
+        ('S1', 'beta', 'apricot', None),
+        ('S1', 'beta', 'banana', None),
+        ('S1', 'beta', 'cherry', None),
+        ('S1', 'sel', 'OTHER', 'free text'),
+        ('S1', 'beta', 'x', None),
+    ]
+
+
+def test_chk_query_text_for_mysql_has_no_key_columns():
+    import VC_OP04_format as op04
+    from VC_BC02_baseUtils import MySQLDatabaseManager
+    db = MySQLDatabaseManager.__new__(MySQLDatabaseManager)
+    q = ' '.join(op04.build_optimized_chk_query(
+        db, 'F', ['t.`CHKTYPE`', 't.`CHKVALUE`'], ["'SEL'"], {'T': ['SEL']},
+        [], [], {'TXT': 'SEL'}, {'SEL': 'Other'}, {}, 'TV').split())
+    assert '_K' not in q and 'ci_key' not in q
+    assert "AND t.`METAVAL` = 'Other'" in q
+    assert q.endswith('ORDER BY t.`ROWNUM`,t.`CHKTYPE`,t.`CHKVALUE`;')
+
+
+def test_chk_query_on_sqlite_sorts_by_key_columns(tmp_path):
+    """SQLite 的排序与 OTHERDETAILS 比较用预算键列，不逐行调用 ci_key()。"""
+    import VC_OP04_format as op04
+    db = _db(tmp_path)
+    q = ' '.join(op04.build_optimized_chk_query(
+        db, 'F', ['t.`CHKTYPE`', 't.`CHKVALUE`'], ["'SEL'"], {'T': ['SEL']},
+        [], [], {'TXT': 'SEL'}, {'SEL': 'Other'}, {}, 'TV').split())
+    assert 'ci_key(' not in q
+    assert q.endswith('ORDER BY t.`ROWNUM`,t.`CHKTYPE_K`,t.`CHKVALUE_K`;')
+
+
 def test_main_query_sorted_without_order_by(tmp_path):
     import VC_OP04_format as op04
     db = _op04_db(tmp_path, [_m(3, 'X', 'c'), _m(1, 'X', 'a'), _m(2, 'X', 'b')])

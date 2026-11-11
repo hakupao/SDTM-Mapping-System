@@ -141,7 +141,7 @@ def build_optimized_chk_query(db, fileName, select_fieldIDs, chk_fieldIDs, case_
                 FROM {transdata_source} 
                 GROUP BY {group_by_filename}`ROWNUM`,`SUBJID` 
                 HAVING `{other_field}` IS NOT NULL
-            ) t{other_field} ON t.`ROWNUM` = t{other_field}.`ROWNUM` AND t.`FIELDID` = '{other_details_field}' AND {db.ci('t.`METAVAL`')} = {db.ci_literal(fieldID_otherVal[other_details_field])}
+            ) t{other_field} ON t.`ROWNUM` = t{other_field}.`ROWNUM` AND t.`FIELDID` = '{other_details_field}' AND t.`{db.ci_col('METAVAL')}` = {db.ci_literal(fieldID_otherVal[other_details_field])}
             '''
             other_join_parts.append(join_sql)
         other_join_sql = ' '.join(other_join_parts)
@@ -173,9 +173,20 @@ def build_optimized_chk_query(db, fileName, select_fieldIDs, chk_fieldIDs, case_
         chkfields = ', '.join([f'\'{val}\'' for val in vals])
         case_sql.append(f'WHEN `FIELDID` IN ({chkfields}) THEN \'{key}\'')
 
+    # 后端有预算键列（SQLite）时，子查询 t 额外带出 CHKTYPE / CHKVALUE / METAVAL 的键列，
+    # 排序与 OTHERDETAILS 比较直接用它们，不必对每一行调用 ci_key()。这些列不进入输出。
+    key_cols_sql = MARK_BLANK
+    if db.ci_key_columns:
+        case_key_sql = []
+        for key, vals in case_fieldIDs.items():
+            chkfields = ', '.join([f'\'{val}\'' for val in vals])
+            case_key_sql.append(f'WHEN `FIELDID` IN ({chkfields}) THEN {db.ci_literal(key)}')
+        key_cols_sql = (f",CASE {' '.join(case_key_sql)} ELSE '' END AS `CHKTYPE_K`"
+                        f",`TRANSVAL_K` AS `CHKVALUE_K`,`METAVAL_K`")
+
     # 构建主查询，前置WHERE条件减少处理数据量
     filename_condition = "" if transdata_source.startswith('work_') else f"`FILENAME` = '{fileName}' AND "
-    
+
     # 保持原有字段顺序，只在CHKVALUE后插入OTHERDETAILS
     ordered_select_fields = []
     
@@ -197,13 +208,13 @@ def build_optimized_chk_query(db, fileName, select_fieldIDs, chk_fieldIDs, case_
         FROM (
             SELECT `ROWNUM`,`SUBJID`,`FIELDID`,CASE
             {' '.join(case_sql)}
-            ELSE '' END AS `CHKTYPE`,`TRANSVAL` AS `CHKVALUE`,`METAVAL`
+            ELSE '' END AS `CHKTYPE`,`TRANSVAL` AS `CHKVALUE`,`METAVAL`{key_cols_sql}
             FROM {transdata_source}
             WHERE {filename_condition}`FIELDID` IN ({', '.join(chk_fieldIDs)})
             AND `TRANSVAL` IS NOT NULL AND {db.ci_col('TRANSVAL')} <> ''
         ) t {max_fieldIDs_sql}
         {other_join_sql}
-        ORDER BY t.`ROWNUM`,{db.ci('t.`CHKTYPE`')},{db.ci('t.`CHKVALUE`')};
+        ORDER BY t.`ROWNUM`,t.`{db.ci_col('CHKTYPE')}`,t.`{db.ci_col('CHKVALUE')}`;
     '''
     
     return query

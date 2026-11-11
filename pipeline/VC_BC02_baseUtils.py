@@ -1068,8 +1068,12 @@ class MySQLDatabaseManager:
     # ------------------------------------------------------------------
     # 后端无关的接口（OP 脚本只使用这些）
     # ------------------------------------------------------------------
+    # 没有预算键列：general_ci 排序规则下直接比较原列即可
+    ci_key_columns = False
+
     def ci_col(self, name):
-        """视图中带预算键的列（TRANSVAL / FORMVAL）比较时使用的列名。MySQL 原样返回。"""
+        """带预算键的列（TRANSVAL / FORMVAL / METAVAL，以及 CHK 查询的 CHKTYPE / CHKVALUE）
+        做比较或排序时使用的列名。MySQL 原样返回。"""
         return name
 
     def ci(self, expr):

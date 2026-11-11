@@ -224,12 +224,15 @@ class SQLiteDatabaseManager:
     """SQLite 版数据库管理器，接口与 VC_BC02_baseUtils.MySQLDatabaseManager 一致。
 
     MySQL 的 utf8mb4_general_ci 匹配通过预先计算的 ``*_K`` 键列复现：
-    装载数据时在 Python 里用 mysql_ci_key 算好，OP04 按 ci_col / ci 比较。
+    装载数据时在 Python 里用 mysql_ci_key 算好，OP04 按 ci_col 给出的键列比较和排序
+    （ci 是对任意表达式逐行调用 ci_key() 的通用包装，大结果集上慢，OP04 不再使用）。
     库文件在运行结束后保留（OP02 -> OP03 -> OP04 是三个进程，靠它传递数据）。
     """
 
     # SQLite 的 GROUP BY 不保证按分组键排序
     implicit_group_order = False
+    # 表和视图带预算键列（*_K）；OP04 的 CHK 查询据此按键列排序和比较
+    ci_key_columns = True
 
     def __init__(self, path, keep_work_tables=False):
         self.path = path
