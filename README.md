@@ -33,7 +33,7 @@
 
 ## About
 
-**SDTM Mapping System** (codename **VAPORCONE**) turns raw clinical study exports into CDISC SDTM
+**SDTM Mapping System** turns raw clinical study exports into CDISC SDTM
 datasets and an M5 submission package. The mapping rules live in an Excel workbook
 (`<STUDY>_OperationConf.xlsx`); a 7-step pipeline, backed by SQLite, does the rest. A new study
 needs a workbook and, only where Excel cannot express the logic, a few Python functions.

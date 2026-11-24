@@ -33,7 +33,7 @@
 
 ## 关于
 
-**SDTM Mapping System**（代码名 **VAPORCONE**）把临床研究的原始导出数据转换成 CDISC SDTM 数据集和
+**SDTM Mapping System** 把临床研究的原始导出数据转换成 CDISC SDTM 数据集和
 M5 提交包。映射规则写在 Excel 工作簿（`<STUDY>_OperationConf.xlsx`）里，剩下的交给一条以 SQLite
 为中转的 7 步流水线。新建一个研究，只需要一份工作簿；Excel 写不出来的逻辑，再补几个 Python 函数。
 
